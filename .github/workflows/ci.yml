@@ -1,0 +1,89 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: devpick_test
+          POSTGRES_USER: devpick
+          POSTGRES_PASSWORD: devpick
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      mongodb:
+        image: mongo:7
+        env:
+          MONGO_INITDB_ROOT_USERNAME: devpick
+          MONGO_INITDB_ROOT_PASSWORD: devpick
+          MONGO_INITDB_DATABASE: devpick_test
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval \"db.adminCommand('ping')\""
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build & Test
+        run: ./gradlew build --no-daemon
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: devpick_test
+          DB_USERNAME: devpick
+          DB_PASSWORD: devpick
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          MONGO_HOST: localhost
+          MONGO_PORT: 27017
+          MONGO_DB: devpick_test
+          MONGO_USERNAME: devpick
+          MONGO_PASSWORD: devpick
+          JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: build/reports/tests/

@@ -1,0 +1,8 @@
+spring:
+  profiles:
+    active: local
+  application:
+    name: devpick-backend
+
+server:
+  port: 8080
