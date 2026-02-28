@@ -104,7 +104,8 @@ git checkout -b feature/DP-177-이메일-회원가입-API
 |--------|------|
 | `main` | 배포용. 직접 push 절대 금지 |
 | `develop` | 개발 통합. PR 머지 대상 |
-| `feature/DP-{번호}-{기능명}` | 기능 개발 |
+| `feature/DP-{번호}-{기능명}` | 기능 개발 (사람이 직접 작업) |
+| `auto/feature/DP-{번호}-{기능명}` | Claude Code 자동화 작업. CI 통과 시 develop에 자동 머지 |
 | `hotfix/DP-{번호}-{설명}` | 긴급 버그 수정 |
 
 ### 커밋 메시지
