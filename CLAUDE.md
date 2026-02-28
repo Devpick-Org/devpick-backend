@@ -362,3 +362,78 @@ void 이메일_중복_가입_시_예외_발생() {
 | Confluence ADR | 기술 결정 기록 |
 
 <\!-- auto-merge 테스트 -->
+---
+
+## 15. CI/CD 자동화 구조
+
+### 전체 워크플로 (Claude Code 자동화)
+
+```
+/feature-dev DP-177 입력
+→ Jira 티켓 자동 읽기 (제목/설명/AC) + In Progress 전환
+→ auto/feature/DP-177-email-signup-api 브랜치 생성 (GitHub API)
+→ AC 기반 코드 + JUnit 테스트 작성
+→ PR 생성 (Jira 링크 자동 삽입 + 코드 자동 리뷰)
+→ CI 실행: 빌드 + 테스트 + SonarCloud 분석
+→ CI 통과 시 develop 자동 squash 머지 + Jira Done
+```
+
+### GitHub Actions 워크플로우
+
+| 파일 | 트리거 | 역할 |
+|------|--------|------|
+| `ci.yml` | PR → develop | 빌드 · 테스트 · SonarCloud 분석 |
+| `auto-merge.yml` | PR → develop (`auto/` 브랜치만) | CI 통과 시 자동 squash 머지 |
+
+### SonarCloud 자동 PR 분석
+
+- PR마다 자동 실행 — 버그 · 취약점 · 코드스멜 · 커버리지 분석
+- PR 댓글로 결과 자동 표시 (Quality Gate Pass/Fail)
+- 대시보드: https://sonarcloud.io/project/overview?id=Devpick-Org_devpick-backend
+
+### 브랜치별 동작
+
+| 브랜치 | 생성 주체 | 머지 방식 |
+|--------|-----------|-----------|
+| `auto/feature/DP-{번호}-{기능명}` | Claude Code | CI 통과 시 자동 squash 머지 |
+| `feature/DP-{번호}-{기능명}` | 개발자 직접 | PR 확인 후 수동 머지 |
+| `hotfix/DP-{번호}-{설명}` | 개발자 직접 | PR 확인 후 수동 머지 |
+
+### Claude Code 스킬 (`/feature-dev`)
+
+```
+사용법: /feature-dev DP-177
+```
+
+자동으로 하는 것:
+- Jira MCP로 티켓 제목 · 설명 · 인수조건(AC) 읽기
+- 티켓 상태 자동 전환: To Do → In Progress → Done
+- `auto/feature/DP-{번호}-{기능명}` 브랜치 생성
+- AC 항목을 테스트 케이스로 변환해 JUnit 5 테스트 작성
+- PR 생성 (Jira 링크 자동 삽입)
+- PR diff 기반 코드 자동 리뷰
+- CI 통과 후 develop 자동 머지
+
+### 실제 워크플로 예시
+
+```
+1. Claude Code에서 입력: /feature-dev DP-177
+
+2. 자동 실행:
+   - Jira DP-177 읽기 → "이메일 회원가입 API"
+   - 브랜치 생성: auto/feature/DP-177-email-signup-api
+   - UserController / UserService / UserRepository 작성
+   - 이메일 중복 검사, 비밀번호 암호화 등 AC 기반 테스트 작성
+   - PR 생성: "[DP-177] 이메일 회원가입 API 구현"
+
+3. CI 자동 실행 (~5분):
+   - 빌드 + 테스트 통과
+   - SonarCloud Quality Gate Passed
+
+4. develop 자동 squash 머지
+
+5. Jira DP-177 → Done 자동 전환
+```
+
+> **팀원 참고**: `feature/` 브랜치로 직접 작업한 PR은 CI 통과 후에도 자동 머지되지 않습니다.
+> GitHub에서 리뷰 확인 후 직접 Merge 버튼을 눌러주세요.
