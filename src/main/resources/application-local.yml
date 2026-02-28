@@ -6,7 +6,7 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update   # DP-147 JPA 엔티티 완료 후 validate 로 전환
     show-sql: true
     properties:
       hibernate:
