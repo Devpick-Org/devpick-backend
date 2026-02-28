@@ -35,6 +35,20 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      mongodb:
+        image: mongo:7
+        env:
+          MONGO_INITDB_ROOT_USERNAME: devpick
+          MONGO_INITDB_ROOT_PASSWORD: devpick
+          MONGO_INITDB_DATABASE: devpick_test
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval \"db.adminCommand('ping')\""
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -49,7 +63,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build with Gradle
+      - name: Build & Test
         run: ./gradlew build --no-daemon
         env:
           SPRING_PROFILES_ACTIVE: test
@@ -60,19 +74,11 @@ jobs:
           DB_PASSWORD: devpick
           REDIS_HOST: localhost
           REDIS_PORT: 6379
-          JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
-
-      - name: Run tests
-        run: ./gradlew test --no-daemon
-        env:
-          SPRING_PROFILES_ACTIVE: test
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: devpick_test
-          DB_USERNAME: devpick
-          DB_PASSWORD: devpick
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
+          MONGO_HOST: localhost
+          MONGO_PORT: 27017
+          MONGO_DB: devpick_test
+          MONGO_USERNAME: devpick
+          MONGO_PASSWORD: devpick
           JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
 
       - name: Upload test results

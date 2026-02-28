@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:devpick_test}
+    username: ${DB_USERNAME:devpick}
+    password: ${DB_PASSWORD:devpick}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_USERNAME:devpick}:${MONGO_PASSWORD:devpick}@${MONGO_HOST:localhost}:${MONGO_PORT:27017}/${MONGO_DB:devpick_test}?authSource=admin
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+jwt:
+  secret: test-secret-key-for-ci-testing-only-minimum-32chars
+  access-token-expiry: 3600000
+  refresh-token-expiry: 604800000
+
+ai-server:
+  url: http://localhost:8000
+  timeout-ms: 5000
+
+logging:
+  level:
+    com.devpick: WARN
+    org.hibernate: WARN
