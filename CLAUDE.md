@@ -360,3 +360,5 @@ void 이메일_중복_가입_시_예외_발생() {
 | `.env.example` | 환경변수 목록 |
 | `.github/PULL_REQUEST_TEMPLATE.md` | PR 작성 양식 |
 | Confluence ADR | 기술 결정 기록 |
+
+<\!-- auto-merge 테스트 -->
