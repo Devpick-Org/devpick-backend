@@ -4,9 +4,12 @@ spring:
     username: ${DB_USERNAME:devpick}
     password: ${DB_PASSWORD:devpick}
     driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
   jpa:
     hibernate:
-      ddl-auto: update   # DP-147 JPA 엔티티 완료 후 validate 로 전환
+      ddl-auto: validate  # Flyway가 스키마 관리하므로 validate로 변경
     show-sql: true
     properties:
       hibernate:
