@@ -43,3 +43,15 @@ INSERT INTO tags (id, name, created_at) VALUES
 (gen_random_uuid(), '테스트', NOW()),
 (gen_random_uuid(), 'AI/ML', NOW())
 ON CONFLICT (name) DO NOTHING;
+
+-- DP-151: content_sources 초기 데이터 삽입
+-- 서버 시작 시 content_sources 테이블에 수집 소스들을 삽입한다.
+-- ADR-006 확인 완료된 소스만 삽입 (is_active=true)
+-- 이미 존재하는 소스는 건너뜀 (ON CONFLICT DO NOTHING)
+
+INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at) VALUES
+-- Stack Overflow: CC BY-SA 4.0, 저자명 + 원문 링크 필수 표시
+(gen_random_uuid(), 'Stack Overflow', 'https://stackoverflow.com', 'api', true, NOW()),
+-- 우아한형제들 기술 블로그: robots.txt 크롤링 전면 허용, 출처 명시
+(gen_random_uuid(), '우아한형제들 기술 블로그', 'https://techblog.woowahan.com', 'rss', true, NOW())
+ON CONFLICT (name) DO NOTHING;
