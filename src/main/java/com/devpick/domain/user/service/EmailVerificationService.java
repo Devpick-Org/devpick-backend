@@ -20,7 +20,7 @@ import java.security.SecureRandom;
  *  1. sendVerificationCode() → 6자리 코드 생성 → Redis 저장(TTL 5분) → 메일 발송
  *  2. verifyCode()           → Redis 코드 비교 → 일치 시 users.is_email_verified = true
  *
- * TODO DP-178: 확장 포인트
+ * 확장 포인트 (DP-178):
  *  - HTML 이메일 템플릿 적용 시 JavaMailSender → MimeMessage로 교체
  *  - 이메일 발송 실패 시 재시도 큐(Kafka/SQS) 연동 가능
  */

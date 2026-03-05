@@ -96,6 +96,25 @@ class EmailVerificationServiceTest {
     }
 
     @Test
+    @DisplayName("코드 검증 성공 - 유저가 없을 때 AUTH_USER_NOT_FOUND 예외가 발생한다")
+    void verifyCode_userNotFound_throwsException() {
+        // given
+        String email = "notfound@devpick.kr";
+        String code = "123456";
+
+        given(redisService.isExceededAttempts(email)).willReturn(false);
+        given(redisService.getCode(email)).willReturn(code);
+        given(redisService.incrementAttempts(email)).willReturn(1L);
+        given(userRepository.findByEmail(email)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> emailVerificationService.verifyCode(email, code))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_USER_NOT_FOUND));
+    }
+
+    @Test
     @DisplayName("코드 만료 - Redis에 코드가 없을 때 AUTH_EMAIL_CODE_EXPIRED 예외가 발생한다")
     void verifyCode_codeExpired_throwsException() {
         // given

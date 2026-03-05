@@ -14,7 +14,7 @@ import java.time.Duration;
  *  - email:verify:attempts:{email} → 시도 횟수 (TTL: 5분)
  *  - email:verify:cooldown:{email} → 재전송 쿨다운 (TTL: 1분)
  *
- * TODO DP-178: 확장 포인트
+ * 확장 포인트 (DP-178):
  *  - 인증 성공 여부를 Redis에 단기 캐시해두면 signup 흐름에서 재검증 없이 사용 가능
  */
 @Service
