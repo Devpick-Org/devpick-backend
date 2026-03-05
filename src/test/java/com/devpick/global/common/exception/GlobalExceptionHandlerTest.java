@@ -2,6 +2,7 @@ package com.devpick.global.common.exception;
 
 import com.devpick.domain.user.controller.AuthController;
 import com.devpick.domain.user.service.AuthService;
+import com.devpick.domain.user.service.EmailVerificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,9 @@ class GlobalExceptionHandlerTest {
 
     @MockitoBean
     private AuthService authService;
+
+    @MockitoBean
+    private EmailVerificationService emailVerificationService;
 
     @Test
     @WithMockUser
