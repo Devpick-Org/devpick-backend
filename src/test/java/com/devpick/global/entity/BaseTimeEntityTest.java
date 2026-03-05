@@ -57,7 +57,7 @@ class BaseTimeEntityTest {
         invokeOnCreate(user);
 
         // then
-        assertThat(user.getCreatedAt()).isNotAfter(user.getUpdatedAt());
+        assertThat(user.getCreatedAt()).isBeforeOrEqualTo(user.getUpdatedAt());
     }
 
     private User buildUser() {
