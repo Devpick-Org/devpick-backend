@@ -1,11 +1,11 @@
 package com.devpick.domain.report.entity;
 
+import com.devpick.domain.content.entity.Content;
+import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.user.entity.User;
 import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
-
-import java.util.UUID;
 
 @Entity
 @Table(name = "history", indexes = {
@@ -26,6 +26,11 @@ public class History extends BaseCreatedEntity {
     @Column(name = "action_type", length = 50, nullable = false)
     private String actionType;
 
-    @Column(name = "reference_id", columnDefinition = "uuid")
-    private UUID referenceId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "content_id")
+    private Content content;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id")
+    private Post post;
 }

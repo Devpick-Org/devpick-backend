@@ -6,11 +6,12 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "weekly_reports", indexes = {
-        @Index(name = "idx_weekly_reports_user_id", columnList = "user_id"),
-        @Index(name = "idx_weekly_reports_week_start", columnList = "week_start")
+        @Index(name = "idx_weekly_reports_user_week", columnList = "user_id, week_start", unique = true)
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -28,21 +29,14 @@ public class WeeklyReport extends BaseCreatedEntity {
     @Column(name = "week_end", nullable = false)
     private LocalDate weekEnd;
 
-    @Column(name = "contents_read", nullable = false)
+    @Column(name = "share_token", length = 100, unique = true)
+    private String shareToken;
+
+    @Column(name = "status", length = 20, nullable = false)
     @Builder.Default
-    private Integer contentsRead = 0;
+    private String status = "generated";
 
-    @Column(name = "questions_created", nullable = false)
+    @OneToMany(mappedBy = "report", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private Integer questionsCreated = 0;
-
-    @Column(name = "scraps_count", nullable = false)
-    @Builder.Default
-    private Integer scrapsCount = 0;
-
-    @Column(name = "top_tags", columnDefinition = "jsonb")
-    private String topTags;
-
-    @Column(name = "prev_week_comparison", columnDefinition = "jsonb")
-    private String prevWeekComparison;
+    private List<ReportActivity> activities = new ArrayList<>();
 }

@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class WeeklyReportTest {
 
     @Test
-    @DisplayName("빌더 기본값 - 카운터 0, topTags null")
+    @DisplayName("빌더 기본값 - status 'generated', shareToken null")
     void builder_defaultValues() {
         // given
         User user = buildUser();
@@ -27,16 +27,14 @@ class WeeklyReportTest {
                 .build();
 
         // then
-        assertThat(report.getContentsRead()).isZero();
-        assertThat(report.getQuestionsCreated()).isZero();
-        assertThat(report.getScrapsCount()).isZero();
-        assertThat(report.getTopTags()).isNull();
-        assertThat(report.getPrevWeekComparison()).isNull();
+        assertThat(report.getStatus()).isEqualTo("generated");
+        assertThat(report.getShareToken()).isNull();
+        assertThat(report.getActivities()).isEmpty();
     }
 
     @Test
-    @DisplayName("빌더로 카운터 값을 설정할 수 있다")
-    void builder_withCounters() {
+    @DisplayName("빌더로 shareToken 과 status 를 설정할 수 있다")
+    void builder_withShareTokenAndStatus() {
         // given
         User user = buildUser();
 
@@ -45,17 +43,13 @@ class WeeklyReportTest {
                 .user(user)
                 .weekStart(LocalDate.of(2025, 3, 3))
                 .weekEnd(LocalDate.of(2025, 3, 9))
-                .contentsRead(10)
-                .questionsCreated(3)
-                .scrapsCount(5)
-                .topTags("[\"spring\",\"jpa\",\"java\"]")
+                .shareToken("abc-token-123")
+                .status("generated")
                 .build();
 
         // then
-        assertThat(report.getContentsRead()).isEqualTo(10);
-        assertThat(report.getQuestionsCreated()).isEqualTo(3);
-        assertThat(report.getScrapsCount()).isEqualTo(5);
-        assertThat(report.getTopTags()).contains("spring");
+        assertThat(report.getShareToken()).isEqualTo("abc-token-123");
+        assertThat(report.getStatus()).isEqualTo("generated");
     }
 
     private User buildUser() {
