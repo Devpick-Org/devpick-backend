@@ -1,11 +1,11 @@
 package com.devpick.domain.report.entity;
 
 import com.devpick.domain.user.entity.User;
+import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -18,7 +18,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class History {
+public class History extends BaseCreatedEntity {
 
     @Id
     @UuidGenerator
@@ -34,12 +34,4 @@ public class History {
 
     @Column(name = "reference_id", columnDefinition = "uuid")
     private UUID referenceId; // 관련 콘텐츠/게시글 ID
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

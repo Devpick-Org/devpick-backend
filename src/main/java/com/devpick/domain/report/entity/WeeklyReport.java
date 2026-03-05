@@ -1,12 +1,12 @@
 package com.devpick.domain.report.entity;
 
 import com.devpick.domain.user.entity.User;
+import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -18,7 +18,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class WeeklyReport {
+public class WeeklyReport extends BaseCreatedEntity {
 
     @Id
     @UuidGenerator
@@ -52,12 +52,4 @@ public class WeeklyReport {
 
     @Column(name = "prev_week_comparison", columnDefinition = "jsonb")
     private String prevWeekComparison; // JSONB: 전주 대비 비교 데이터
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

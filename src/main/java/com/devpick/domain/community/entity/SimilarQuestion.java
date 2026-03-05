@@ -1,10 +1,10 @@
 package com.devpick.domain.community.entity;
 
+import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -16,7 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class SimilarQuestion {
+public class SimilarQuestion extends BaseCreatedEntity {
 
     @Id
     @UuidGenerator
@@ -33,12 +33,4 @@ public class SimilarQuestion {
 
     @Column(nullable = false)
     private Float score; // 유사도 0~1
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

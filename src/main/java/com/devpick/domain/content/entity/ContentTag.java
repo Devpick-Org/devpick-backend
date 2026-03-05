@@ -1,11 +1,11 @@
 package com.devpick.domain.content.entity;
 
 import com.devpick.domain.user.entity.Tag;
+import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -17,7 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class ContentTag {
+public class ContentTag extends BaseCreatedEntity {
 
     @Id
     @UuidGenerator
@@ -31,12 +31,4 @@ public class ContentTag {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tag_id", nullable = false)
     private Tag tag;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

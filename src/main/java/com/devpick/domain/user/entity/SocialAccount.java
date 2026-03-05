@@ -1,10 +1,10 @@
 package com.devpick.domain.user.entity;
 
+import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -16,7 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class SocialAccount {
+public class SocialAccount extends BaseCreatedEntity {
 
     @Id
     @UuidGenerator
@@ -32,12 +32,4 @@ public class SocialAccount {
 
     @Column(name = "provider_id", length = 255, nullable = false)
     private String providerId;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

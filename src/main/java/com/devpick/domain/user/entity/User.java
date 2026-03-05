@@ -1,11 +1,10 @@
 package com.devpick.domain.user.entity;
 
+import com.devpick.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +19,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class User {
+public class User extends BaseTimeEntity {
 
     @Id
     @UuidGenerator
@@ -55,27 +54,10 @@ public class User {
     @Builder.Default
     private Boolean isEmailVerified = false;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<UserTag> userTags = new ArrayList<>();
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 }

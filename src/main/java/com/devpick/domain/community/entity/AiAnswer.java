@@ -1,10 +1,10 @@
 package com.devpick.domain.community.entity;
 
+import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -15,7 +15,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class AiAnswer {
+public class AiAnswer extends BaseCreatedEntity {
 
     @Id
     @UuidGenerator
@@ -32,12 +32,4 @@ public class AiAnswer {
     @Column(name = "is_adopted", nullable = false)
     @Builder.Default
     private Boolean isAdopted = false;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

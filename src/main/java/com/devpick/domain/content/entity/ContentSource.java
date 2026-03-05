@@ -1,10 +1,10 @@
 package com.devpick.domain.content.entity;
 
+import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -15,7 +15,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class ContentSource {
+public class ContentSource extends BaseCreatedEntity {
 
     @Id
     @UuidGenerator
@@ -34,12 +34,4 @@ public class ContentSource {
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

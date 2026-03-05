@@ -1,5 +1,6 @@
 package com.devpick.domain.user.entity;
 
+import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -16,7 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class RefreshToken {
+public class RefreshToken extends BaseCreatedEntity {
 
     @Id
     @UuidGenerator
@@ -32,12 +33,4 @@ public class RefreshToken {
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

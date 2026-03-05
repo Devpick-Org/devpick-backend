@@ -1,10 +1,10 @@
 package com.devpick.domain.user.entity;
 
+import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -15,7 +15,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class Tag {
+public class Tag extends BaseCreatedEntity {
 
     @Id
     @UuidGenerator
@@ -24,12 +24,4 @@ public class Tag {
 
     @Column(length = 50, nullable = false, unique = true)
     private String name;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

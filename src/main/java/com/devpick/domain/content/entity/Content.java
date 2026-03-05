@@ -1,5 +1,6 @@
 package com.devpick.domain.content.entity;
 
+import com.devpick.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -20,7 +21,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class Content {
+public class Content extends BaseTimeEntity {
 
     @Id
     @UuidGenerator
@@ -63,24 +64,7 @@ public class Content {
     @Column(name = "takedown_requested_at")
     private LocalDateTime takedownRequestedAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
     @OneToMany(mappedBy = "content", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ContentTag> contentTags = new ArrayList<>();
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 }
