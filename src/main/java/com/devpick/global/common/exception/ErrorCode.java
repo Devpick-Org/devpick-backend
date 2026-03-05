@@ -22,6 +22,7 @@ public enum ErrorCode {
     AUTH_DUPLICATE_EMAIL(HttpStatus.CONFLICT, "AUTH_004", "이미 사용 중인 이메일입니다."),
     AUTH_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH_005", "사용자를 찾을 수 없습니다."),
     AUTH_INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "AUTH_006", "비밀번호가 일치하지 않습니다."),
+    AUTH_DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "AUTH_007", "이미 사용 중인 닉네임입니다."),
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "사용자를 찾을 수 없습니다."),
