@@ -20,7 +20,7 @@ import java.security.SecureRandom;
  *  1. sendVerificationCode() → 6자리 코드 생성 → Redis 저장(TTL 5분) → 메일 발송
  *  2. verifyCode()           → Redis 코드 비교 → 일치 시 users.is_email_verified = true
  *
- * TODO: DP-178 확장 포인트
+ * TODO DP-178: 확장 포인트
  *  - HTML 이메일 템플릿 적용 시 JavaMailSender → MimeMessage로 교체
  *  - 이메일 발송 실패 시 재시도 큐(Kafka/SQS) 연동 가능
  */
@@ -30,6 +30,7 @@ import java.security.SecureRandom;
 public class EmailVerificationService {
 
     private static final int CODE_LENGTH = 6;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final JavaMailSender mailSender;
     private final EmailVerificationRedisService redisService;
@@ -94,8 +95,7 @@ public class EmailVerificationService {
     }
 
     private String generateCode() {
-        SecureRandom random = new SecureRandom();
-        int code = random.nextInt(900_000) + 100_000; // 100000 ~ 999999
+        int code = SECURE_RANDOM.nextInt(900_000) + 100_000;
         return String.valueOf(code);
     }
 
