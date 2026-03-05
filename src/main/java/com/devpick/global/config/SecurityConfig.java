@@ -33,6 +33,8 @@ public class SecurityConfig {
                                 "/auth/refresh",
                                 "/auth/github",
                                 "/auth/google",
+                                "/auth/email/send",
+                                "/auth/email/verify",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/actuator/**"
