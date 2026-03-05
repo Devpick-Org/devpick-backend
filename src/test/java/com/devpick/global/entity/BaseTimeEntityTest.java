@@ -1,12 +1,12 @@
 package com.devpick.global.entity;
 
-import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.domain.user.entity.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,12 +16,12 @@ class BaseTimeEntityTest {
 
     @Test
     @DisplayName("onCreate() - createdAt, updatedAt 이 현재 시각으로 설정된다")
-    void onCreate_setsTimestamps() {
+    void onCreate_setsTimestamps() throws Exception {
         // given
         User user = buildUser();
 
         // when
-        user.onCreate(); // @PrePersist 직접 호출
+        invokeOnCreate(user);
 
         // then
         assertThat(user.getCreatedAt()).isNotNull();
@@ -32,32 +32,31 @@ class BaseTimeEntityTest {
 
     @Test
     @DisplayName("onUpdate() - updatedAt 만 갱신된다")
-    void onUpdate_refreshesUpdatedAt() throws InterruptedException {
+    void onUpdate_refreshesUpdatedAt() throws Exception {
         // given
         User user = buildUser();
-        user.onCreate();
+        invokeOnCreate(user);
         LocalDateTime firstUpdatedAt = user.getUpdatedAt();
 
         // when
-        Thread.sleep(10); // 시간 차이 확보
-        user.onUpdate(); // @PreUpdate 직접 호출
+        Thread.sleep(10);
+        invokeOnUpdate(user);
 
         // then
         assertThat(user.getUpdatedAt()).isAfter(firstUpdatedAt);
-        assertThat(user.getCreatedAt()).isEqualTo(user.getCreatedAt()); // createdAt 불변
+        assertThat(user.getCreatedAt()).isNotNull(); // createdAt 유지
     }
 
     @Test
-    @DisplayName("onCreate() 호출 시 createdAt == updatedAt")
-    void onCreate_createdAtEqualsUpdatedAt() {
+    @DisplayName("onCreate() 호출 시 createdAt 이 updatedAt 보다 늦지 않다")
+    void onCreate_createdAtNotAfterUpdatedAt() throws Exception {
         // given
         User user = buildUser();
 
         // when
-        user.onCreate();
+        invokeOnCreate(user);
 
         // then
-        // 같은 시각에 세팅되므로 같거나 거의 동일해야 함
         assertThat(user.getCreatedAt()).isNotAfter(user.getUpdatedAt());
     }
 
@@ -68,5 +67,17 @@ class BaseTimeEntityTest {
                 .job(Job.BACKEND)
                 .level(Level.JUNIOR)
                 .build();
+    }
+
+    private void invokeOnCreate(BaseTimeEntity entity) throws Exception {
+        Method method = BaseTimeEntity.class.getDeclaredMethod("onCreate");
+        method.setAccessible(true);
+        method.invoke(entity);
+    }
+
+    private void invokeOnUpdate(BaseTimeEntity entity) throws Exception {
+        Method method = BaseTimeEntity.class.getDeclaredMethod("onUpdate");
+        method.setAccessible(true);
+        method.invoke(entity);
     }
 }
