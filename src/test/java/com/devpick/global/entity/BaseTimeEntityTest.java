@@ -6,6 +6,7 @@ import com.devpick.domain.user.entity.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 
@@ -31,20 +32,20 @@ class BaseTimeEntityTest {
     }
 
     @Test
-    @DisplayName("onUpdate() - updatedAt 만 갱신된다")
-    void onUpdate_refreshesUpdatedAt() throws Exception {
-        // given
+    @DisplayName("onUpdate() - updatedAt 이 갱신되고 createdAt 은 유지된다")
+    void onUpdate_refreshesOnlyUpdatedAt() throws Exception {
+        // given: onCreate 후 updatedAt 을 과거로 강제 세팅
         User user = buildUser();
         invokeOnCreate(user);
-        LocalDateTime firstUpdatedAt = user.getUpdatedAt();
+        LocalDateTime pastTime = LocalDateTime.now().minusMinutes(5);
+        setField("updatedAt", user, pastTime);
 
         // when
-        Thread.sleep(10);
         invokeOnUpdate(user);
 
         // then
-        assertThat(user.getUpdatedAt()).isAfter(firstUpdatedAt);
-        assertThat(user.getCreatedAt()).isNotNull(); // createdAt 유지
+        assertThat(user.getUpdatedAt()).isAfter(pastTime);
+        assertThat(user.getCreatedAt()).isNotNull();
     }
 
     @Test
@@ -79,5 +80,11 @@ class BaseTimeEntityTest {
         Method method = BaseTimeEntity.class.getDeclaredMethod("onUpdate");
         method.setAccessible(true);
         method.invoke(entity);
+    }
+
+    private void setField(String fieldName, Object target, Object value) throws Exception {
+        Field field = BaseTimeEntity.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
     }
 }

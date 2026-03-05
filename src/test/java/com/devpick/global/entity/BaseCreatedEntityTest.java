@@ -4,6 +4,7 @@ import com.devpick.domain.user.entity.Tag;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 
@@ -27,24 +28,29 @@ class BaseCreatedEntityTest {
     }
 
     @Test
-    @DisplayName("onCreate() 중복 호출 시 createdAt 이 갱신된다")
-    void onCreate_calledTwice_updatesCreatedAt() throws Exception {
-        // given
+    @DisplayName("onCreate() 재호출 시 createdAt 이 과거 값보다 같거나 이후이다")
+    void onCreate_calledAgain_createdAtUpdated() throws Exception {
+        // given: createdAt 을 과거로 강제 세팅
         Tag tag = Tag.builder().name("java").build();
-        invokeOnCreate(tag);
-        LocalDateTime first = tag.getCreatedAt();
+        LocalDateTime pastTime = LocalDateTime.now().minusMinutes(5);
+        setField("createdAt", tag, pastTime);
 
         // when
-        Thread.sleep(10);
         invokeOnCreate(tag);
 
         // then
-        assertThat(tag.getCreatedAt()).isAfterOrEqualTo(first);
+        assertThat(tag.getCreatedAt()).isAfterOrEqualTo(pastTime);
     }
 
     private void invokeOnCreate(BaseCreatedEntity entity) throws Exception {
         Method method = BaseCreatedEntity.class.getDeclaredMethod("onCreate");
         method.setAccessible(true);
         method.invoke(entity);
+    }
+
+    private void setField(String fieldName, Object target, Object value) throws Exception {
+        Field field = BaseCreatedEntity.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
     }
 }
