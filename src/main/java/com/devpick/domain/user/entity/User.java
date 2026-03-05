@@ -60,4 +60,9 @@ public class User extends BaseEntity {
                 .nickname(nickname)
                 .build();
     }
+
+    /** 이메일 인증 완료 처리 (DP-178). */
+    public void verifyEmail() {
+        this.isEmailVerified = true;
+    }
 }
