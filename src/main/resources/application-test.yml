@@ -27,6 +27,16 @@ ai-server:
   url: http://localhost:8000
   timeout-ms: 5000
 
+spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: test@devpick.kr
+    password: test-password
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
 logging:
   level:
     com.devpick: WARN
