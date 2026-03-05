@@ -4,9 +4,6 @@ import com.devpick.domain.user.entity.Tag;
 import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
-
-import java.util.UUID;
 
 @Entity
 @Table(name = "content_tags", indexes = {
@@ -18,11 +15,6 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 public class ContentTag extends BaseCreatedEntity {
-
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "uuid")
-    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "content_id", nullable = false)

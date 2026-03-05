@@ -3,9 +3,6 @@ package com.devpick.domain.community.entity;
 import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
-
-import java.util.UUID;
 
 @Entity
 @Table(name = "similar_questions", indexes = {
@@ -18,11 +15,6 @@ import java.util.UUID;
 @AllArgsConstructor
 public class SimilarQuestion extends BaseCreatedEntity {
 
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "uuid")
-    private UUID id;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)
     private Post post;
@@ -32,5 +24,5 @@ public class SimilarQuestion extends BaseCreatedEntity {
     private Post similar;
 
     @Column(nullable = false)
-    private Float score; // 유사도 0~1
+    private Float score;
 }

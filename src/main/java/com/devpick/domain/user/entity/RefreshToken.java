@@ -3,10 +3,8 @@ package com.devpick.domain.user.entity;
 import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "refresh_tokens", indexes = {
@@ -18,11 +16,6 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 public class RefreshToken extends BaseCreatedEntity {
-
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "uuid")
-    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

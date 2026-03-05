@@ -3,12 +3,10 @@ package com.devpick.domain.content.entity;
 import com.devpick.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "contents", indexes = {
@@ -22,11 +20,6 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 public class Content extends BaseTimeEntity {
-
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "uuid")
-    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "source_id", nullable = false)

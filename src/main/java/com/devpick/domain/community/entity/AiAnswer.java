@@ -3,9 +3,6 @@ package com.devpick.domain.community.entity;
 import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
-
-import java.util.UUID;
 
 @Entity
 @Table(name = "ai_answers", indexes = {
@@ -16,11 +13,6 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 public class AiAnswer extends BaseCreatedEntity {
-
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "uuid")
-    private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)

@@ -5,9 +5,6 @@ import com.devpick.domain.user.entity.User;
 import com.devpick.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
-
-import java.util.UUID;
 
 @Entity
 @Table(name = "posts", indexes = {
@@ -18,11 +15,6 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 public class Post extends BaseTimeEntity {
-
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "uuid")
-    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

@@ -3,9 +3,6 @@ package com.devpick.domain.content.entity;
 import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
-
-import java.util.UUID;
 
 @Entity
 @Table(name = "content_sources", indexes = {
@@ -17,11 +14,6 @@ import java.util.UUID;
 @AllArgsConstructor
 public class ContentSource extends BaseCreatedEntity {
 
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "uuid")
-    private UUID id;
-
     @Column(length = 100, nullable = false)
     private String name;
 
@@ -29,7 +21,7 @@ public class ContentSource extends BaseCreatedEntity {
     private String url;
 
     @Column(name = "collect_method", length = 20, nullable = false)
-    private String collectMethod; // api / rss / graphql
+    private String collectMethod;
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default

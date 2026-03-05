@@ -3,9 +3,6 @@ package com.devpick.domain.community.entity;
 import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
-
-import java.util.UUID;
 
 @Entity
 @Table(name = "ai_questions", indexes = {
@@ -16,11 +13,6 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 public class AiQuestion extends BaseCreatedEntity {
-
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "uuid")
-    private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)
@@ -36,5 +28,5 @@ public class AiQuestion extends BaseCreatedEntity {
     private String refinedContent;
 
     @Column(columnDefinition = "jsonb")
-    private String suggestions; // JSONB: AI 개선 제안 목록
+    private String suggestions;
 }

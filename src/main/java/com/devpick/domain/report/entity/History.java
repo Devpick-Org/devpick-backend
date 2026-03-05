@@ -4,7 +4,6 @@ import com.devpick.domain.user.entity.User;
 import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.util.UUID;
 
@@ -20,18 +19,13 @@ import java.util.UUID;
 @AllArgsConstructor
 public class History extends BaseCreatedEntity {
 
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "uuid")
-    private UUID id;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Column(name = "action_type", length = 50, nullable = false)
-    private String actionType; // content_opened / ai_summary_viewed / content_saved 등
+    private String actionType;
 
     @Column(name = "reference_id", columnDefinition = "uuid")
-    private UUID referenceId; // 관련 콘텐츠/게시글 ID
+    private UUID referenceId;
 }

@@ -4,10 +4,8 @@ import com.devpick.domain.user.entity.User;
 import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDate;
-import java.util.UUID;
 
 @Entity
 @Table(name = "weekly_reports", indexes = {
@@ -19,11 +17,6 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 public class WeeklyReport extends BaseCreatedEntity {
-
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "uuid")
-    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -48,8 +41,8 @@ public class WeeklyReport extends BaseCreatedEntity {
     private Integer scrapsCount = 0;
 
     @Column(name = "top_tags", columnDefinition = "jsonb")
-    private String topTags; // JSONB: 많이 본 태그 TOP3
+    private String topTags;
 
     @Column(name = "prev_week_comparison", columnDefinition = "jsonb")
-    private String prevWeekComparison; // JSONB: 전주 대비 비교 데이터
+    private String prevWeekComparison;
 }

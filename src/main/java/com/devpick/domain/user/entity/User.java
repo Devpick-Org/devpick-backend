@@ -3,12 +3,10 @@ package com.devpick.domain.user.entity;
 import com.devpick.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "users", indexes = {
@@ -20,11 +18,6 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 public class User extends BaseTimeEntity {
-
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "uuid")
-    private UUID id;
 
     @Column(length = 255, nullable = false, unique = true)
     private String email;
