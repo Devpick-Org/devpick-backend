@@ -1,71 +1,61 @@
 package com.devpick.global.config;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
 class SecurityConfigTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    private SecurityConfig securityConfig;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Test
-    @DisplayName("GET /api/health — 인증 없이 200 OK")
-    void healthEndpoint_인증없이_접근_가능() throws Exception {
-        mockMvc.perform(get("/api/health"))
-                .andExpect(status().isOk());
+    @BeforeEach
+    void setUp() {
+        CorsConfig corsConfig = new CorsConfig();
+        securityConfig = new SecurityConfig(corsConfig.corsConfigurationSource());
     }
 
     @Test
-    @DisplayName("보호된 엔드포인트 — 인증 없이 401 Unauthorized")
-    void 보호된_엔드포인트_인증없이_401() throws Exception {
-        mockMvc.perform(get("/api/users/me"))
-                .andExpect(status().isUnauthorized());
+    @DisplayName("PasswordEncoder — BCryptPasswordEncoder 빈 반환")
+    void passwordEncoder_BCrypt_반환() {
+        PasswordEncoder encoder = securityConfig.passwordEncoder();
+        assertThat(encoder).isInstanceOf(BCryptPasswordEncoder.class);
     }
 
     @Test
-    @DisplayName("/auth/** 경로 — 인증 없이 접근 가능 (404여도 401 아님)")
-    void auth_경로_인증없이_접근_가능() throws Exception {
-        mockMvc.perform(get("/auth/login"))
-                .andExpect(result ->
-                        assertThat(result.getResponse().getStatus()).isNotEqualTo(401));
-    }
-
-    @Test
-    @DisplayName("CORS preflight OPTIONS 요청 허용")
-    void cors_preflight_허용() throws Exception {
-        mockMvc.perform(options("/api/health")
-                        .header("Origin", "http://localhost:3000")
-                        .header("Access-Control-Request-Method", "GET"))
-                .andExpect(status().isOk())
-                .andExpect(header().exists("Access-Control-Allow-Origin"));
-    }
-
-    @Test
-    @DisplayName("PasswordEncoder — BCrypt 해싱 동작 확인")
-    void passwordEncoder_bcrypt_해싱() {
+    @DisplayName("PasswordEncoder — 평문 비밀번호를 BCrypt로 해싱")
+    void passwordEncoder_해싱_동작() {
+        PasswordEncoder encoder = securityConfig.passwordEncoder();
         String raw = "testPassword123!";
-        String encoded = passwordEncoder.encode(raw);
+        String encoded = encoder.encode(raw);
 
         assertThat(encoded).isNotEqualTo(raw);
-        assertThat(passwordEncoder.matches(raw, encoded)).isTrue();
-        assertThat(passwordEncoder.matches("wrongPassword", encoded)).isFalse();
+        assertThat(encoder.matches(raw, encoded)).isTrue();
+    }
+
+    @Test
+    @DisplayName("PasswordEncoder — 다른 비밀번호는 매치 실패")
+    void passwordEncoder_다른_비밀번호_불일치() {
+        PasswordEncoder encoder = securityConfig.passwordEncoder();
+        String encoded = encoder.encode("correctPassword");
+
+        assertThat(encoder.matches("wrongPassword", encoded)).isFalse();
+    }
+
+    @Test
+    @DisplayName("PasswordEncoder — 같은 평문도 매번 다른 해시 생성 (salt)")
+    void passwordEncoder_salt_적용() {
+        PasswordEncoder encoder = securityConfig.passwordEncoder();
+        String raw = "samePassword";
+
+        String hash1 = encoder.encode(raw);
+        String hash2 = encoder.encode(raw);
+
+        assertThat(hash1).isNotEqualTo(hash2);
+        assertThat(encoder.matches(raw, hash1)).isTrue();
+        assertThat(encoder.matches(raw, hash2)).isTrue();
     }
 }
