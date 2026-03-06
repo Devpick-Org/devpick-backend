@@ -96,7 +96,7 @@ sourceSets {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    options.annotationProcessorGeneratedSourcesDirectory = querydslDir.get().asFile
+    options.generatedSourceOutputDirectory.set(querydslDir)
 }
 
 tasks.named('clean') {
