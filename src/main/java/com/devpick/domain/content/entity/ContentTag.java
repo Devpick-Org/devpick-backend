@@ -1,0 +1,26 @@
+package com.devpick.domain.content.entity;
+
+import com.devpick.domain.user.entity.Tag;
+import com.devpick.global.entity.BaseCreatedEntity;
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "content_tags", indexes = {
+        @Index(name = "idx_content_tags_content_id", columnList = "content_id"),
+        @Index(name = "idx_content_tags_tag_id", columnList = "tag_id")
+})
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
+@AllArgsConstructor
+public class ContentTag extends BaseCreatedEntity {
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "content_id", nullable = false)
+    private Content content;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tag_id", nullable = false)
+    private Tag tag;
+}
