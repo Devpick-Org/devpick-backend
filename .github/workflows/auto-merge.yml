@@ -1,4 +1,4 @@
-name: Auto Merge (Claude Branch)
+name: Auto Merge
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   auto-merge:
-    if: startsWith(github.head_ref, 'claude/')
+    if: startsWith(github.head_ref, 'auto/')
     runs-on: ubuntu-latest
     steps:
       - name: Enable auto-merge

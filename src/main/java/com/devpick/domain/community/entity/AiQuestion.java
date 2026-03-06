@@ -1,0 +1,32 @@
+package com.devpick.domain.community.entity;
+
+import com.devpick.global.entity.BaseCreatedEntity;
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "ai_questions", indexes = {
+        @Index(name = "idx_ai_questions_post_id", columnList = "post_id")
+})
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
+@AllArgsConstructor
+public class AiQuestion extends BaseCreatedEntity {
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id", nullable = false)
+    private Post post;
+
+    @Column(name = "original_title", length = 500, nullable = false)
+    private String originalTitle;
+
+    @Column(name = "refined_title", length = 500, nullable = false)
+    private String refinedTitle;
+
+    @Column(name = "refined_content", columnDefinition = "TEXT")
+    private String refinedContent;
+
+    @Column(columnDefinition = "jsonb")
+    private String suggestions;
+}

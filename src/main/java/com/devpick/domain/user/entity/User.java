@@ -1,0 +1,56 @@
+package com.devpick.domain.user.entity;
+
+import com.devpick.global.entity.BaseTimeEntity;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "users", indexes = {
+        @Index(name = "idx_users_email", columnList = "email"),
+        @Index(name = "idx_users_nickname", columnList = "nickname")
+})
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
+@AllArgsConstructor
+public class User extends BaseTimeEntity {
+
+    @Column(length = 255, nullable = false, unique = true)
+    private String email;
+
+    @Column(name = "password_hash", length = 255)
+    private String passwordHash;
+
+    @Column(length = 50, nullable = false, unique = true)
+    private String nickname;
+
+    @Column(name = "profile_image", length = 500)
+    private String profileImage;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 50, nullable = false)
+    private Job job;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20, nullable = false)
+    private Level level;
+
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private Boolean isActive = true;
+
+    @Column(name = "is_email_verified", nullable = false)
+    @Builder.Default
+    private Boolean isEmailVerified = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<UserTag> userTags = new ArrayList<>();
+}

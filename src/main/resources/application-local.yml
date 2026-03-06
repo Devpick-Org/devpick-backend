@@ -4,9 +4,14 @@ spring:
     username: ${DB_USERNAME:devpick}
     password: ${DB_PASSWORD:devpick}
     driver-class-name: org.postgresql.Driver
+  sql:
+    init:
+      mode: always
+      platform: postgresql
   jpa:
     hibernate:
-      ddl-auto: update   # DP-147 JPA 엔티티 완료 후 validate 로 전환
+      ddl-auto: update
+    defer-datasource-initialization: true
     show-sql: true
     properties:
       hibernate:
