@@ -1,6 +1,8 @@
 package com.devpick.domain.user.service;
 
+import com.devpick.domain.user.entity.EmailVerification;
 import com.devpick.domain.user.entity.User;
+import com.devpick.domain.user.repository.EmailVerificationRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -35,6 +37,7 @@ public class EmailVerificationService {
     private final JavaMailSender mailSender;
     private final EmailVerificationRedisService redisService;
     private final UserRepository userRepository;
+    private final EmailVerificationRepository emailVerificationRepository;
 
     /**
      * 인증 코드 발송.
@@ -48,6 +51,7 @@ public class EmailVerificationService {
 
         String code = generateCode();
         redisService.saveCode(email, code);
+        emailVerificationRepository.save(EmailVerification.of(email));
         sendEmail(email, code);
 
         log.info("[DP-178] 이메일 인증 코드 발송 완료: email={}", email);

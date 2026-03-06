@@ -1,6 +1,8 @@
 package com.devpick.domain.user.service;
 
+import com.devpick.domain.user.entity.EmailVerification;
 import com.devpick.domain.user.entity.User;
+import com.devpick.domain.user.repository.EmailVerificationRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -37,6 +39,9 @@ class EmailVerificationServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private EmailVerificationRepository emailVerificationRepository;
 
     // ── sendVerificationCode ──────────────────────────────────────────────────
 
