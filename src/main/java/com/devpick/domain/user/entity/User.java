@@ -32,20 +32,20 @@ public class User extends BaseTimeEntity {
     private String profileImage;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 50, nullable = false)
+    @Column(length = 50)
     private Job job;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 20, nullable = false)
+    @Column(length = 20)
     private Level level;
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default
-    private Boolean isActive = true;
+    private boolean isActive = true;
 
     @Column(name = "is_email_verified", nullable = false)
     @Builder.Default
-    private Boolean isEmailVerified = false;
+    private boolean isEmailVerified = false;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
