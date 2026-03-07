@@ -11,12 +11,12 @@ import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
-import com.devpick.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -28,24 +28,24 @@ public class UserService {
     private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional(readOnly = true)
-    public UserProfileResponse getProfile(UserPrincipal principal) {
-        User user = findActiveUser(principal);
+    public UserProfileResponse getProfile(UUID userId) {
+        User user = findActiveUser(userId);
         return UserProfileResponse.from(user);
     }
 
     @Transactional
-    public UserProfileResponse updateProfile(UserPrincipal principal, UserProfileUpdateRequest request) {
-        User user = findActiveUser(principal);
+    public UserProfileResponse updateProfile(UUID userId, UserProfileUpdateRequest request) {
+        User user = findActiveUser(userId);
 
         if (request.nickname() != null &&
-                userRepository.existsByNicknameAndIdNot(request.nickname(), principal.getUserId())) {
+                userRepository.existsByNicknameAndIdNot(request.nickname(), userId)) {
             throw new DevpickException(ErrorCode.USER_DUPLICATE_NICKNAME);
         }
 
         user.updateProfile(request.nickname(), request.profileImage(), request.job(), request.level());
 
         if (request.tags() != null) {
-            userTagRepository.deleteByUserId(principal.getUserId());
+            userTagRepository.deleteByUserId(userId);
             List<Tag> tags = tagRepository.findByNameIn(request.tags());
             tags.forEach(tag -> userTagRepository.save(
                     UserTag.builder().user(user).tag(tag).build()
@@ -56,14 +56,14 @@ public class UserService {
     }
 
     @Transactional
-    public void deleteAccount(UserPrincipal principal) {
-        User user = findActiveUser(principal);
+    public void deleteAccount(UUID userId) {
+        User user = findActiveUser(userId);
         user.softDelete();
-        refreshTokenRepository.deleteByUserId(principal.getUserId());
+        refreshTokenRepository.deleteByUser(user);
     }
 
-    private User findActiveUser(UserPrincipal principal) {
-        return userRepository.findByIdAndIsActiveTrue(principal.getUserId())
+    private User findActiveUser(UUID userId) {
+        return userRepository.findByIdAndIsActiveTrue(userId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
     }
 }
