@@ -3,42 +3,53 @@ package com.devpick.global.common.exception;
 import com.devpick.domain.user.controller.AuthController;
 import com.devpick.domain.user.service.AuthService;
 import com.devpick.domain.user.service.EmailVerificationService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(AuthController.class)
+// Spring Boot 4.x: @WebMvcTest 제거됨, standaloneSetup 사용
+// Jackson 3.x: tools.jackson.databind.ObjectMapper 사용
+@ExtendWith(MockitoExtension.class)
 class GlobalExceptionHandlerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @MockitoBean
+    @Mock
     private AuthService authService;
 
-    @MockitoBean
+    @Mock
     private EmailVerificationService emailVerificationService;
 
+    @InjectMocks
+    private AuthController authController;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(authController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+    }
+
     @Test
-    @WithMockUser
     @DisplayName("DevpickException 발생 시 에러 코드와 메시지가 반환된다")
     void handleDevpickException() throws Exception {
         // given
@@ -52,7 +63,6 @@ class GlobalExceptionHandlerTest {
 
         // when & then
         mockMvc.perform(post("/auth/signup")
-                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict())
@@ -61,7 +71,6 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @WithMockUser
     @DisplayName("@Valid 검증 실패 시 400과 필드 에러가 반환된다")
     void handleValidationException() throws Exception {
         // given — 이메일 형식 오류
@@ -73,7 +82,6 @@ class GlobalExceptionHandlerTest {
 
         // when & then
         mockMvc.perform(post("/auth/signup")
-                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
