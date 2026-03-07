@@ -6,6 +6,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## ⚠️ Claude Code 작업 필수 규칙
+
+### 커밋 메시지
+- `authored-by claude`, `co-authored-by claude`, session URL, 기타 Claude 관련 내용 **절대 포함 금지**
+- 형식: `DP-{티켓번호}: {작업 내용}` (예: `DP-177: 이메일 회원가입 API 개발`)
+
+### SonarCloud Quality Gate — 코드 작성 시 필수 준수
+
+모든 PR은 SonarCloud Quality Gate를 통과해야 머지 가능. **코드 작성 전/후 반드시 아래 기준 확인.**
+
+| 항목 | 기준 | 자주 걸리는 원인 |
+|------|------|-----------------|
+| **코드 중복률** | **≤ 3%** | 유사한 클래스 여러 개 생성, 복붙 코드 |
+| **Security Hotspot** | 미검토 0개 | `csrf().disable()` → `// NOSONAR java:S4502` 필요 |
+| **버그** | 0개 | Null 체크 누락, 잘못된 타입 사용 |
+| **취약점** | 0개 | 하드코딩된 비밀번호, SQL 인젝션 등 |
+
+**중복 코드 방지 규칙:**
+1. 이미 있는 베이스 클래스 새로 만들지 말 것 — `global/entity/BaseTimeEntity.java` 존재, `BaseEntity` 생성 금지
+2. 테스트 셋업 코드(MockMvc, ObjectMapper 초기화)가 여러 파일에 반복되면 감지됨
+3. 새 클래스 작성 전 `global/`, `common/` 디렉토리에 동일 역할 클래스 없는지 확인
+
+**Security Hotspot 처리:**
+```java
+.csrf(AbstractHttpConfigurer::disable) // NOSONAR java:S4502
+```
+
+---
+
 ## 1. 프로젝트 개요
 
 **DevPick** — 개발자 성장형 통합 플랫폼

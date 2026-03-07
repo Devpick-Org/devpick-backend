@@ -1,6 +1,6 @@
 package com.devpick.domain.user.entity;
 
-import com.devpick.global.common.entity.BaseEntity;
+import com.devpick.global.entity.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -21,7 +21,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "email_verifications")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class EmailVerification extends BaseEntity {
+public class EmailVerification extends BaseTimeEntity {
 
     @Column(name = "email", nullable = false, length = 255)
     private String email;

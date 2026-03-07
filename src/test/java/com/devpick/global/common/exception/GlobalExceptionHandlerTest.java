@@ -88,4 +88,25 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("COMMON_001"));
     }
+
+    @Test
+    @DisplayName("예상치 못한 예외 발생 시 500을 반환한다")
+    void handleUnexpectedException_returns500() throws Exception {
+        // given
+        given(authService.signup(any())).willThrow(new RuntimeException("unexpected"));
+
+        Map<String, String> request = Map.of(
+                "email", "test@devpick.kr",
+                "password", "password123!",
+                "nickname", "하영"
+        );
+
+        // when & then
+        mockMvc.perform(post("/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("COMMON_005"));
+    }
 }
