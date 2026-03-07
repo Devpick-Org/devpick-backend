@@ -2,6 +2,8 @@ package com.devpick.domain.user.controller;
 
 import com.devpick.domain.user.dto.EmailSendRequest;
 import com.devpick.domain.user.dto.EmailVerifyRequest;
+import com.devpick.domain.user.dto.LoginRequest;
+import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.service.AuthService;
@@ -44,5 +46,12 @@ public class AuthController {
     public ApiResponse<Void> verifyCode(@RequestBody @Valid EmailVerifyRequest request) {
         emailVerificationService.verifyCode(request.email(), request.code());
         return ApiResponse.ok(null);
+    }
+
+    /** 이메일 로그인 (DP-180). */
+    @PostMapping("/login")
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<LoginResponse> login(@RequestBody @Valid LoginRequest request) {
+        return ApiResponse.ok(authService.login(request));
     }
 }
