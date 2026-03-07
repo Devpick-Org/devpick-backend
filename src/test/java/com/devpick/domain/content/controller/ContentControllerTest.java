@@ -29,7 +29,11 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -85,6 +89,22 @@ class ContentControllerTest {
     }
 
     @Test
+    @DisplayName("GET /contents/search - 검색 성공 시 200과 검색 결과 반환")
+    void search_success() throws Exception {
+        ContentSummaryResponse summary = new ContentSummaryResponse(
+                UUID.randomUUID(), "React 훅 가이드", "홍근",
+                "훅 설명", "https://velog.io/@test/react",
+                List.of("React"), LocalDateTime.now(), false, false);
+        ContentListResponse response = new ContentListResponse(List.of(summary), 0, 20, 1L, 1);
+        given(contentService.search(eq(userId), any(), any(), any())).willReturn(response);
+
+        mockMvc.perform(get("/contents/search").param("query", "React"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.contents[0].title").value("React 훅 가이드"));
+    }
+
+    @Test
     @DisplayName("GET /contents/{contentId} - 상세 조회 성공 시 200과 상세 반환")
     void getDetail_success() throws Exception {
         UUID contentId = UUID.randomUUID();
@@ -112,5 +132,61 @@ class ContentControllerTest {
         mockMvc.perform(get("/contents/" + contentId))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /contents/{contentId}/scrap - 스크랩 성공 시 201 반환")
+    void addScrap_success_returns201() throws Exception {
+        UUID contentId = UUID.randomUUID();
+
+        mockMvc.perform(post("/contents/" + contentId + "/scrap"))
+                .andExpect(status().isCreated());
+
+        verify(contentService).addScrap(userId, contentId);
+    }
+
+    @Test
+    @DisplayName("POST /contents/{contentId}/scrap - 이미 스크랩이면 409 반환")
+    void addScrap_alreadyScrapped_returns409() throws Exception {
+        UUID contentId = UUID.randomUUID();
+        doThrow(new DevpickException(ErrorCode.CONTENT_ALREADY_SCRAPED))
+                .when(contentService).addScrap(userId, contentId);
+
+        mockMvc.perform(post("/contents/" + contentId + "/scrap"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("DELETE /contents/{contentId}/scrap - 스크랩 취소 성공 시 204 반환")
+    void removeScrap_success_returns204() throws Exception {
+        UUID contentId = UUID.randomUUID();
+
+        mockMvc.perform(delete("/contents/" + contentId + "/scrap"))
+                .andExpect(status().isNoContent());
+
+        verify(contentService).removeScrap(userId, contentId);
+    }
+
+    @Test
+    @DisplayName("POST /contents/{contentId}/like - 좋아요 성공 시 201 반환")
+    void addLike_success_returns201() throws Exception {
+        UUID contentId = UUID.randomUUID();
+
+        mockMvc.perform(post("/contents/" + contentId + "/like"))
+                .andExpect(status().isCreated());
+
+        verify(contentService).addLike(userId, contentId);
+    }
+
+    @Test
+    @DisplayName("DELETE /contents/{contentId}/like - 좋아요 취소 성공 시 204 반환")
+    void removeLike_success_returns204() throws Exception {
+        UUID contentId = UUID.randomUUID();
+
+        mockMvc.perform(delete("/contents/" + contentId + "/like"))
+                .andExpect(status().isNoContent());
+
+        verify(contentService).removeLike(userId, contentId);
     }
 }
