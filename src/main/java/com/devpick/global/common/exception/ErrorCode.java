@@ -28,6 +28,8 @@ public enum ErrorCode {
     AUTH_EMAIL_CODE_INVALID(HttpStatus.BAD_REQUEST, "AUTH_010", "인증 코드가 올바르지 않습니다."),
     AUTH_EMAIL_VERIFY_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AUTH_011", "인증 시도 횟수를 초과했습니다. 코드를 재발송해 주세요."),
     AUTH_EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "AUTH_012", "이메일 인증이 완료되지 않았습니다."),
+    AUTH_SOCIAL_GITHUB_FAILED(HttpStatus.BAD_GATEWAY, "AUTH_013", "GitHub 소셜 로그인 처리 중 오류가 발생했습니다."),
+    AUTH_SOCIAL_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "AUTH_014", "GitHub 계정의 이메일 정보를 가져올 수 없습니다. GitHub 계정에서 이메일 공개 설정을 확인해 주세요."),
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "사용자를 찾을 수 없습니다."),
