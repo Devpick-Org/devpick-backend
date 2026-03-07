@@ -22,9 +22,10 @@
 ### 인증/사용자
 | 테이블 | 설명 | 핵심 컬럼 |
 |--------|------|-----------|
-| `users` | 사용자 | `id(UUID)`, `email(UNIQUE)`, `nickname(UNIQUE)`, `job`, `level`, `is_active`, `deleted_at`(soft delete) |
+| `users` | 사용자 | `id(UUID)`, `email(UNIQUE)`, `password_hash`, `nickname(UNIQUE)`, `profile_image`, `job`, `level`, `is_active`, `is_email_verified`, `deleted_at`(soft delete) |
 | `social_accounts` | 소셜 로그인 | `user_id(FK)`, `provider(github/google)`, `provider_id` |
 | `refresh_tokens` | JWT Refresh Token | `user_id(FK)`, `token`, `expires_at` |
+| `email_verifications` | 이메일 인증 발송 이력 | `email`, `is_verified` |
 | `tags` | 기술 태그 | `name(UNIQUE)` |
 | `user_tags` | 사용자-태그 N:M | `user_id(FK)`, `tag_id(FK)` |
 
@@ -123,6 +124,9 @@ post_created         — 커뮤니티 게시 (학습 기록 O)
 | AI 요약 결과 | `summary:{contentId}:{level}` | 7일 |
 | 개인화 피드 | `feed:{userId}:page:{page}` | 10분 |
 | 주간 리포트 | `report:{userId}:{weekStart}` | 7일 |
+| 이메일 인증 코드 | `email:verify:{email}` | 5분 |
+| 이메일 인증 시도 횟수 | `email:verify:attempts:{email}` | 5분 |
+| 이메일 재전송 쿨다운 | `email:verify:cooldown:{email}` | 1분 |
 
 **캐시 미스 처리 흐름:**
 ```

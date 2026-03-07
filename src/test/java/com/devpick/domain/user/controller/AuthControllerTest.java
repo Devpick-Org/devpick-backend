@@ -3,8 +3,7 @@ package com.devpick.domain.user.controller;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.service.AuthService;
-import com.devpick.global.common.exception.DevpickException;
-import com.devpick.global.common.exception.ErrorCode;
+import com.devpick.domain.user.service.EmailVerificationService;
 import com.devpick.global.common.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,7 +17,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import tools.jackson.databind.ObjectMapper;
 
-import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -29,7 +27,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // Spring Boot 4.x: @WebMvcTest 제거됨, standaloneSetup 사용
 // Jackson 3.x: tools.jackson.databind.ObjectMapper 사용
-// /auth/** permitAll + CSRF 비활성화 → @WithMockUser, csrf() 불필요
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
 
@@ -39,6 +36,9 @@ class AuthControllerTest {
 
     @Mock
     private AuthService authService;
+
+    @Mock
+    private EmailVerificationService emailVerificationService;
 
     @InjectMocks
     private AuthController authController;
@@ -81,66 +81,5 @@ class AuthControllerTest {
                         .content(request))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
-    }
-
-    @Test
-    @DisplayName("DevpickException 발생 시 에러 코드와 메시지가 반환된다")
-    void handleDevpickException() throws Exception {
-        // given
-        given(authService.signup(any())).willThrow(new DevpickException(ErrorCode.AUTH_DUPLICATE_EMAIL));
-
-        Map<String, String> request = Map.of(
-                "email", "test@devpick.kr",
-                "password", "password123!",
-                "nickname", "하영"
-        );
-
-        // when & then
-        mockMvc.perform(post("/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("AUTH_004"));
-    }
-
-    @Test
-    @DisplayName("@Valid 검증 실패 시 400과 필드 에러가 반환된다")
-    void handleValidationException() throws Exception {
-        // given — 이메일 형식 오류
-        Map<String, String> request = Map.of(
-                "email", "invalid-email",
-                "password", "password123!",
-                "nickname", "하영"
-        );
-
-        // when & then
-        mockMvc.perform(post("/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("COMMON_001"));
-    }
-
-    @Test
-    @DisplayName("예상치 못한 예외 발생 시 500을 반환한다")
-    void handleUnexpectedException_returns500() throws Exception {
-        // given
-        given(authService.signup(any())).willThrow(new RuntimeException("unexpected"));
-
-        Map<String, String> request = Map.of(
-                "email", "test@devpick.kr",
-                "password", "password123!",
-                "nickname", "하영"
-        );
-
-        // when & then
-        mockMvc.perform(post("/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("COMMON_005"));
     }
 }

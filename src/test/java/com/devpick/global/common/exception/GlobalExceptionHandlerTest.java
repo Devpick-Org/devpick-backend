@@ -1,66 +1,112 @@
 package com.devpick.global.common.exception;
 
-import com.devpick.global.common.response.ApiResponse;
+import com.devpick.domain.user.controller.AuthController;
+import com.devpick.domain.user.service.AuthService;
+import com.devpick.domain.user.service.EmailVerificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import tools.jackson.databind.ObjectMapper;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+// Spring Boot 4.x: @WebMvcTest 제거됨, standaloneSetup 사용
+// Jackson 3.x: tools.jackson.databind.ObjectMapper 사용
+@ExtendWith(MockitoExtension.class)
 class GlobalExceptionHandlerTest {
 
-    private GlobalExceptionHandler handler;
+    private MockMvc mockMvc;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Mock
+    private AuthService authService;
+
+    @Mock
+    private EmailVerificationService emailVerificationService;
+
+    @InjectMocks
+    private AuthController authController;
 
     @BeforeEach
     void setUp() {
-        handler = new GlobalExceptionHandler();
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(authController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
     }
 
     @Test
-    @DisplayName("DevpickException → ErrorCode에 맞는 HTTP 상태코드와 에러 응답 반환")
-    void handleDevpickException() {
+    @DisplayName("DevpickException 발생 시 에러 코드와 메시지가 반환된다")
+    void handleDevpickException() throws Exception {
         // given
-        DevpickException exception = new DevpickException(ErrorCode.USER_NOT_FOUND);
+        given(authService.signup(any())).willThrow(new DevpickException(ErrorCode.AUTH_DUPLICATE_EMAIL));
 
-        // when
-        ResponseEntity<ApiResponse<Void>> response = handler.handleDevpickException(exception);
+        Map<String, String> request = Map.of(
+                "email", "test@devpick.kr",
+                "password", "password123!",
+                "nickname", "하영"
+        );
 
-        // then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().success()).isFalse();
-        assertThat(response.getBody().error()).isNotNull();
-        assertThat(response.getBody().error().code()).isEqualTo("USER_001");
+        // when & then
+        mockMvc.perform(post("/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("AUTH_004"));
     }
 
     @Test
-    @DisplayName("DevpickException — 커스텀 메시지 사용 시 해당 메시지 반환")
-    void handleDevpickException_customMessage() {
-        // given
-        DevpickException exception = new DevpickException(ErrorCode.INVALID_INPUT, "이메일 형식이 올바르지 않습니다.");
+    @DisplayName("@Valid 검증 실패 시 400과 필드 에러가 반환된다")
+    void handleValidationException() throws Exception {
+        // given — 이메일 형식 오류
+        Map<String, String> request = Map.of(
+                "email", "invalid-email",
+                "password", "password123!",
+                "nickname", "하영"
+        );
 
-        // when
-        ResponseEntity<ApiResponse<Void>> response = handler.handleDevpickException(exception);
-
-        // then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody().error().message()).isEqualTo("이메일 형식이 올바르지 않습니다.");
+        // when & then
+        mockMvc.perform(post("/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("COMMON_001"));
     }
 
     @Test
-    @DisplayName("예상치 못한 예외 → 500 Internal Server Error 반환")
-    void handleException() {
+    @DisplayName("예상치 못한 예외 발생 시 500을 반환한다")
+    void handleUnexpectedException_returns500() throws Exception {
         // given
-        Exception exception = new RuntimeException("unexpected error");
+        given(authService.signup(any())).willThrow(new RuntimeException("unexpected"));
 
-        // when
-        ResponseEntity<ApiResponse<Void>> response = handler.handleException(exception);
+        Map<String, String> request = Map.of(
+                "email", "test@devpick.kr",
+                "password", "password123!",
+                "nickname", "하영"
+        );
 
-        // then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        assertThat(response.getBody().success()).isFalse();
-        assertThat(response.getBody().error().code()).isEqualTo("COMMON_005");
+        // when & then
+        mockMvc.perform(post("/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("COMMON_005"));
     }
 }

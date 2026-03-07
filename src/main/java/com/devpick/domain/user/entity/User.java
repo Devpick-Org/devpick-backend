@@ -45,7 +45,7 @@ public class User extends BaseTimeEntity {
 
     @Column(name = "is_email_verified", nullable = false)
     @Builder.Default
-    private Boolean isEmailVerified = false;
+    private boolean isEmailVerified = false;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
