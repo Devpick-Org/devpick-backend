@@ -1,5 +1,6 @@
 package com.devpick.global.config;
 
+import com.devpick.global.security.JwtAuthenticationFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -7,6 +8,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class SecurityConfigTest {
 
@@ -15,7 +17,8 @@ class SecurityConfigTest {
     @BeforeEach
     void setUp() {
         CorsConfig corsConfig = new CorsConfig();
-        securityConfig = new SecurityConfig(corsConfig.corsConfigurationSource());
+        JwtAuthenticationFilter jwtFilter = mock(JwtAuthenticationFilter.class);
+        securityConfig = new SecurityConfig(corsConfig.corsConfigurationSource(), jwtFilter);
     }
 
     @Test
