@@ -4,6 +4,46 @@
 
 ---
 
+## ⚠️ SonarCloud Quality Gate — 코드 작성 시 필수 준수
+
+모든 PR은 SonarCloud Quality Gate를 통과해야 머지 가능. **코드 작성 전/후 반드시 아래 기준 확인.**
+
+### Quality Gate 조건 (신규 코드 기준)
+| 항목 | 기준 | 자주 걸리는 원인 |
+|------|------|-----------------|
+| **코드 중복률** | **≤ 3%** | 유사한 클래스 여러 개 생성, 복붙 코드 |
+| **Security Hotspot** | 미검토 0개 | `csrf().disable()` → `// NOSONAR java:S4502` 필요 |
+| **버그** | 0개 | Null 체크 누락, 잘못된 타입 사용 |
+| **취약점** | 0개 | 하드코딩된 비밀번호, SQL 인젝션 등 |
+
+### 중복 코드 방지 규칙 (가장 자주 실패)
+1. **이미 있는 베이스 클래스는 새로 만들지 말 것**
+   - `global/entity/BaseTimeEntity.java` 이미 존재 → 별도 `BaseEntity` 생성 금지
+2. **테스트 셋업 코드 중복 주의**
+   - `MockMvc`, `ObjectMapper` 초기화가 여러 테스트 파일에 반복되면 감지됨
+   - 공통 부분이 많으면 abstract base test class 활용
+3. **PR 올리기 전 유사 코드 검색**
+   - 새 클래스 작성 전 `global/`, `common/` 디렉토리에 동일 역할 클래스가 없는지 확인
+
+### Security Hotspot 처리
+```java
+// CSRF 비활성화 (JWT 무상태 API에서 안전)
+.csrf(AbstractHttpConfigurer::disable) // NOSONAR java:S4502
+
+// 또는 어노테이션 방식
+@SuppressWarnings("java:S4502")
+public SecurityFilterChain securityFilterChain(...) { ... }
+```
+
+### 기존 베이스 클래스 목록
+| 클래스 | 위치 | 용도 |
+|--------|------|------|
+| `BaseTimeEntity` | `global/entity/BaseTimeEntity.java` | 모든 JPA 엔티티 공통 상속 (id, createdAt, updatedAt) |
+
+---
+
+---
+
 ## 1. 프로젝트 개요
 
 **DevPick** — 개발자 성장형 통합 플랫폼
