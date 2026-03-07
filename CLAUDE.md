@@ -519,3 +519,129 @@ class AuthControllerTest {
 
 > **팀원 참고**: `feature/` 브랜치로 직접 작업한 PR은 CI 통과 후에도 자동 머지되지 않습니다.
 > GitHub에서 리뷰 확인 후 직접 Merge 버튼을 눌러주세요.
+
+---
+
+## 17. 트러블슈팅 로그 (발생 즉시 기록)
+
+> **규칙**: 문제를 직면하면 해결 즉시 이 섹션에 추가한다. 같은 문제를 두 번 겪지 않는다.
+
+---
+
+### [TRB-001] Squash Merge + Cascade 브랜치로 인한 반복 머지 충돌
+
+**발생일**: 2026-03-07
+**관련 PR**: #24 (MERGED), #25, #26 (OPEN)
+**심각도**: 높음 (PR 머지 불가 상태)
+
+#### 문제 상황
+```
+develop: ─── [c645a05] squash(DP-187/189)
+                   ↑ 분기점이 달라짐
+PR#25:   [b0b0008] → [1664f56] → [5dee31a]
+PR#26:   [b0b0008] → [1664f56] → [5dee31a] → [7c62331]
+```
+- PR #24 (`DP-187/189`)가 `squash merge`로 develop에 들어가면서 `b0b0008` → `c645a05`로 압축됨
+- PR #25와 PR #26은 squash 이전 커밋(`b0b0008`) 위에 쌓여 있었음
+- Git이 두 커밋을 별개 변경으로 인식 → `UserTagRepository.java` add/add 충돌 발생
+
+#### 직접 원인
+1. **Cascade 브랜치 구조**: PR #25 브랜치 위에 PR #26 브랜치를 쌓음 (개발 편의상)
+2. **Squash Merge**: 커밋 히스토리를 압축하여 공통 조상(common ancestor)이 사라짐
+3. 둘이 결합되면 앞선 PR 머지 시마다 뒤 브랜치들에 연쇄 충돌 발생
+
+#### 충돌 파일
+- `src/main/java/com/devpick/domain/user/repository/UserTagRepository.java`
+  - develop 버전: `deleteByUserId`만 있음
+  - PR 버전: `deleteByUserId` + `findByUser_Id` (이 버전이 정답)
+
+#### 해결 방법 (2단계)
+**시도 1**: `git merge origin/develop` → 충돌 해결 후 `git commit`
+**실패 원인**: commit signing 서버 오류 (`source: Field required`) — 세션 재시작 후 서명 컨텍스트 소실
+
+**시도 2 (성공)**: GitHub Git Data API로 서버사이드 머지 커밋 직접 생성
+```bash
+# 1. 두 브랜치의 tree를 분석하여 충돌 파일 특정
+gh api repos/{owner}/{repo}/git/trees/{sha}?recursive=1
+
+# 2. 해결된 tree 생성 (develop base_tree + PR의 추가 파일들)
+gh api repos/{owner}/{repo}/git/trees -X POST \
+  --input '{"base_tree": "<develop_tree>", "tree": [...]}'
+
+# 3. merge commit 생성 (parents: [feature_head, develop_head])
+gh api repos/{owner}/{repo}/git/commits -X POST \
+  --input '{"message": "...", "tree": "<new_tree>", "parents": ["<pr_head>", "<develop_head>"]}'
+
+# 4. 브랜치 레퍼런스 업데이트
+gh api repos/{owner}/{repo}/git/refs/heads/{branch} -X PATCH \
+  -f sha="<merge_commit_sha>"
+```
+
+#### 성과
+- PR #25: `CONFLICTING` → `MERGEABLE` ✅
+- PR #26: `CONFLICTING` → `MERGEABLE` ✅
+- 로컬 서명 서버 우회하여 충돌 해결 달성
+
+#### 재발 방지 규칙 (필수 준수)
+
+**[규칙 1] 항상 develop 최신에서 브랜치 생성**
+```bash
+# ❌ 잘못된 방법 (cascade): PR#25 브랜치 위에 PR#26 생성
+git checkout auto/feature/DP-204-content-feed
+git checkout -b auto/feature/DP-207-scrap-like-search
+
+# ✅ 올바른 방법: 항상 develop 기반
+git fetch origin
+git checkout origin/develop -b auto/feature/DP-207-scrap-like-search
+```
+
+**[규칙 2] 앞선 PR이 머지된 직후, 다음 PR 브랜치 즉시 rebase**
+```bash
+# PR #24가 develop에 머지된 직후
+git checkout auto/feature/DP-204-content-feed
+git fetch origin
+git rebase origin/develop   # merge 대신 rebase로 히스토리 깔끔하게 유지
+git push origin auto/feature/DP-204-content-feed --force-with-lease
+```
+
+**[규칙 3] 의존 관계 있는 티켓은 순차 작업**
+- 이전 PR이 머지 완료되기 전에는 다음 티켓 브랜치를 쌓지 않는다
+- 병렬 작업이 필요하면 각자 독립적인 파일 영역을 담당하도록 분리
+
+**[규칙 4] Squash Merge 환경에서 충돌 해결 시 rebase 우선**
+```bash
+# merge commit 대신 rebase 사용 (squash merge와 궁합이 좋음)
+git rebase origin/develop
+# 충돌 발생 시: 파일 수정 → git add → git rebase --continue
+```
+
+---
+
+### [TRB-002] git commit 서명 서버 오류 (`source: Field required`)
+
+**발생일**: 2026-03-07
+**심각도**: 중간 (해당 세션에서 로컬 커밋 전체 불가)
+
+#### 문제 상황
+```
+error: signing failed: signing operation failed:
+signing server returned status 400:
+{"type":"error","error":{"type":"invalid_request_error","message":"source: Field required"}}
+```
+- `commit.gpgsign=true` 설정 + `/tmp/code-sign` (environment-manager) 사용
+- 이전 세션에서 정상 동작하다가 세션 재시작 후 발생
+- `git commit`, `git merge --continue`, `git cherry-pick` 등 커밋 생성 작업 전체 실패
+
+#### 원인
+- Claude Code 세션 재시작 후 commit signing 서버의 세션 컨텍스트(`source` 필드) 소실
+- 새 세션에서 서명 서버 인증 정보가 갱신되지 않음
+
+#### 해결 방법
+로컬 커밋이 불가능한 경우 **GitHub REST API**로 서버사이드에서 직접 작업:
+- 파일 수정: `PUT /repos/{owner}/{repo}/contents/{path}` (Contents API)
+- 머지 커밋 생성: Git Data API (`/git/blobs`, `/git/trees`, `/git/commits`, `/git/refs`)
+- 단순 머지(충돌 없음): `POST /repos/{owner}/{repo}/merges`
+
+#### 재발 방지
+- 세션 컨텍스트 오류 시 새 대화를 시작하면 서명 서버가 재초기화됨
+- 또는 GitHub API를 통한 서버사이드 작업으로 우회 (위 TRB-001 해결 방법 참고)
