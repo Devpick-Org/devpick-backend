@@ -37,6 +37,9 @@ public class AuthService {
         return SignupResponse.from(user);
     }
 
+    /**
+     * 이메일/비밀번호 로그인 후 Access + Refresh Token 발급 (DP-181).
+     */
     @Transactional
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.email())
@@ -62,6 +65,8 @@ public class AuthService {
 
         return LoginResponse.of(accessToken, refreshToken, user);
     }
+
+    // ── private ──────────────────────────────────────────────
 
     private void validateDuplicateEmail(String email) {
         if (userRepository.existsByEmail(email)) {
