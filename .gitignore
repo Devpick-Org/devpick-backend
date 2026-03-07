@@ -26,3 +26,7 @@ logs/
 
 ### Spring Boot ###
 spring-shell.log
+
+### Claude / AI tools ###
+.claude/
+.omc/
