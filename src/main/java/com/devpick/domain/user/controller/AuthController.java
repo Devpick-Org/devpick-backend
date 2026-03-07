@@ -10,14 +10,17 @@ import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.dto.TokenResponse;
 import com.devpick.domain.user.service.AuthService;
 import com.devpick.domain.user.service.EmailVerificationService;
+import com.devpick.domain.user.service.GitHubAuthService;
 import com.devpick.domain.user.service.TokenService;
 import com.devpick.global.common.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -29,6 +32,7 @@ public class AuthController {
     private final AuthService authService;
     private final EmailVerificationService emailVerificationService;
     private final TokenService tokenService;
+    private final GitHubAuthService gitHubAuthService;
 
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
@@ -64,5 +68,12 @@ public class AuthController {
     public ApiResponse<Void> verifyCode(@RequestBody @Valid EmailVerifyRequest request) {
         emailVerificationService.verifyCode(request.email(), request.code());
         return ApiResponse.ok(null);
+    }
+
+    /** GitHub 소셜 로그인 콜백 — 인가 코드 수신 후 JWT 발급 (DP-183). */
+    @GetMapping("/github/callback")
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<LoginResponse> githubCallback(@RequestParam String code) {
+        return ApiResponse.ok(gitHubAuthService.login(code));
     }
 }
