@@ -6,6 +6,8 @@ import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.service.AuthService;
 import com.devpick.domain.user.service.EmailVerificationService;
+import com.devpick.global.common.exception.DevpickException;
+import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.common.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -101,6 +103,36 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(request))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /auth/login - 이메일 필드 누락 시 400을 반환한다")
+    void login_missingEmail_returns400() throws Exception {
+        // given — email 누락
+        String request = "{\"password\":\"password123!\"}";
+
+        // when & then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /auth/login - 서비스에서 DevpickException 발생 시 에러 응답을 반환한다")
+    void login_serviceThrowsException_returnsErrorResponse() throws Exception {
+        // given
+        LoginRequest request = new LoginRequest("notfound@devpick.kr", "password123!");
+        given(authService.login(any(LoginRequest.class)))
+                .willThrow(new DevpickException(ErrorCode.AUTH_USER_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().is4xxClientError())
                 .andExpect(jsonPath("$.success").value(false));
     }
 }
