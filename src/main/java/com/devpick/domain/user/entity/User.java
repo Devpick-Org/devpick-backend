@@ -67,4 +67,18 @@ public class User extends BaseTimeEntity {
     public void verifyEmail() {
         this.isEmailVerified = true;
     }
+
+    /** 프로필 수정 (DP-187). */
+    public void updateProfile(String nickname, String profileImage, Job job, Level level) {
+        if (nickname != null) this.nickname = nickname;
+        if (profileImage != null) this.profileImage = profileImage;
+        if (job != null) this.job = job;
+        if (level != null) this.level = level;
+    }
+
+    /** 회원 탈퇴 소프트 삭제 (DP-189). */
+    public void softDelete() {
+        this.isActive = false;
+        this.deletedAt = LocalDateTime.now();
+    }
 }

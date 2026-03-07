@@ -1,5 +1,7 @@
 package com.devpick.global.config;
 
+import com.devpick.global.security.JwtAuthenticationFilter;
+import com.devpick.global.security.JwtProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -9,6 +11,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
@@ -16,15 +19,17 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class SecurityConfig {
 
     private final CorsConfigurationSource corsConfigurationSource;
+    private final JwtProvider jwtProvider;
 
-    public SecurityConfig(CorsConfigurationSource corsConfigurationSource) {
+    public SecurityConfig(CorsConfigurationSource corsConfigurationSource, JwtProvider jwtProvider) {
         this.corsConfigurationSource = corsConfigurationSource;
+        this.jwtProvider = jwtProvider;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(AbstractHttpConfigurer::disable) // NOSONAR java:S4502
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -32,7 +37,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .anyRequest().authenticated()
-                );
+                )
+                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider),
+                        UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
