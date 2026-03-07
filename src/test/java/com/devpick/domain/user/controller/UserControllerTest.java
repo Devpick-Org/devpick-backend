@@ -8,7 +8,6 @@ import com.devpick.domain.user.service.UserService;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.common.exception.GlobalExceptionHandler;
-import com.devpick.global.security.UserPrincipal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +18,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import tools.jackson.databind.ObjectMapper;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -50,7 +52,6 @@ class UserControllerTest {
     @InjectMocks
     private UserController userController;
 
-    private UserPrincipal principal;
     private UUID userId;
 
     @BeforeEach
@@ -58,12 +59,14 @@ class UserControllerTest {
         mockMvc = MockMvcBuilders
                 .standaloneSetup(userController)
                 .setControllerAdvice(new GlobalExceptionHandler())
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .build();
 
         userId = UUID.randomUUID();
-        principal = new UserPrincipal(userId, "test@devpick.kr");
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
+                new UsernamePasswordAuthenticationToken(
+                        userId, null,
+                        List.of(new SimpleGrantedAuthority("ROLE_USER")))
         );
     }
 
@@ -78,7 +81,7 @@ class UserControllerTest {
         UserProfileResponse response = new UserProfileResponse(
                 userId, "test@devpick.kr", "테스트유저", null,
                 Job.BACKEND, Level.JUNIOR, List.of("React"), LocalDateTime.now());
-        given(userService.getProfile(any(UserPrincipal.class))).willReturn(response);
+        given(userService.getProfile(userId)).willReturn(response);
 
         mockMvc.perform(get("/users/me"))
                 .andExpect(status().isOk())
@@ -90,7 +93,7 @@ class UserControllerTest {
     @Test
     @DisplayName("GET /users/me - 사용자 없을 시 404 반환")
     void getProfile_notFound_returns404() throws Exception {
-        given(userService.getProfile(any(UserPrincipal.class)))
+        given(userService.getProfile(userId))
                 .willThrow(new DevpickException(ErrorCode.USER_NOT_FOUND));
 
         mockMvc.perform(get("/users/me"))
@@ -105,7 +108,7 @@ class UserControllerTest {
         UserProfileResponse response = new UserProfileResponse(
                 userId, "test@devpick.kr", "새닉네임", null,
                 Job.BACKEND, Level.JUNIOR, List.of(), LocalDateTime.now());
-        given(userService.updateProfile(any(UserPrincipal.class), any(UserProfileUpdateRequest.class)))
+        given(userService.updateProfile(eq(userId), any(UserProfileUpdateRequest.class)))
                 .willReturn(response);
 
         mockMvc.perform(put("/users/me")
@@ -120,7 +123,7 @@ class UserControllerTest {
     @DisplayName("PUT /users/me - 닉네임 중복 시 409 반환")
     void updateProfile_duplicateNickname_returns409() throws Exception {
         UserProfileUpdateRequest request = new UserProfileUpdateRequest("중복닉", null, null, null, null);
-        given(userService.updateProfile(any(UserPrincipal.class), any(UserProfileUpdateRequest.class)))
+        given(userService.updateProfile(eq(userId), any(UserProfileUpdateRequest.class)))
                 .willThrow(new DevpickException(ErrorCode.USER_DUPLICATE_NICKNAME));
 
         mockMvc.perform(put("/users/me")
@@ -136,14 +139,14 @@ class UserControllerTest {
         mockMvc.perform(delete("/users/me"))
                 .andExpect(status().isNoContent());
 
-        verify(userService).deleteAccount(any(UserPrincipal.class));
+        verify(userService).deleteAccount(userId);
     }
 
     @Test
     @DisplayName("DELETE /users/me - 사용자 없을 시 404 반환")
     void deleteAccount_notFound_returns404() throws Exception {
         doThrow(new DevpickException(ErrorCode.USER_NOT_FOUND))
-                .when(userService).deleteAccount(any(UserPrincipal.class));
+                .when(userService).deleteAccount(userId);
 
         mockMvc.perform(delete("/users/me"))
                 .andExpect(status().isNotFound())

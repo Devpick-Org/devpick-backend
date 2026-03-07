@@ -4,7 +4,6 @@ import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
 import com.devpick.domain.user.service.UserService;
 import com.devpick.global.common.response.ApiResponse;
-import com.devpick.global.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
@@ -25,21 +26,20 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/me")
-    public ApiResponse<UserProfileResponse> getProfile(
-            @AuthenticationPrincipal UserPrincipal principal) {
-        return ApiResponse.ok(userService.getProfile(principal));
+    public ApiResponse<UserProfileResponse> getProfile(@AuthenticationPrincipal UUID userId) {
+        return ApiResponse.ok(userService.getProfile(userId));
     }
 
     @PutMapping("/me")
     public ApiResponse<UserProfileResponse> updateProfile(
-            @AuthenticationPrincipal UserPrincipal principal,
+            @AuthenticationPrincipal UUID userId,
             @Valid @RequestBody UserProfileUpdateRequest request) {
-        return ApiResponse.ok(userService.updateProfile(principal, request));
+        return ApiResponse.ok(userService.updateProfile(userId, request));
     }
 
     @DeleteMapping("/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteAccount(@AuthenticationPrincipal UserPrincipal principal) {
-        userService.deleteAccount(principal);
+    public void deleteAccount(@AuthenticationPrincipal UUID userId) {
+        userService.deleteAccount(userId);
     }
 }

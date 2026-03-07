@@ -27,7 +27,7 @@ spring:
       mail.smtp.starttls.enable: true
 
 jwt:
-  secret: test-secret-key-for-ci-testing-only-minimum-32chars
+  secret: dGVzdC1zZWNyZXQta2V5LWZvci1kZXZwaWNrLXRlc3Rpbmc=
   access-token-expiry: 3600000
   refresh-token-expiry: 604800000
 

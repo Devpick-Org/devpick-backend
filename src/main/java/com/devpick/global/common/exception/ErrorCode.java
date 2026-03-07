@@ -27,6 +27,7 @@ public enum ErrorCode {
     AUTH_EMAIL_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "AUTH_009", "인증 코드가 만료되었거나 존재하지 않습니다."),
     AUTH_EMAIL_CODE_INVALID(HttpStatus.BAD_REQUEST, "AUTH_010", "인증 코드가 올바르지 않습니다."),
     AUTH_EMAIL_VERIFY_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AUTH_011", "인증 시도 횟수를 초과했습니다. 코드를 재발송해 주세요."),
+    AUTH_EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "AUTH_012", "이메일 인증이 완료되지 않았습니다."),
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "사용자를 찾을 수 없습니다."),

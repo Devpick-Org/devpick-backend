@@ -13,7 +13,6 @@ import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
-import com.devpick.global.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,13 +48,11 @@ class UserServiceTest {
     private RefreshTokenRepository refreshTokenRepository;
 
     private UUID userId;
-    private UserPrincipal principal;
     private User user;
 
     @BeforeEach
     void setUp() {
         userId = UUID.randomUUID();
-        principal = new UserPrincipal(userId, "test@devpick.kr");
         user = User.builder()
                 .email("test@devpick.kr")
                 .nickname("테스트유저")
@@ -69,7 +66,7 @@ class UserServiceTest {
     void getProfile_success() {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
-        UserProfileResponse response = userService.getProfile(principal);
+        UserProfileResponse response = userService.getProfile(userId);
 
         assertThat(response.email()).isEqualTo("test@devpick.kr");
         assertThat(response.nickname()).isEqualTo("테스트유저");
@@ -80,7 +77,7 @@ class UserServiceTest {
     void getProfile_inactiveUser_throwsUserNotFound() {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.getProfile(principal))
+        assertThatThrownBy(() -> userService.getProfile(userId))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.USER_NOT_FOUND));
@@ -93,7 +90,7 @@ class UserServiceTest {
         given(userRepository.existsByNicknameAndIdNot("새닉네임", userId)).willReturn(false);
         UserProfileUpdateRequest request = new UserProfileUpdateRequest("새닉네임", null, null, null, null);
 
-        UserProfileResponse response = userService.updateProfile(principal, request);
+        UserProfileResponse response = userService.updateProfile(userId, request);
 
         assertThat(response.nickname()).isEqualTo("새닉네임");
     }
@@ -105,7 +102,7 @@ class UserServiceTest {
         given(userRepository.existsByNicknameAndIdNot("중복닉", userId)).willReturn(true);
         UserProfileUpdateRequest request = new UserProfileUpdateRequest("중복닉", null, null, null, null);
 
-        assertThatThrownBy(() -> userService.updateProfile(principal, request))
+        assertThatThrownBy(() -> userService.updateProfile(userId, request))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.USER_DUPLICATE_NICKNAME));
@@ -119,7 +116,7 @@ class UserServiceTest {
         given(tagRepository.findByNameIn(List.of("React"))).willReturn(List.of(reactTag));
         UserProfileUpdateRequest request = new UserProfileUpdateRequest(null, null, null, null, List.of("React"));
 
-        userService.updateProfile(principal, request);
+        userService.updateProfile(userId, request);
 
         verify(userTagRepository).deleteByUserId(userId);
         verify(userTagRepository).save(any(UserTag.class));
@@ -130,11 +127,11 @@ class UserServiceTest {
     void deleteAccount_success() {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
-        userService.deleteAccount(principal);
+        userService.deleteAccount(userId);
 
         assertThat(user.getIsActive()).isFalse();
         assertThat(user.getDeletedAt()).isNotNull();
-        verify(refreshTokenRepository).deleteByUserId(userId);
+        verify(refreshTokenRepository).deleteByUser(user);
     }
 
     @Test
@@ -142,10 +139,10 @@ class UserServiceTest {
     void deleteAccount_inactiveUser_throwsUserNotFound() {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.deleteAccount(principal))
+        assertThatThrownBy(() -> userService.deleteAccount(userId))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.USER_NOT_FOUND));
-        verify(refreshTokenRepository, never()).deleteByUserId(any());
+        verify(refreshTokenRepository, never()).deleteByUser(any());
     }
 }

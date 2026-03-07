@@ -2,10 +2,15 @@ package com.devpick.domain.user.controller;
 
 import com.devpick.domain.user.dto.EmailSendRequest;
 import com.devpick.domain.user.dto.EmailVerifyRequest;
+import com.devpick.domain.user.dto.LoginRequest;
+import com.devpick.domain.user.dto.LoginResponse;
+import com.devpick.domain.user.dto.RefreshRequest;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
+import com.devpick.domain.user.dto.TokenResponse;
 import com.devpick.domain.user.service.AuthService;
 import com.devpick.domain.user.service.EmailVerificationService;
+import com.devpick.domain.user.service.TokenService;
 import com.devpick.global.common.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,11 +28,26 @@ public class AuthController {
 
     private final AuthService authService;
     private final EmailVerificationService emailVerificationService;
+    private final TokenService tokenService;
 
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<SignupResponse> signup(@RequestBody @Valid SignupRequest request) {
         return ApiResponse.ok(authService.signup(request));
+    }
+
+    /** 이메일/비밀번호 로그인 — Access + Refresh Token 발급 (DP-181). */
+    @PostMapping("/login")
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<LoginResponse> login(@RequestBody @Valid LoginRequest request) {
+        return ApiResponse.ok(authService.login(request));
+    }
+
+    /** Refresh Token으로 새 토큰 쌍 재발급 (DP-181). */
+    @PostMapping("/refresh")
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<TokenResponse> refresh(@RequestBody @Valid RefreshRequest request) {
+        return ApiResponse.ok(tokenService.reissueTokens(request.refreshToken()));
     }
 
     /** 이메일 인증 코드 발송 (DP-178). */
