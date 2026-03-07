@@ -1,11 +1,16 @@
 package com.devpick.domain.user.service;
 
+import com.devpick.domain.user.dto.LoginRequest;
+import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
+import com.devpick.domain.user.entity.RefreshToken;
 import com.devpick.domain.user.entity.User;
+import com.devpick.domain.user.repository.RefreshTokenRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
+import com.devpick.global.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,6 +22,8 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
     public SignupResponse signup(SignupRequest request) {
@@ -28,6 +35,32 @@ public class AuthService {
         userRepository.save(user);
 
         return SignupResponse.from(user);
+    }
+
+    @Transactional
+    public LoginResponse login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new DevpickException(ErrorCode.AUTH_USER_NOT_FOUND));
+
+        if (!user.isEmailVerified()) {
+            throw new DevpickException(ErrorCode.AUTH_EMAIL_NOT_VERIFIED);
+        }
+
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            throw new DevpickException(ErrorCode.AUTH_INVALID_PASSWORD);
+        }
+
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId());
+        String refreshToken = jwtTokenProvider.generateRefreshToken();
+
+        refreshTokenRepository.deleteByUser(user);
+        refreshTokenRepository.save(RefreshToken.builder()
+                .user(user)
+                .token(refreshToken)
+                .expiresAt(jwtTokenProvider.getRefreshTokenExpiresAt())
+                .build());
+
+        return LoginResponse.of(accessToken, refreshToken, user);
     }
 
     private void validateDuplicateEmail(String email) {
