@@ -33,6 +33,11 @@ ai-server:
   url: ${AI_SERVER_URL:http://localhost:8000}
   timeout-ms: ${AI_SERVER_TIMEOUT_MS:10000}
 
+oauth:
+  github:
+    client-id: ${GITHUB_CLIENT_ID}
+    client-secret: ${GITHUB_CLIENT_SECRET}
+
 spring.mail:
   host: smtp.gmail.com
   port: 587
