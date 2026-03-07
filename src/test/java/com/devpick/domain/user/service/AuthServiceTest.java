@@ -1,11 +1,16 @@
 package com.devpick.domain.user.service;
 
+import com.devpick.domain.user.dto.LoginRequest;
+import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
+import com.devpick.domain.user.entity.RefreshToken;
 import com.devpick.domain.user.entity.User;
+import com.devpick.domain.user.repository.RefreshTokenRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
+import com.devpick.global.security.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,6 +18,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,6 +40,12 @@ class AuthServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private JwtTokenProvider jwtTokenProvider;
+
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Test
     @DisplayName("정상 회원가입 - 이메일, 비밀번호, 닉네임으로 가입 시 User가 저장된다")
@@ -81,5 +95,79 @@ class AuthServiceTest {
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.AUTH_DUPLICATE_NICKNAME));
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("정상 로그인 - 이메일/비밀번호 일치 시 LoginResponse를 반환하고 refreshToken이 저장된다")
+    void login_success() {
+        // given
+        LoginRequest request = new LoginRequest("test@devpick.kr", "password123!");
+        User user = User.createEmailUser("test@devpick.kr", "encodedPassword", "하영");
+        user.verifyEmail();
+
+        given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
+        given(passwordEncoder.matches(request.password(), user.getPasswordHash())).willReturn(true);
+        given(jwtTokenProvider.generateAccessToken(any())).willReturn("mockAccessToken");
+        given(jwtTokenProvider.generateRefreshToken()).willReturn("mockRefreshToken");
+        given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
+
+        // when
+        LoginResponse response = authService.login(request);
+
+        // then
+        assertThat(response.accessToken()).isEqualTo("mockAccessToken");
+        assertThat(response.refreshToken()).isEqualTo("mockRefreshToken");
+        assertThat(response.email()).isEqualTo(request.email());
+        verify(refreshTokenRepository).deleteByUser(user);
+        verify(refreshTokenRepository).save(any(RefreshToken.class));
+    }
+
+    @Test
+    @DisplayName("이메일 없음 - 존재하지 않는 이메일로 로그인 시 AUTH_USER_NOT_FOUND 예외가 발생한다")
+    void login_emailNotFound_throwsException() {
+        // given
+        LoginRequest request = new LoginRequest("notfound@devpick.kr", "password123!");
+        given(userRepository.findByEmail(request.email())).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_USER_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("이메일 미인증 - 인증되지 않은 사용자로 로그인 시 AUTH_EMAIL_NOT_VERIFIED 예외가 발생한다")
+    void login_emailNotVerified_throwsException() {
+        // given
+        LoginRequest request = new LoginRequest("test@devpick.kr", "password123!");
+        User user = User.createEmailUser("test@devpick.kr", "encodedPassword", "하영");
+        // verifyEmail() 호출하지 않음 → isEmailVerified = false
+
+        given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
+
+        // when & then
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_EMAIL_NOT_VERIFIED));
+    }
+
+    @Test
+    @DisplayName("비밀번호 불일치 - 잘못된 비밀번호로 로그인 시 AUTH_INVALID_PASSWORD 예외가 발생한다")
+    void login_wrongPassword_throwsException() {
+        // given
+        LoginRequest request = new LoginRequest("test@devpick.kr", "wrongPassword!");
+        User user = User.createEmailUser("test@devpick.kr", "encodedPassword", "하영");
+        user.verifyEmail();
+
+        given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
+        given(passwordEncoder.matches(request.password(), user.getPasswordHash())).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_INVALID_PASSWORD));
     }
 }

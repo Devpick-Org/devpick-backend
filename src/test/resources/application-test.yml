@@ -1,0 +1,4 @@
+jwt:
+  secret: dGVzdFNlY3JldEtleUZvckRldlBpY2tUZXN0aW5nT25seQ==
+  access-token-expiry: 3600000
+  refresh-token-expiry: 604800000
