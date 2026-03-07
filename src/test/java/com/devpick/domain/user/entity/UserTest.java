@@ -21,7 +21,7 @@ class UserTest {
 
         // then
         assertThat(user.getIsActive()).isTrue();
-        assertThat(user.getIsEmailVerified()).isFalse();
+        assertThat(user.isEmailVerified()).isFalse();
         assertThat(user.getDeletedAt()).isNull();
         assertThat(user.getUserTags()).isEmpty();
     }
@@ -47,6 +47,6 @@ class UserTest {
         assertThat(user.getJob()).isEqualTo(Job.FRONTEND);
         assertThat(user.getLevel()).isEqualTo(Level.SENIOR);
         assertThat(user.getIsActive()).isFalse();
-        assertThat(user.getIsEmailVerified()).isTrue();
+        assertThat(user.isEmailVerified()).isTrue();
     }
 }

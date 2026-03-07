@@ -1,4 +1,6 @@
-# DevPick Backend — Claude Code Context
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 > **읽는 순서**: 이 파일(전체 맥락) → `src/main/java/com/devpick/CLAUDE.md` (도메인/DB 상세)
 
@@ -58,10 +60,12 @@ com.devpick
 │   ├── history       # 학습 히스토리
 │   └── report        # 주간 리포트
 ├── global
-│   ├── config        # Spring 설정 (Security, CORS, QueryDSL 등)
-│   ├── exception     # 커스텀 예외 클래스
-│   ├── response      # ApiResponse<T> 공통 응답 래퍼
-│   └── security      # JWT 필터, 인증 처리
+│   ├── common
+│   │   ├── entity        # BaseEntity (id UUID, createdAt, updatedAt)
+│   │   ├── exception     # DevpickException, ErrorCode enum, GlobalExceptionHandler
+│   │   └── response      # ApiResponse<T> record
+│   ├── config            # SecurityConfig 등 Spring 설정
+│   └── security          # JWT 필터, 인증 처리 (미구현)
 ```
 
 ---
@@ -75,8 +79,14 @@ com.devpick
 # 로컬 프로파일 (더미 데이터 포함)
 ./gradlew bootRun --args='--spring.profiles.active=local'
 
-# 테스트 실행
+# 전체 테스트
 ./gradlew test
+
+# 단일 테스트 클래스 실행
+./gradlew test --tests "com.devpick.domain.user.service.AuthServiceTest"
+
+# 단일 테스트 메서드 실행
+./gradlew test --tests "com.devpick.domain.user.service.AuthServiceTest.signup_success"
 
 # 빌드
 ./gradlew build
@@ -191,12 +201,99 @@ DP-{티켓번호}: {작업 내용}
 
 ---
 
-## 8. API 엔드포인트 전체 목록
+## 8. 핵심 코드 패턴
+
+### 예외 처리
+모든 비즈니스 예외는 `DevpickException`에 `ErrorCode` enum을 넘겨 던진다. `ErrorCode`는 HTTP 상태 코드, 에러 코드 문자열, 메시지를 함께 보유한다.
+
+```java
+// 새 에러 코드 추가 위치: global/common/exception/ErrorCode.java
+AUTH_DUPLICATE_EMAIL(HttpStatus.CONFLICT, "AUTH_004", "이미 사용 중인 이메일입니다."),
+
+// 예외 던지기
+throw new DevpickException(ErrorCode.AUTH_DUPLICATE_EMAIL);
+```
+
+`GlobalExceptionHandler`가 `DevpickException`을 잡아 `ApiResponse.fail(code, message)`로 변환한다. 새 예외 타입을 추가할 때는 `GlobalExceptionHandler`도 함께 수정하지 않아도 된다 — `DevpickException` + `ErrorCode` 조합으로 처리된다.
+
+### 컨트롤러 응답
+```java
+// 성공 응답 (data 포함)
+return ApiResponse.ok(authService.signup(request));
+
+// 성공 응답 (data 없음)
+return ApiResponse.ok(null);   // 또는 ApiResponse.ok()
+```
+
+컨트롤러에서 HTTP 상태 코드는 `@ResponseStatus`로 선언한다 (`@ResponseStatus(HttpStatus.CREATED)`).
+
+### 엔티티 기본 구조
+모든 JPA 엔티티는 `BaseEntity`를 상속한다. `BaseEntity`는 `id(UUID)`, `createdAt`, `updatedAt`을 포함한다. 엔티티 생성자는 `protected`로 막고, `static factory method` 또는 `@Builder`를 사용한다.
+
+---
+
+## 9. 테스트 패턴
+
+테스트 프로파일은 `application-test.yml`을 사용하며, `@ActiveProfiles("test")` 없이 `src/test/resources`에서 자동 로드된다.
+
+### 서비스 단위 테스트 (`@ExtendWith(MockitoExtension.class)`)
+```java
+@ExtendWith(MockitoExtension.class)
+class AuthServiceTest {
+    @InjectMocks private AuthService authService;
+    @Mock private UserRepository userRepository;
+    @Mock private PasswordEncoder passwordEncoder;
+
+    @Test
+    @DisplayName("이메일 중복 - AUTH_DUPLICATE_EMAIL 예외가 발생한다")
+    void signup_duplicateEmail_throwsException() {
+        // given
+        given(userRepository.existsByEmail(any())).willReturn(true);
+        // when & then
+        assertThatThrownBy(() -> authService.signup(request))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_DUPLICATE_EMAIL));
+    }
+}
+```
+
+### 컨트롤러 통합 테스트 (`@WebMvcTest`)
+```java
+@WebMvcTest(AuthController.class)
+class AuthControllerTest {
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+
+    // 컨트롤러에 주입된 서비스는 모두 @MockitoBean으로 등록 (Spring Boot 3.4+)
+    @MockitoBean private AuthService authService;
+    @MockitoBean private EmailVerificationService emailVerificationService;
+
+    @Test
+    @WithMockUser                        // Spring Security 인증 우회
+    void signup_success() throws Exception {
+        mockMvc.perform(post("/auth/signup")
+                        .with(csrf())    // CSRF 토큰 (SecurityConfig에서 disable해도 WebMvcTest는 필요)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+}
+```
+
+**주의**: `@WebMvcTest`에서 컨트롤러에 주입된 모든 서비스를 `@MockitoBean`으로 등록하지 않으면 컨텍스트 로딩 실패.
+
+---
+
+## 10. API 엔드포인트 전체 목록
 
 ### Epic A — 회원/프로필
 | Method | Endpoint | 설명 | 인증 | 담당 |
 |--------|----------|------|------|------|
 | POST | `/auth/signup` | 이메일 회원가입 | X | 하영 (DP-177) |
+| POST | `/auth/email/send` | 이메일 인증 코드 발송 | X | 하영 (DP-178) |
+| POST | `/auth/email/verify` | 이메일 인증 코드 검증 | X | 하영 (DP-178) |
 | POST | `/auth/login` | 이메일 로그인 | X | 하영 (DP-180) |
 | POST | `/auth/logout` | 로그아웃 | O | 하영 (DP-185) |
 | POST | `/auth/refresh` | Access Token 재발급 | X | 하영 (DP-181) |
@@ -256,7 +353,7 @@ DP-{티켓번호}: {작업 내용}
 
 ---
 
-## 9. 현재 스프린트 — 홍근 담당 티켓
+## 11. 현재 스프린트 — 홍근 담당 티켓
 
 ### Sprint 0 (2/24 ~ 3/2) — 환경 세팅
 | 티켓 | 작업 |
@@ -287,7 +384,7 @@ DP-{티켓번호}: {작업 내용}
 
 ---
 
-## 10. ADR 결정 요약
+## 12. ADR 결정 요약
 
 | ADR | 결정 | 상태 |
 |-----|------|------|
@@ -307,29 +404,16 @@ DP-{티켓번호}: {작업 내용}
 
 ---
 
-## 11. 테스트 전략
+## 13. 테스트 전략
 
 - **도구**: JUnit 5 + Mockito (단위), Spring Boot Test + MockMvc (API)
 - **커버리지 목표**: Service 레이어 **70% 이상**
 - **CI 트리거**: PR → develop 시 자동 실행
 - **테스트 패턴**: given / when / then 구조
 
-```java
-@Test
-void 이메일_중복_가입_시_예외_발생() {
-    // given
-    String email = "test@devpick.kr";
-    userRepository.save(createUser(email));
-
-    // when & then
-    assertThrows(DuplicateEmailException.class,
-        () -> userService.signup(email, "password"));
-}
-```
-
 ---
 
-## 12. 포트 정보 (로컬 개발)
+## 14. 포트 정보 (로컬 개발)
 
 | 서비스 | 포트 |
 |--------|------|
@@ -342,17 +426,7 @@ void 이메일_중복_가입_시_예외_발생() {
 
 ---
 
-## 13. 보안 주의사항
-
-- API Key, DB 비밀번호 등 시크릿은 **절대 코드에 하드코딩 금지**
-- `.env` 파일은 `.gitignore`에 포함 (절대 push 금지)
-- AI 프롬프트에 개인정보/시크릿 절대 포함 금지
-- Claude Code 사용 시 AI 생성 코드도 **PR 올린 사람이 책임**짐
-- PR에 AI 사용 여부 반드시 기록
-
----
-
-## 14. 참고 문서
+## 15. 참고 문서
 
 | 문서 | 내용 |
 |------|------|
@@ -361,10 +435,10 @@ void 이메일_중복_가입_시_예외_발생() {
 | `.github/PULL_REQUEST_TEMPLATE.md` | PR 작성 양식 |
 | Confluence ADR | 기술 결정 기록 |
 
-<\!-- auto-merge 테스트 -->
+<!-- auto-merge 테스트 -->
 ---
 
-## 15. CI/CD 자동화 구조
+## 16. CI/CD 자동화 구조
 
 ### 전체 워크플로 (Claude Code 자동화)
 
@@ -413,27 +487,6 @@ void 이메일_중복_가입_시_예외_발생() {
 - PR 생성 (Jira 링크 자동 삽입)
 - PR diff 기반 코드 자동 리뷰
 - CI 통과 후 develop 자동 머지
-
-### 실제 워크플로 예시
-
-```
-1. Claude Code에서 입력: /feature-dev DP-177
-
-2. 자동 실행:
-   - Jira DP-177 읽기 → "이메일 회원가입 API"
-   - 브랜치 생성: auto/feature/DP-177-email-signup-api
-   - UserController / UserService / UserRepository 작성
-   - 이메일 중복 검사, 비밀번호 암호화 등 AC 기반 테스트 작성
-   - PR 생성: "[DP-177] 이메일 회원가입 API 구현"
-
-3. CI 자동 실행 (~5분):
-   - 빌드 + 테스트 통과
-   - SonarCloud Quality Gate Passed
-
-4. develop 자동 squash 머지
-
-5. Jira DP-177 → Done 자동 전환
-```
 
 > **팀원 참고**: `feature/` 브랜치로 직접 작업한 PR은 CI 통과 후에도 자동 머지되지 않습니다.
 > GitHub에서 리뷰 확인 후 직접 Merge 버튼을 눌러주세요.

@@ -45,7 +45,7 @@ public class User extends BaseTimeEntity {
 
     @Column(name = "is_email_verified", nullable = false)
     @Builder.Default
-    private Boolean isEmailVerified = false;
+    private boolean isEmailVerified = false;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
@@ -53,4 +53,18 @@ public class User extends BaseTimeEntity {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<UserTag> userTags = new ArrayList<>();
+
+    /** 이메일 회원가입 사용자 생성 (DP-177). */
+    public static User createEmailUser(String email, String encodedPassword, String nickname) {
+        return User.builder()
+                .email(email)
+                .passwordHash(encodedPassword)
+                .nickname(nickname)
+                .build();
+    }
+
+    /** 이메일 인증 완료 처리 (DP-178). */
+    public void verifyEmail() {
+        this.isEmailVerified = true;
+    }
 }
