@@ -1,5 +1,7 @@
 package com.devpick.domain.user.controller;
 
+import com.devpick.domain.user.dto.LoginRequest;
+import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.service.AuthService;
@@ -67,6 +69,25 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.email").value("test@devpick.kr"))
                 .andExpect(jsonPath("$.data.nickname").value("하영"));
+    }
+
+    @Test
+    @DisplayName("POST /auth/login - 정상 로그인 시 200과 accessToken, email을 반환한다")
+    void login_success() throws Exception {
+        // given
+        LoginRequest request = new LoginRequest("test@devpick.kr", "password123!");
+        LoginResponse response = new LoginResponse("mockAccessToken", "mockRefreshToken",
+                UUID.randomUUID(), "test@devpick.kr", "하영");
+        given(authService.login(any(LoginRequest.class))).willReturn(response);
+
+        // when & then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").value("mockAccessToken"))
+                .andExpect(jsonPath("$.data.email").value("test@devpick.kr"));
     }
 
     @Test
