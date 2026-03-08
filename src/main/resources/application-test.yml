@@ -52,6 +52,14 @@ oauth:
     token-url: https://oauth2.googleapis.com/token
     user-url: https://www.googleapis.com/oauth2/v2/userinfo
 
+stackoverflow:
+  api-key: test-stackoverflow-api-key
+  collect-tags: java;spring-boot
+
+stackoverflow:
+  api-key: test-stackoverflow-api-key
+  collect-tags: java;spring-boot
+
 logging:
   level:
     com.devpick: WARN

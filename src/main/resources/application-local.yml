@@ -47,6 +47,10 @@ spring.mail:
     mail.smtp.auth: true
     mail.smtp.starttls.enable: true
 
+stackoverflow:
+  api-key: ${STACKOVERFLOW_API_KEY:}
+  collect-tags: ${STACKOVERFLOW_COLLECT_TAGS:java;spring-boot;kotlin;python}
+
 logging:
   level:
     com.devpick: DEBUG
