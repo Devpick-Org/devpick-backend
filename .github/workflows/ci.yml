@@ -157,6 +157,9 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Build classes for SonarCloud
+        run: ./gradlew classes testClasses --no-daemon
+
       - name: SonarCloud Scan
         run: ./gradlew sonar --no-daemon
         env:
