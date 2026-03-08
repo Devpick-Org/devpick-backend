@@ -4,6 +4,7 @@ import com.devpick.domain.user.dto.TokenResponse;
 import com.devpick.domain.user.entity.RefreshToken;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.RefreshTokenRepository;
+import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.security.JwtTokenProvider;
@@ -36,6 +37,11 @@ class TokenServiceTest {
 
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    // ── reissueTokens ──────────────────────────────────────────────
 
     @Test
     @DisplayName("토큰 재발급 - 유효한 Refresh Token으로 새 토큰 쌍이 발급된다")
@@ -84,7 +90,7 @@ class TokenServiceTest {
         // given
         User user = createUser();
         RefreshToken expired = createRefreshToken(user, "expired-token",
-                LocalDateTime.now().minusDays(1)); // 만료
+                LocalDateTime.now().minusDays(1));
 
         given(refreshTokenRepository.findByToken("expired-token"))
                 .willReturn(Optional.of(expired));
@@ -95,6 +101,36 @@ class TokenServiceTest {
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.AUTH_INVALID_REFRESH_TOKEN));
         verify(refreshTokenRepository).delete(expired);
+    }
+
+    // ── logout ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("로그아웃 - 유효한 사용자 ID로 Refresh Token이 삭제된다")
+    void logout_success() throws Exception {
+        // given
+        User user = createUser();
+        given(userRepository.findById(user.getId())).willReturn(Optional.of(user));
+
+        // when
+        tokenService.logout(user.getId());
+
+        // then
+        verify(refreshTokenRepository).deleteByUser(user);
+    }
+
+    @Test
+    @DisplayName("로그아웃 실패 - 존재하지 않는 사용자 ID이면 AUTH_USER_NOT_FOUND 예외가 발생한다")
+    void logout_userNotFound_throwsException() {
+        // given
+        UUID unknownId = UUID.randomUUID();
+        given(userRepository.findById(unknownId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> tokenService.logout(unknownId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_USER_NOT_FOUND));
     }
 
     // ── 헬퍼 ──────────────────────────────────────────────
