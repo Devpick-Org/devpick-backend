@@ -26,6 +26,12 @@ spring:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
 
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 jwt:
   secret: dGVzdC1zZWNyZXQta2V5LWZvci1kZXZwaWNrLXRlc3Rpbmc=
   access-token-expiry: 3600000
