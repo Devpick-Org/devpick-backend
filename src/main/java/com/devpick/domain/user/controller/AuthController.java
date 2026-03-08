@@ -17,6 +17,7 @@ import com.devpick.global.common.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/auth")
@@ -47,6 +50,21 @@ public class AuthController {
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<LoginResponse> login(@RequestBody @Valid LoginRequest request) {
         return ApiResponse.ok(authService.login(request));
+    }
+
+    /**
+     * 로그아웃 — Refresh Token DB 삭제 (DP-185).
+     * JwtAuthenticationFilter가 SecurityContext에 userId(UUID)를 principal로 저장한다.
+     * 클라이언트는 로컀에서 Access Token도 함께 폐기해야 한다.
+     *
+     * 확장 포인트 (DP-XXX): Redis Access Token 블랙리스트 도입 시 이 메서드에서 함께 처리
+     */
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<Void> logout(Authentication authentication) {
+        UUID userId = (UUID) authentication.getPrincipal();
+        tokenService.logout(userId);
+        return ApiResponse.ok(null);
     }
 
     /** Refresh Token으로 새 토큰 쌍 재발급 (DP-181). */

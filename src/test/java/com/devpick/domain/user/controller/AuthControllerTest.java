@@ -22,15 +22,19 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -62,6 +66,8 @@ class AuthControllerTest {
 
     @InjectMocks
     private AuthController authController;
+
+    private final UUID testUserId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
@@ -174,6 +180,40 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(false));
     }
 
+    // ── logout (DP-185) ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("POST /auth/logout - 인증된 사용자가 로그아웃하면 200을 반환한다")
+    void logout_success() throws Exception {
+        // given
+        // Authentication.getPrincipal() 로 UUID를 반환하는 토큰을 standaloneSetup에 주입
+        // 컨트롤러는 authentication.getPrincipal()로 UUID를 겨지므로
+        // UsernamePasswordAuthenticationToken(principal=testUserId, ...) 형태로 주입하면 동작함
+        doNothing().when(tokenService).logout(any(UUID.class));
+
+        // when & then
+        mockMvc.perform(post("/auth/logout")
+                        .principal(new UsernamePasswordAuthenticationToken(
+                                testUserId, null, List.of())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    @DisplayName("POST /auth/logout - 존재하지 않는 사용자이면 404를 반환한다")
+    void logout_userNotFound_returns404() throws Exception {
+        // given
+        doThrow(new DevpickException(ErrorCode.AUTH_USER_NOT_FOUND))
+                .when(tokenService).logout(any(UUID.class));
+
+        // when & then
+        mockMvc.perform(post("/auth/logout")
+                        .principal(new UsernamePasswordAuthenticationToken(
+                                testUserId, null, List.of())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
     // ── refresh ──────────────────────────────────────────────
 
     @Test
@@ -231,7 +271,7 @@ class AuthControllerTest {
     void sendVerificationCode_tooOften_returns429() throws Exception {
         // given
         String request = "{\"email\":\"test@devpick.kr\"}";
-        org.mockito.Mockito.doThrow(new DevpickException(ErrorCode.AUTH_EMAIL_SEND_TOO_OFTEN))
+        doThrow(new DevpickException(ErrorCode.AUTH_EMAIL_SEND_TOO_OFTEN))
                 .when(emailVerificationService).sendVerificationCode(anyString());
 
         // when & then
@@ -261,7 +301,7 @@ class AuthControllerTest {
     void verifyCode_invalidCode_returns400() throws Exception {
         // given
         String request = "{\"email\":\"test@devpick.kr\",\"code\":\"000000\"}";
-        org.mockito.Mockito.doThrow(new DevpickException(ErrorCode.AUTH_EMAIL_CODE_INVALID))
+        doThrow(new DevpickException(ErrorCode.AUTH_EMAIL_CODE_INVALID))
                 .when(emailVerificationService).verifyCode(anyString(), anyString());
 
         // when & then
