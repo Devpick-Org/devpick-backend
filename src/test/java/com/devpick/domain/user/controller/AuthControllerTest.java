@@ -22,10 +22,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -184,14 +186,15 @@ class AuthControllerTest {
     @DisplayName("POST /auth/logout - 인증된 사용자가 로그아웃하면 200을 반환한다")
     void logout_success() throws Exception {
         // given
-        doNothing().when(tokenService).logout(testUserId);
+        // Authentication.getPrincipal() 로 UUID를 반환하는 토큰을 standaloneSetup에 주입
+        // 컨트롤러는 authentication.getPrincipal()로 UUID를 겨지므로
+        // UsernamePasswordAuthenticationToken(principal=testUserId, ...) 형태로 주입하면 동작함
+        doNothing().when(tokenService).logout(any(UUID.class));
 
         // when & then
-        // standaloneSetup 환경에서는 @AuthenticationPrincipal이 동작하지 않으므로
-        // principal을 직접 주입하여 테스트한다
         mockMvc.perform(post("/auth/logout")
-                        .principal(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                                testUserId, null, java.util.List.of())))
+                        .principal(new UsernamePasswordAuthenticationToken(
+                                testUserId, null, List.of())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
     }
@@ -201,12 +204,12 @@ class AuthControllerTest {
     void logout_userNotFound_returns404() throws Exception {
         // given
         doThrow(new DevpickException(ErrorCode.AUTH_USER_NOT_FOUND))
-                .when(tokenService).logout(testUserId);
+                .when(tokenService).logout(any(UUID.class));
 
         // when & then
         mockMvc.perform(post("/auth/logout")
-                        .principal(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                                testUserId, null, java.util.List.of())))
+                        .principal(new UsernamePasswordAuthenticationToken(
+                                testUserId, null, List.of())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
     }
