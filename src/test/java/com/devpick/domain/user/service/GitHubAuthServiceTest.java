@@ -183,4 +183,56 @@ class GitHubAuthServiceTest {
                 .extracting(e -> ((DevpickException) e).getErrorCode())
                 .isEqualTo(ErrorCode.AUTH_SOCIAL_EMAIL_REQUIRED);
     }
+
+    @Test
+    @DisplayName("GitHub name이 null이면 login을 닉네임 후보로 사용한다")
+    void login_nullName_usesLoginAsNickname() {
+        // given — name=null, login=사용, 중복 없음
+        String code = "code";
+        GitHubUserInfo userInfo = new GitHubUserInfo("88888", "loginuser", "login@test.com", null, null);
+        User newUser = User.createSocialUser("login@test.com", "loginuser");
+
+        given(gitHubOAuthClient.exchangeToken(code)).willReturn("github-token");
+        given(gitHubOAuthClient.fetchUserInfo("github-token")).willReturn(userInfo);
+        given(socialAccountRepository.findByProviderAndProviderId(GITHUB_PROVIDER, "88888"))
+                .willReturn(Optional.empty());
+        given(userRepository.existsByNickname("loginuser")).willReturn(false);
+        given(userRepository.save(any(User.class))).willReturn(newUser);
+        given(jwtTokenProvider.generateAccessToken(any())).willReturn("access-token");
+        given(jwtTokenProvider.generateRefreshToken()).willReturn("refresh-token");
+        given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
+
+        // when
+        LoginResponse response = gitHubAuthService.login(code);
+
+        // then
+        assertThat(response.accessToken()).isEqualTo("access-token");
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("GitHub name이 빈 문자열이면 login을 닉네임 후보로 사용한다")
+    void login_blankName_usesLoginAsNickname() {
+        // given — name="  "(blank), login 사용
+        String code = "code";
+        GitHubUserInfo userInfo = new GitHubUserInfo("11111", "blankname", "blank@test.com", "  ", null);
+        User newUser = User.createSocialUser("blank@test.com", "blankname");
+
+        given(gitHubOAuthClient.exchangeToken(code)).willReturn("github-token");
+        given(gitHubOAuthClient.fetchUserInfo("github-token")).willReturn(userInfo);
+        given(socialAccountRepository.findByProviderAndProviderId(GITHUB_PROVIDER, "11111"))
+                .willReturn(Optional.empty());
+        given(userRepository.existsByNickname("blankname")).willReturn(false);
+        given(userRepository.save(any(User.class))).willReturn(newUser);
+        given(jwtTokenProvider.generateAccessToken(any())).willReturn("access-token");
+        given(jwtTokenProvider.generateRefreshToken()).willReturn("refresh-token");
+        given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
+
+        // when
+        LoginResponse response = gitHubAuthService.login(code);
+
+        // then
+        assertThat(response.accessToken()).isEqualTo("access-token");
+        verify(userRepository).save(any(User.class));
+    }
 }
