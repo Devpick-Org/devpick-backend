@@ -68,6 +68,19 @@ public class User extends BaseTimeEntity {
         this.isEmailVerified = true;
     }
 
+    /**
+     * GitHub 소셜 로그인 신규 회원 생성 (DP-183).
+     * 소셜 로그인은 비밀번호 없이 생성되며, 이메일 인증은 즉시 완료 처리.
+     * 확장 포인트 (DP-183): 다른 소셜 로그인(Google, Kakao) 추가 시 provider를 파라미터로 받는 공통 메서드로 분리 가능.
+     */
+    public static User createSocialUser(String email, String nickname) {
+        return User.builder()
+                .email(email)
+                .nickname(nickname)
+                .isEmailVerified(true)
+                .build();
+    }
+
     /** 프로필 수정 (DP-187). */
     public void updateProfile(String nickname, String profileImage, Job job, Level level) {
         if (nickname != null) this.nickname = nickname;

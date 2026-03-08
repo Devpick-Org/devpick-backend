@@ -8,6 +8,7 @@ import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.dto.TokenResponse;
 import com.devpick.domain.user.service.AuthService;
 import com.devpick.domain.user.service.EmailVerificationService;
+import com.devpick.domain.user.service.GitHubAuthService;
 import com.devpick.domain.user.service.TokenService;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -27,7 +28,9 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -49,6 +52,9 @@ class AuthControllerTest {
 
     @Mock
     private TokenService tokenService;
+
+    @Mock
+    private GitHubAuthService gitHubAuthService;
 
     @InjectMocks
     private AuthController authController;
@@ -197,6 +203,115 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    // ── email/send & email/verify ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("POST /auth/email/send - 정상 요청 시 200을 반환한다")
+    void sendVerificationCode_success() throws Exception {
+        // given
+        String request = "{\"email\":\"test@devpick.kr\"}";
+
+        // when & then
+        mockMvc.perform(post("/auth/email/send")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    @DisplayName("POST /auth/email/send - 너무 잦은 요청 시 429를 반환한다")
+    void sendVerificationCode_tooOften_returns429() throws Exception {
+        // given
+        String request = "{\"email\":\"test@devpick.kr\"}";
+        org.mockito.Mockito.doThrow(new DevpickException(ErrorCode.AUTH_EMAIL_SEND_TOO_OFTEN))
+                .when(emailVerificationService).sendVerificationCode(anyString());
+
+        // when & then
+        mockMvc.perform(post("/auth/email/send")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /auth/email/verify - 정상 요청 시 200을 반환한다")
+    void verifyCode_success() throws Exception {
+        // given
+        String request = "{\"email\":\"test@devpick.kr\",\"code\":\"123456\"}";
+
+        // when & then
+        mockMvc.perform(post("/auth/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    @DisplayName("POST /auth/email/verify - 잘못된 코드이면 400을 반환한다")
+    void verifyCode_invalidCode_returns400() throws Exception {
+        // given
+        String request = "{\"email\":\"test@devpick.kr\",\"code\":\"000000\"}";
+        org.mockito.Mockito.doThrow(new DevpickException(ErrorCode.AUTH_EMAIL_CODE_INVALID))
+                .when(emailVerificationService).verifyCode(anyString(), anyString());
+
+        // when & then
+        mockMvc.perform(post("/auth/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    // ── GitHub 소셜 로그인 콜백 (DP-183) ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("GET /auth/github/callback - 유효한 인가 코드로 200과 토큰을 반환한다")
+    void githubCallback_success() throws Exception {
+        // given
+        LoginResponse response = new LoginResponse(
+                "access-token", "refresh-token", UUID.randomUUID(), "hayoung@test.com", "하영");
+        given(gitHubAuthService.login(anyString())).willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/auth/github/callback")
+                        .param("code", "valid-github-code"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").value("access-token"))
+                .andExpect(jsonPath("$.data.email").value("hayoung@test.com"));
+    }
+
+    @Test
+    @DisplayName("GET /auth/github/callback - GitHub API 실패 시 502를 반환한다")
+    void githubCallback_githubApiFailed_returns502() throws Exception {
+        // given
+        given(gitHubAuthService.login(anyString()))
+                .willThrow(new DevpickException(ErrorCode.AUTH_SOCIAL_GITHUB_FAILED));
+
+        // when & then
+        mockMvc.perform(get("/auth/github/callback")
+                        .param("code", "bad-code"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /auth/github/callback - GitHub 이메일 미공개 시 400을 반환한다")
+    void githubCallback_emailNotPublic_returns400() throws Exception {
+        // given
+        given(gitHubAuthService.login(anyString()))
+                .willThrow(new DevpickException(ErrorCode.AUTH_SOCIAL_EMAIL_REQUIRED));
+
+        // when & then
+        mockMvc.perform(get("/auth/github/callback")
+                        .param("code", "no-email-code"))
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
 }
