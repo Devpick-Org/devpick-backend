@@ -33,9 +33,14 @@ public enum ErrorCode {
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "사용자를 찾을 수 없습니다."),
+    USER_DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "USER_002", "이미 사용 중인 닉네임입니다."),
 
     // Content
     CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CONTENT_001", "콘텐츠를 찾을 수 없습니다."),
+    CONTENT_ALREADY_SCRAPED(HttpStatus.CONFLICT, "CONTENT_002", "이미 스크랩한 콘텐츠입니다."),
+    CONTENT_NOT_SCRAPED(HttpStatus.NOT_FOUND, "CONTENT_003", "스크랩하지 않은 콘텐츠입니다."),
+    CONTENT_ALREADY_LIKED(HttpStatus.CONFLICT, "CONTENT_004", "이미 좋아요한 콘텐츠입니다."),
+    CONTENT_NOT_LIKED(HttpStatus.NOT_FOUND, "CONTENT_005", "좋아요하지 않은 콘텐츠입니다."),
 
     // AI
     AI_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "AI_001", "AI 서버 오류가 발생했습니다."),

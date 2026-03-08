@@ -74,11 +74,24 @@ public class User extends BaseTimeEntity {
      * 확장 포인트 (DP-183): 다른 소셜 로그인(Google, Kakao) 추가 시 provider를 파라미터로 받는 공통 메서드로 분리 가능.
      */
     public static User createSocialUser(String email, String nickname) {
-        User user = User.builder()
+        return User.builder()
                 .email(email)
                 .nickname(nickname)
                 .isEmailVerified(true)
                 .build();
-        return user;
+    }
+
+    /** 프로필 수정 (DP-187). */
+    public void updateProfile(String nickname, String profileImage, Job job, Level level) {
+        if (nickname != null) this.nickname = nickname;
+        if (profileImage != null) this.profileImage = profileImage;
+        if (job != null) this.job = job;
+        if (level != null) this.level = level;
+    }
+
+    /** 회원 탈퇴 소프트 삭제 (DP-189). */
+    public void softDelete() {
+        this.isActive = false;
+        this.deletedAt = LocalDateTime.now();
     }
 }
