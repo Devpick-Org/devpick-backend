@@ -26,8 +26,12 @@ public class GitHubOAuthClient {
     @Value("${oauth.github.client-secret}")
     private String clientSecret;
 
-    private static final String TOKEN_URL = "https://github.com/login/oauth/access_token";
-    private static final String USER_URL = "https://api.github.com/user";
+    // 확장 포인트 (DP-183): 테스트 주입을 위해 @Value로 노출. 기본값은 실제 GitHub URL.
+    @Value("${oauth.github.token-url:https://github.com/login/oauth/access_token}")
+    private String tokenUrl;
+
+    @Value("${oauth.github.user-url:https://api.github.com/user}")
+    private String userUrl;
 
     /**
      * GitHub 인가 코드 → GitHub Access Token 교환 (DP-183).
@@ -35,7 +39,7 @@ public class GitHubOAuthClient {
     public String exchangeToken(String code) {
         try {
             GitHubTokenResponse response = webClient.post()
-                    .uri(TOKEN_URL)
+                    .uri(tokenUrl)
                     .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                     .bodyValue(Map.of(
                             "client_id", clientId,
@@ -61,7 +65,7 @@ public class GitHubOAuthClient {
     public GitHubUserInfo fetchUserInfo(String accessToken) {
         try {
             GitHubUserInfo userInfo = webClient.get()
-                    .uri(USER_URL)
+                    .uri(userUrl)
                     .header(HttpHeaders.AUTHORIZATION, "token " + accessToken)
                     .retrieve()
                     .bodyToMono(GitHubUserInfo.class)
