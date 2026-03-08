@@ -56,10 +56,6 @@ stackoverflow:
   api-key: test-stackoverflow-api-key
   collect-tags: java;spring-boot
 
-stackoverflow:
-  api-key: test-stackoverflow-api-key
-  collect-tags: java;spring-boot
-
 logging:
   level:
     com.devpick: WARN
