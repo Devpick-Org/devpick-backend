@@ -9,6 +9,7 @@ import com.devpick.domain.user.dto.TokenResponse;
 import com.devpick.domain.user.service.AuthService;
 import com.devpick.domain.user.service.EmailVerificationService;
 import com.devpick.domain.user.service.GitHubAuthService;
+import com.devpick.domain.user.service.GoogleAuthService;
 import com.devpick.domain.user.service.TokenService;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -55,6 +56,9 @@ class AuthControllerTest {
 
     @Mock
     private GitHubAuthService gitHubAuthService;
+
+    @Mock
+    private GoogleAuthService googleAuthService;
 
     @InjectMocks
     private AuthController authController;
@@ -310,6 +314,53 @@ class AuthControllerTest {
 
         // when & then
         mockMvc.perform(get("/auth/github/callback")
+                        .param("code", "no-email-code"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    // ── Google 소셜 로그인 콜백 (DP-184) ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("GET /auth/google/callback - 유효한 인가 코드로 200과 토큰을 반환한다")
+    void googleCallback_success() throws Exception {
+        // given
+        LoginResponse response = new LoginResponse(
+                "access-token", "refresh-token", UUID.randomUUID(), "hayoung@gmail.com", "하영");
+        given(googleAuthService.login(anyString())).willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/auth/google/callback")
+                        .param("code", "valid-google-code"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").value("access-token"))
+                .andExpect(jsonPath("$.data.email").value("hayoung@gmail.com"));
+    }
+
+    @Test
+    @DisplayName("GET /auth/google/callback - Google API 실패 시 502를 반환한다")
+    void googleCallback_googleApiFailed_returns502() throws Exception {
+        // given
+        given(googleAuthService.login(anyString()))
+                .willThrow(new DevpickException(ErrorCode.AUTH_SOCIAL_GOOGLE_FAILED));
+
+        // when & then
+        mockMvc.perform(get("/auth/google/callback")
+                        .param("code", "bad-code"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /auth/google/callback - Google 이메일 없는 경우 400을 반환한다")
+    void googleCallback_emailRequired_returns400() throws Exception {
+        // given
+        given(googleAuthService.login(anyString()))
+                .willThrow(new DevpickException(ErrorCode.AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED));
+
+        // when & then
+        mockMvc.perform(get("/auth/google/callback")
                         .param("code", "no-email-code"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
