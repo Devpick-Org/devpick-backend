@@ -86,6 +86,10 @@ sonar {
 		property "sonar.organization", "devpick-org"
 		property "sonar.java.coveragePlugin", "jacoco"
 		property "sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml"
+		property "sonar.java.binaries", "build/classes/java/main"
+		property "sonar.java.test.binaries", "build/classes/java/test"
+		property "sonar.sources", "src/main/java"
+		property "sonar.tests", "src/test/java"
 	}
 }
 
