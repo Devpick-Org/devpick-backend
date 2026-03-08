@@ -11,6 +11,7 @@ import com.devpick.domain.user.dto.TokenResponse;
 import com.devpick.domain.user.service.AuthService;
 import com.devpick.domain.user.service.EmailVerificationService;
 import com.devpick.domain.user.service.GitHubAuthService;
+import com.devpick.domain.user.service.GoogleAuthService;
 import com.devpick.domain.user.service.TokenService;
 import com.devpick.global.common.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -33,6 +34,7 @@ public class AuthController {
     private final EmailVerificationService emailVerificationService;
     private final TokenService tokenService;
     private final GitHubAuthService gitHubAuthService;
+    private final GoogleAuthService googleAuthService;
 
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
@@ -75,5 +77,12 @@ public class AuthController {
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<LoginResponse> githubCallback(@RequestParam String code) {
         return ApiResponse.ok(gitHubAuthService.login(code));
+    }
+
+    /** Google 소셜 로그인 콜백 — 인가 코드 수신 후 JWT 발급 (DP-184). */
+    @GetMapping("/google/callback")
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<LoginResponse> googleCallback(@RequestParam String code) {
+        return ApiResponse.ok(googleAuthService.login(code));
     }
 }
