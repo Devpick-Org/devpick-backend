@@ -33,6 +33,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 .csrf(AbstractHttpConfigurer::disable) // NOSONAR java:S4502
 ```
 
+### Spring Boot 4.x 라이브러리 호환성 체크리스트
+
+이 프로젝트는 **Spring Boot 4.0.3 (Spring Framework 7.x)** 를 사용한다.
+메이저 버전 점프이므로 많은 서드파티 라이브러리가 아직 호환되지 않는다. **새 의존성 추가 전 반드시 확인.**
+
+| 라이브러리 | 상태 | 비고 |
+|-----------|------|------|
+| `springdoc-openapi-starter-webmvc-ui:2.x` | ⚠️ 테스트 환경 비활성화 필요 | Spring Boot 3.4.4 타겟. `@Profile("!test")` + `springdoc.api-docs.enabled: false` in application-test.yml 적용 중 |
+| `spring-boot-starter-*` 공식 모듈 | ✅ 호환 | Spring Boot BOM이 관리 |
+| `querydsl-jpa` | ⚠️ 버전 확인 필요 | Jakarta EE 마이그레이션 확인 |
+
+**신규 의존성 추가 전 체크:**
+1. 라이브러리 release notes에서 Spring Boot 4 / Spring Framework 7 지원 여부 확인
+2. Maven Central에서 최신 버전이 `spring-boot 3.x`만 타겟하는지 확인
+3. 테스트 실행 후 `contextLoads()` 통과 여부 확인
+4. 문제 발생 시: `@Profile("!test")` 또는 `@ConditionalOnProperty`로 테스트 환경 분리
+
+### CI/CD 자동 머지 — 필수 통과 조건
+
+`auto/feature/DP-*` 브랜치는 아래 **두 GitHub Actions job이 모두 초록색**이어야 자동 머지됨:
+
+| Job | 파일 | 블로킹 조건 |
+|-----|------|------------|
+| `Build & Test` | `ci.yml` / `build-test` job | 빌드 실패 또는 테스트 실패 시 블로킹 |
+| `SonarCloud Quality Gate` | `ci.yml` / `sonar` job | Quality Gate `ERROR`/`WARN` 시 exit 1로 블로킹 |
+
+**SonarCloud Quality Gate 실패 원인 TOP 3:**
+1. **신규 코드 커버리지 < 80%** → 새 Service/Controller에 단위 테스트 반드시 작성
+2. **코드 중복률 > 3%** → 공통 추상 클래스 재사용, 복붙 금지
+3. **Security Hotspot 미검토** → `// NOSONAR java:Sxxxx` 주석 추가
+
+**GitHub branch protection 설정 (수동):**
+`develop` 브랜치 보호 규칙에서 Required status checks:
+- `Build & Test`
+- `SonarCloud Quality Gate`
+두 항목 모두 체크되어 있어야 auto-merge가 Quality Gate를 기다림.
+
 ---
 
 ## 1. 프로젝트 개요
