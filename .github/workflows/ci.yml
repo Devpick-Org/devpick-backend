@@ -90,12 +90,14 @@ jobs:
           name: test-results
           path: build/reports/tests/
 
-      - name: Upload JaCoCo report
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: jacoco-report
-          path: build/reports/jacoco/
+          name: build-artifacts
+          path: |
+            build/classes/
+            build/reports/jacoco/
 
   sonar:
     name: SonarCloud Quality Gate
@@ -157,8 +159,11 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build classes for SonarCloud
-        run: ./gradlew classes testClasses --no-daemon
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: build/
 
       - name: SonarCloud Scan
         run: ./gradlew sonar --no-daemon
@@ -182,11 +187,20 @@ jobs:
 
       - name: Check SonarCloud Quality Gate
         run: |
-          STATUS=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
-            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=Devpick-Org_devpick-backend" \
-            | jq -r '.projectStatus.status')
-          echo "Quality Gate status: $STATUS"
-          if [ "$STATUS" != "OK" ]; then
-            echo "SonarCloud Quality Gate FAILED (status=$STATUS). Blocking merge."
+          echo "Waiting for SonarCloud analysis to complete..."
+          for i in $(seq 1 20); do
+            RESPONSE=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
+              "https://sonarcloud.io/api/qualitygates/project_status?projectKey=Devpick-Org_devpick-backend")
+            STATUS=$(echo "$RESPONSE" | jq -r '.projectStatus.status')
+            echo "Attempt $i: Quality Gate status = $STATUS"
+            if [ "$STATUS" = "OK" ] || [ "$STATUS" = "ERROR" ] || [ "$STATUS" = "WARN" ]; then
+              break
+            fi
+            sleep 10
+          done
+          if [ "$STATUS" = "OK" ]; then
+            echo "SonarCloud Quality Gate PASSED."
+          else
+            echo "SonarCloud Quality Gate FAILED (status=$STATUS)."
             exit 1
           fi
