@@ -14,6 +14,10 @@ import com.devpick.domain.user.service.GitHubAuthService;
 import com.devpick.domain.user.service.GoogleAuthService;
 import com.devpick.domain.user.service.TokenService;
 import com.devpick.global.common.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+@Tag(name = "Auth", description = "회원가입/로그인/소셜인증/토큰 관리")
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -39,26 +44,34 @@ public class AuthController {
     private final GitHubAuthService gitHubAuthService;
     private final GoogleAuthService googleAuthService;
 
+    @Operation(summary = "이메일 회원가입", description = "이메일/비밀번호로 신규 계정을 생성합니다. 이메일 인증 완료 후 호출해야 합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "회원가입 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "입력값 유효성 오류 또는 이메일 미인증"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이메일 또는 닉네임 중복")
+    })
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<SignupResponse> signup(@RequestBody @Valid SignupRequest request) {
         return ApiResponse.ok(authService.signup(request));
     }
 
-    /** 이메일/비밀번호 로그인 — Access + Refresh Token 발급 (DP-181). */
+    @Operation(summary = "이메일 로그인", description = "이메일/비밀번호로 로그인하여 Access Token과 Refresh Token을 발급받습니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "이메일 또는 비밀번호 불일치")
+    })
     @PostMapping("/login")
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<LoginResponse> login(@RequestBody @Valid LoginRequest request) {
         return ApiResponse.ok(authService.login(request));
     }
 
-    /**
-     * 로그아웃 — Refresh Token DB 삭제 (DP-185).
-     * JwtAuthenticationFilter가 SecurityContext에 userId(UUID)를 principal로 저장한다.
-     * 클라이언트는 로컀에서 Access Token도 함께 폐기해야 한다.
-     *
-     * 확장 포인트 (DP-XXX): Redis Access Token 블랙리스트 도입 시 이 메서드에서 함께 처리
-     */
+    @Operation(summary = "로그아웃", description = "Refresh Token을 DB에서 삭제합니다. 클라이언트에서도 Access Token을 폐기해야 합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그아웃 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<Void> logout(Authentication authentication) {
@@ -67,14 +80,22 @@ public class AuthController {
         return ApiResponse.ok(null);
     }
 
-    /** Refresh Token으로 새 토큰 쌍 재발급 (DP-181). */
+    @Operation(summary = "토큰 재발급", description = "Refresh Token으로 새로운 Access Token과 Refresh Token 쌍을 재발급합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "재발급 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Refresh Token 만료 또는 유효하지 않음")
+    })
     @PostMapping("/refresh")
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<TokenResponse> refresh(@RequestBody @Valid RefreshRequest request) {
         return ApiResponse.ok(tokenService.reissueTokens(request.refreshToken()));
     }
 
-    /** 이메일 인증 코드 발송 (DP-178). */
+    @Operation(summary = "이메일 인증 코드 발송", description = "입력한 이메일로 6자리 인증 코드를 발송합니다. 5분 내 유효합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "발송 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "재전송 쿨다운 중 (1분)")
+    })
     @PostMapping("/email/send")
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<Void> sendVerificationCode(@RequestBody @Valid EmailSendRequest request) {
@@ -82,7 +103,11 @@ public class AuthController {
         return ApiResponse.ok(null);
     }
 
-    /** 이메일 인증 코드 검증 (DP-178). */
+    @Operation(summary = "이메일 인증 코드 검증", description = "발송된 6자리 코드를 검증합니다. 5회 초과 실패 시 차단됩니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "인증 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "코드 불일치 또는 만료")
+    })
     @PostMapping("/email/verify")
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<Void> verifyCode(@RequestBody @Valid EmailVerifyRequest request) {
@@ -90,17 +115,27 @@ public class AuthController {
         return ApiResponse.ok(null);
     }
 
-    /** GitHub 소셜 로그인 콜백 — 인가 코드 수신 후 JWT 발급 (DP-183). */
+    @Operation(summary = "GitHub 소셜 로그인 콜백", description = "GitHub OAuth 인가 코드를 받아 JWT를 발급합니다. 브라우저 리다이렉트 후 자동 호출됩니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "GitHub 인가 코드 유효하지 않음")
+    })
     @GetMapping("/github/callback")
     @ResponseStatus(HttpStatus.OK)
-    public ApiResponse<LoginResponse> githubCallback(@RequestParam String code) {
+    public ApiResponse<LoginResponse> githubCallback(
+            @Parameter(description = "GitHub OAuth 인가 코드", required = true) @RequestParam String code) {
         return ApiResponse.ok(gitHubAuthService.login(code));
     }
 
-    /** Google 소셜 로그인 콜백 — 인가 코드 수신 후 JWT 발급 (DP-184). */
+    @Operation(summary = "Google 소셜 로그인 콜백", description = "Google OAuth 인가 코드를 받아 JWT를 발급합니다. 브라우저 리다이렉트 후 자동 호출됩니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Google 인가 코드 유효하지 않음")
+    })
     @GetMapping("/google/callback")
     @ResponseStatus(HttpStatus.OK)
-    public ApiResponse<LoginResponse> googleCallback(@RequestParam String code) {
+    public ApiResponse<LoginResponse> googleCallback(
+            @Parameter(description = "Google OAuth 인가 코드", required = true) @RequestParam String code) {
         return ApiResponse.ok(googleAuthService.login(code));
     }
 }
