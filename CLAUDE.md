@@ -80,7 +80,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 이 레포는 **Spring Boot REST API 서버**다.
 - 담당: **홍근** (백엔드 메인), **하영** (백엔드 서브)
 - MVP 데드라인: **2026-04-13**
-- 현재 스프린트: Sprint 0 (2/24 ~ 3/2) — 환경 세팅
+- 현재 스프린트: Sprint 1 (3/3 ~ 3/16) — Epic A/B 핵심 API
 
 ### 시스템 구조 (4개 서버)
 ```
@@ -98,7 +98,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 구분 | 기술 | 버전 |
 |------|------|------|
 | 언어 | Java | 21 (LTS) |
-| 프레임워크 | Spring Boot | 3.5.x |
+| 프레임워크 | Spring Boot | 4.0.3 (Spring Framework 7.x) |
 | ORM | JPA/Hibernate + QueryDSL | - |
 | 빌드 | Gradle | 최신 |
 | DB (구조화) | PostgreSQL | 16 (AWS RDS) |
@@ -121,17 +121,17 @@ com.devpick
 │   │   ├── repository
 │   │   ├── entity
 │   │   └── dto
-│   ├── content       # 콘텐츠 피드/스크랩/좋아요
-│   ├── post          # 커뮤니티 게시글/답변/댓글
-│   ├── history       # 학습 히스토리
-│   └── report        # 주간 리포트
+│   ├── content       # 콘텐츠 피드/스크랩/좋아요 (구현 완료)
+│   ├── community     # 커뮤니티 게시글/답변/댓글 (Entity만 구현, Epic D에서 구현 예정)
+│   └── report        # 주간 리포트 + 학습 히스토리 (Entity만 구현, Epic E/F에서 구현 예정)
+│                     # ※ history 패키지는 설계상 분리 예정이나 현재 report 하위에 있음
 ├── global
 │   ├── common
-│   │   ├── entity        # BaseEntity (id UUID, createdAt, updatedAt)
 │   │   ├── exception     # DevpickException, ErrorCode enum, GlobalExceptionHandler
 │   │   └── response      # ApiResponse<T> record
-│   ├── config            # SecurityConfig 등 Spring 설정
-│   └── security          # JWT 필터, 인증 처리 (미구현)
+│   ├── entity            # BaseTimeEntity, BaseCreatedEntity
+│   ├── config            # SecurityConfig, CorsConfig, SwaggerConfig, WebClientConfig
+│   └── security          # JwtTokenProvider, JwtAuthenticationFilter
 ```
 
 ---
