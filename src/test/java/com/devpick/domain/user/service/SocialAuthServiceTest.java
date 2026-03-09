@@ -18,11 +18,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,7 +34,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * LENIENT: @BeforeEach에서 github/google 양쪽 client를 항상 초기화하므로,
+ * 일부 테스트(unsupportedProvider 등)에서는 getProviderName() stubbing이 사용되지 않을 수 있음.
+ */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class SocialAuthServiceTest {
 
     @Mock private UserRepository userRepository;
@@ -71,7 +77,7 @@ class SocialAuthServiceTest {
     @DisplayName("GitHub 로그인 - 기존 소셜 계정이 있으면 신규 생성 없이 JWT를 발급한다")
     void login_github_existingSocialAccount_returnsTokens() {
         GitHubUserInfo userInfo = new GitHubUserInfo("12345", "hayoung", "hayoung@test.com", "하영", null);
-        User existingUser = buildUser("hayoung@test.com", "hayoung");
+        User existingUser = User.createSocialUser("hayoung@test.com", "hayoung");
         SocialAccount existingAccount = SocialAccount.builder()
                 .user(existingUser).provider("github").providerId("12345").build();
 
@@ -94,7 +100,7 @@ class SocialAuthServiceTest {
     @DisplayName("GitHub 로그인 - 신규 사용자이면 User + SocialAccount를 생성하고 JWT를 발급한다")
     void login_github_newUser_createsUserAndTokens() {
         GitHubUserInfo userInfo = new GitHubUserInfo("12345", "hayoung", "hayoung@test.com", "하영", null);
-        User newUser = buildUser("hayoung@test.com", "하영");
+        User newUser = User.createSocialUser("hayoung@test.com", "하영");
 
         when(githubClient.exchangeToken("code")).thenReturn("github-token");
         when(githubClient.fetchUserInfo("github-token")).thenReturn(userInfo);
@@ -135,7 +141,7 @@ class SocialAuthServiceTest {
     @DisplayName("Google 로그인 - 기존 소셜 계정이 있으면 신규 생성 없이 JWT를 발급한다")
     void login_google_existingSocialAccount_returnsTokens() {
         GoogleUserInfo userInfo = new GoogleUserInfo("99999", "hayoung@gmail.com", "하영", null);
-        User existingUser = buildUser("hayoung@gmail.com", "hayoung");
+        User existingUser = User.createSocialUser("hayoung@gmail.com", "hayoung");
         SocialAccount existingAccount = SocialAccount.builder()
                 .user(existingUser).provider("google").providerId("99999").build();
 
@@ -157,13 +163,13 @@ class SocialAuthServiceTest {
     @DisplayName("Google 로그인 - 신규 사용자이면 User + SocialAccount를 생성한다")
     void login_google_newUser_createsUser() {
         GoogleUserInfo userInfo = new GoogleUserInfo("99999", "hayoung@gmail.com", "하영", null);
-        User newUser = buildUser("hayoung@gmail.com", "hayoung");
+        User newUser = User.createSocialUser("hayoung@gmail.com", "하영");
 
         when(googleClient.exchangeToken("code")).thenReturn("google-token");
         when(googleClient.fetchUserInfo("google-token")).thenReturn(userInfo);
         when(socialAccountRepository.findByProviderAndProviderId("google", "99999"))
                 .thenReturn(Optional.empty());
-        when(nicknameGenerator.generate(any(), any())).thenReturn("hayoung");
+        when(nicknameGenerator.generate(any(), any())).thenReturn("하영");
         when(userRepository.save(any())).thenReturn(newUser);
         when(jwtTokenProvider.generateAccessToken(any())).thenReturn("access-token");
         when(jwtTokenProvider.generateRefreshToken()).thenReturn("refresh-token");
@@ -173,6 +179,22 @@ class SocialAuthServiceTest {
 
         verify(userRepository).save(any(User.class));
         verify(socialAccountRepository).save(any(SocialAccount.class));
+    }
+
+    @Test
+    @DisplayName("Google 로그인 - 이메일이 null이면 AUTH_SOCIAL_EMAIL_REQUIRED 예외 발생")
+    void login_google_nullEmail_throwsEmailRequired() {
+        GoogleUserInfo userInfoNoEmail = new GoogleUserInfo("99999", null, "하영", null);
+
+        when(googleClient.exchangeToken("code")).thenReturn("google-token");
+        when(googleClient.fetchUserInfo("google-token")).thenReturn(userInfoNoEmail);
+        when(socialAccountRepository.findByProviderAndProviderId("google", "99999"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> socialAuthService.login("google", "code"))
+                .isInstanceOf(DevpickException.class)
+                .extracting(e -> ((DevpickException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AUTH_SOCIAL_EMAIL_REQUIRED);
     }
 
     // ── 공통 에러 케이스 ──────────────────────────────────────────────
@@ -196,11 +218,5 @@ class SocialAuthServiceTest {
                 .isInstanceOf(DevpickException.class)
                 .extracting(e -> ((DevpickException) e).getErrorCode())
                 .isEqualTo(ErrorCode.AUTH_OAUTH_CODE_EXPIRED);
-    }
-
-    // ── helper ──────────────────────────────────────────────
-
-    private User buildUser(String email, String nickname) {
-        return User.createSocialUser(email, nickname);
     }
 }
