@@ -10,8 +10,7 @@ import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.dto.TokenResponse;
 import com.devpick.domain.user.service.AuthService;
 import com.devpick.domain.user.service.EmailVerificationService;
-import com.devpick.domain.user.service.GitHubAuthService;
-import com.devpick.domain.user.service.GoogleAuthService;
+import com.devpick.domain.user.service.SocialAuthService;
 import com.devpick.domain.user.service.TokenService;
 import com.devpick.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,8 +40,7 @@ public class AuthController {
     private final AuthService authService;
     private final EmailVerificationService emailVerificationService;
     private final TokenService tokenService;
-    private final GitHubAuthService gitHubAuthService;
-    private final GoogleAuthService googleAuthService;
+    private final SocialAuthService socialAuthService;
 
     @Operation(summary = "이메일 회원가입", description = "이메일/비밀번호로 신규 계정을 생성합니다. 이메일 인증 완료 후 호출해야 합니다.")
     @ApiResponses({
@@ -124,7 +122,7 @@ public class AuthController {
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<LoginResponse> githubCallback(
             @Parameter(description = "GitHub OAuth 인가 코드", required = true) @RequestParam String code) {
-        return ApiResponse.ok(gitHubAuthService.login(code));
+        return ApiResponse.ok(socialAuthService.login("github", code));
     }
 
     @Operation(summary = "Google 소셜 로그인 콜백", description = "Google OAuth 인가 코드를 받아 JWT를 발급합니다. 브라우저 리다이렉트 후 자동 호출됩니다.")
@@ -136,6 +134,6 @@ public class AuthController {
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<LoginResponse> googleCallback(
             @Parameter(description = "Google OAuth 인가 코드", required = true) @RequestParam String code) {
-        return ApiResponse.ok(googleAuthService.login(code));
+        return ApiResponse.ok(socialAuthService.login("google", code));
     }
 }
