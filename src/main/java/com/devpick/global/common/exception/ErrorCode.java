@@ -32,6 +32,11 @@ public enum ErrorCode {
     AUTH_SOCIAL_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "AUTH_014", "GitHub 계정의 이메일 정보를 가져올 수 없습니다. GitHub 계정에서 이메일 공개 설정을 확인해 주세요."),
     AUTH_SOCIAL_GOOGLE_FAILED(HttpStatus.BAD_GATEWAY, "AUTH_015", "Google 소셜 로그인 처리 중 오류가 발생했습니다."),
     AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "AUTH_016", "Google 계정의 이메일 정보를 가져올 수 없습니다."),
+    AUTH_OAUTH_CODE_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH_017", "OAuth 인가 코드가 만료되었거나 이미 사용된 코드입니다."),
+    AUTH_OAUTH_ACCESS_DENIED(HttpStatus.UNAUTHORIZED, "AUTH_018", "OAuth 인가를 거부했습니다."),
+    AUTH_OAUTH_REDIRECT_URI_MISMATCH(HttpStatus.BAD_REQUEST, "AUTH_019", "OAuth redirect URI가 일치하지 않습니다. 서버 설정을 확인해 주세요."),
+    AUTH_OAUTH_SCOPE_DENIED(HttpStatus.UNAUTHORIZED, "AUTH_020", "OAuth 스코프 동의가 거부되었습니다."),
+    AUTH_OAUTH_UNSUPPORTED_PROVIDER(HttpStatus.BAD_REQUEST, "AUTH_021", "지원하지 않는 OAuth 제공자입니다."),
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "사용자를 찾을 수 없습니다."),
@@ -39,8 +44,8 @@ public enum ErrorCode {
 
     // Content
     CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CONTENT_001", "콘텐츠를 찾을 수 없습니다."),
-    CONTENT_ALREADY_SCRAPED(HttpStatus.CONFLICT, "CONTENT_002", "이미 스크랩한 콘텐츠입니다."),
-    CONTENT_NOT_SCRAPED(HttpStatus.NOT_FOUND, "CONTENT_003", "스크랩하지 않은 콘텐츠입니다."),
+    CONTENT_ALREADY_SCRAPED(HttpStatus.CONFLICT, "CONTENT_002", "이미 스크랙한 콘텐츠입니다."),
+    CONTENT_NOT_SCRAPED(HttpStatus.NOT_FOUND, "CONTENT_003", "스크랙하지 않은 콘텐츠입니다."),
     CONTENT_ALREADY_LIKED(HttpStatus.CONFLICT, "CONTENT_004", "이미 좋아요한 콘텐츠입니다."),
     CONTENT_NOT_LIKED(HttpStatus.NOT_FOUND, "CONTENT_005", "좋아요하지 않은 콘텐츠입니다."),
 
