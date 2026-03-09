@@ -28,24 +28,10 @@ public enum ErrorCode {
     AUTH_EMAIL_CODE_INVALID(HttpStatus.BAD_REQUEST, "AUTH_010", "인증 코드가 올바르지 않습니다."),
     AUTH_EMAIL_VERIFY_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AUTH_011", "인증 시도 횟수를 초과했습니다. 코드를 재발송해 주세요."),
     AUTH_EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "AUTH_012", "이메일 인증이 완료되지 않았습니다."),
-
-    // Auth - GitHub 소셜 로그인
     AUTH_SOCIAL_GITHUB_FAILED(HttpStatus.BAD_GATEWAY, "AUTH_013", "GitHub 소셜 로그인 처리 중 오류가 발생했습니다."),
     AUTH_SOCIAL_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "AUTH_014", "GitHub 계정의 이메일 정보를 가져올 수 없습니다. GitHub 계정에서 이메일 공개 설정을 확인해 주세요."),
-
-    // Auth - Google 소셜 로그인
     AUTH_SOCIAL_GOOGLE_FAILED(HttpStatus.BAD_GATEWAY, "AUTH_015", "Google 소셜 로그인 처리 중 오류가 발생했습니다."),
     AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "AUTH_016", "Google 계정의 이메일 정보를 가져올 수 없습니다."),
-
-    // Auth - OAuth 공통 세분화 에러
-    /** 인가 코드가 만료됐거나 이미 사용됨 (GitHub: bad_verification_code, Google: invalid_grant) */
-    AUTH_OAUTH_CODE_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH_017", "소셜 로그인 인가 코드가 만료되었거나 이미 사용되었습니다. 다시 로그인해 주세요."),
-    /** 사용자가 OAuth 동의 화면에서 취소 (GitHub: access_denied, Google: access_denied) */
-    AUTH_OAUTH_ACCESS_DENIED(HttpStatus.UNAUTHORIZED, "AUTH_018", "소셜 로그인을 취소하셨습니다."),
-    /** 필수 scope(email 등)를 사용자가 거부함 */
-    AUTH_OAUTH_SCOPE_DENIED(HttpStatus.FORBIDDEN, "AUTH_019", "이메일 정보 접근 권한이 거부되었습니다. 소셜 로그인 시 이메일 권한에 동의해 주세요."),
-    /** redirect_uri 불일치 (Google) */
-    AUTH_OAUTH_REDIRECT_URI_MISMATCH(HttpStatus.BAD_REQUEST, "AUTH_020", "OAuth redirect_uri가 올바르지 않습니다. 서버 설정을 확인해 주세요."),
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "사용자를 찾을 수 없습니다."),
