@@ -59,12 +59,20 @@ class GitHubOAuthClientTest {
         f.set(gitHubOAuthClient, value);
     }
 
+    // ── getProviderName ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getProviderName - \"github\"을 반환한다")
+    void getProviderName_returnsGithub() {
+        assertThat(gitHubOAuthClient.getProviderName()).isEqualTo("github");
+    }
+
     // ── exchangeToken ──────────────────────────────────────────────
 
     @Test
     @DisplayName("exchangeToken - 정상 응답 시 access_token을 반환한다")
     void exchangeToken_success() {
-        GitHubTokenResponse tokenResponse = new GitHubTokenResponse("github-token", "bearer", "repo");
+        GitHubTokenResponse tokenResponse = new GitHubTokenResponse("github-token", "bearer", "repo", null, null);
         stubPost(Mono.just(tokenResponse), GitHubTokenResponse.class);
 
         String result = gitHubOAuthClient.exchangeToken("auth-code");
@@ -86,9 +94,42 @@ class GitHubOAuthClientTest {
     @Test
     @DisplayName("exchangeToken - access_token이 null이면 AUTH_SOCIAL_GITHUB_FAILED 예외 발생")
     void exchangeToken_nullAccessToken_throws() {
-        stubPost(Mono.just(new GitHubTokenResponse(null, null, null)), GitHubTokenResponse.class);
+        stubPost(Mono.just(new GitHubTokenResponse(null, null, null, null, null)), GitHubTokenResponse.class);
 
         assertThatThrownBy(() -> gitHubOAuthClient.exchangeToken("code"))
+                .isInstanceOf(DevpickException.class)
+                .extracting(e -> ((DevpickException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AUTH_SOCIAL_GITHUB_FAILED);
+    }
+
+    @Test
+    @DisplayName("exchangeToken - error=bad_verification_code 이면 AUTH_OAUTH_CODE_EXPIRED 예외 발생")
+    void exchangeToken_badVerificationCode_throws() {
+        stubPost(Mono.just(new GitHubTokenResponse(null, null, null, "bad_verification_code", "The code passed is incorrect or expired.")), GitHubTokenResponse.class);
+
+        assertThatThrownBy(() -> gitHubOAuthClient.exchangeToken("expired-code"))
+                .isInstanceOf(DevpickException.class)
+                .extracting(e -> ((DevpickException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AUTH_OAUTH_CODE_EXPIRED);
+    }
+
+    @Test
+    @DisplayName("exchangeToken - error=access_denied 이면 AUTH_OAUTH_ACCESS_DENIED 예외 발생")
+    void exchangeToken_accessDenied_throws() {
+        stubPost(Mono.just(new GitHubTokenResponse(null, null, null, "access_denied", "The user has denied your application access.")), GitHubTokenResponse.class);
+
+        assertThatThrownBy(() -> gitHubOAuthClient.exchangeToken("denied-code"))
+                .isInstanceOf(DevpickException.class)
+                .extracting(e -> ((DevpickException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AUTH_OAUTH_ACCESS_DENIED);
+    }
+
+    @Test
+    @DisplayName("exchangeToken - 알 수 없는 error 필드이면 AUTH_SOCIAL_GITHUB_FAILED 예외 발생")
+    void exchangeToken_unknownError_throws() {
+        stubPost(Mono.just(new GitHubTokenResponse(null, null, null, "unknown_error", "Unknown error occurred.")), GitHubTokenResponse.class);
+
+        assertThatThrownBy(() -> gitHubOAuthClient.exchangeToken("bad-code"))
                 .isInstanceOf(DevpickException.class)
                 .extracting(e -> ((DevpickException) e).getErrorCode())
                 .isEqualTo(ErrorCode.AUTH_SOCIAL_GITHUB_FAILED);
@@ -113,10 +154,23 @@ class GitHubOAuthClientTest {
         GitHubUserInfo userInfo = new GitHubUserInfo("12345", "hayoung", "hayoung@test.com", "하영", null);
         stubGet(Mono.just(userInfo), GitHubUserInfo.class);
 
-        GitHubUserInfo result = gitHubOAuthClient.fetchUserInfo("access-token");
+        GitHubUserInfo result = (GitHubUserInfo) gitHubOAuthClient.fetchUserInfo("access-token");
 
         assertThat(result.id()).isEqualTo("12345");
         assertThat(result.email()).isEqualTo("hayoung@test.com");
+    }
+
+    @Test
+    @DisplayName("fetchUserInfo - OAuthUserInfo 인터페이스 메서드가 올바르게 동작한다")
+    void fetchUserInfo_oauthUserInfoInterface_works() {
+        GitHubUserInfo userInfo = new GitHubUserInfo("12345", "hayoung", "hayoung@test.com", "하영", null);
+        stubGet(Mono.just(userInfo), GitHubUserInfo.class);
+
+        var result = gitHubOAuthClient.fetchUserInfo("access-token");
+
+        assertThat(result.getProviderId()).isEqualTo("12345");
+        assertThat(result.getEmail()).isEqualTo("hayoung@test.com");
+        assertThat(result.getNicknamePrefix()).isEqualTo("hayoung"); // GitHub: login
     }
 
     @Test
