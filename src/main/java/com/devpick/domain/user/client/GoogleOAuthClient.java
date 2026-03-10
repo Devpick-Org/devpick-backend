@@ -37,6 +37,22 @@ public class GoogleOAuthClient {
     @Value("${oauth.google.user-url:https://www.googleapis.com/oauth2/v2/userinfo}")
     private String userUrl;
 
+    @Value("${oauth.google.authorize-url:https://accounts.google.com/o/oauth2/v2/auth}")
+    private String authorizeUrl;
+
+    /**
+     * Google OAuth 인가 URL 생성 (DP-284).
+     * state 파라미터로 CSRF 방지.
+     */
+    public String getAuthorizationUrl(String state) {
+        return authorizeUrl
+                + "?client_id=" + clientId
+                + "&redirect_uri=" + redirectUri
+                + "&response_type=code"
+                + "&scope=email%20profile"
+                + "&state=" + state;
+    }
+
     /**
      * Google 인가 코드 → Google Access Token 교환 (DP-184).
      */

@@ -1,6 +1,7 @@
 package com.devpick.domain.user.service;
 
 import com.devpick.domain.user.client.GoogleOAuthClient;
+import com.devpick.domain.user.dto.OAuthAuthorizationResponse;
 import com.devpick.domain.user.dto.GoogleUserInfo;
 import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.entity.RefreshToken;
@@ -25,7 +26,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -37,6 +40,9 @@ class GoogleAuthServiceTest {
 
     @Mock
     private GoogleOAuthClient googleOAuthClient;
+
+    @Mock
+    private OAuthStateService oAuthStateService;
 
     @Mock
     private UserRepository userRepository;
@@ -77,7 +83,7 @@ class GoogleAuthServiceTest {
         given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
 
         // when
-        LoginResponse response = googleAuthService.login(code);
+        LoginResponse response = googleAuthService.login(code, "valid-state");
 
         // then
         assertThat(response.accessToken()).isEqualTo("access-token");
@@ -106,7 +112,7 @@ class GoogleAuthServiceTest {
         given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
 
         // when
-        LoginResponse response = googleAuthService.login(code);
+        LoginResponse response = googleAuthService.login(code, "valid-state");
 
         // then
         assertThat(response.accessToken()).isEqualTo("access-token");
@@ -133,7 +139,7 @@ class GoogleAuthServiceTest {
         given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
 
         // when
-        LoginResponse response = googleAuthService.login(code);
+        LoginResponse response = googleAuthService.login(code, "valid-state");
 
         // then
         assertThat(response).isNotNull();
@@ -159,7 +165,7 @@ class GoogleAuthServiceTest {
         given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
 
         // when
-        LoginResponse response = googleAuthService.login(code);
+        LoginResponse response = googleAuthService.login(code, "valid-state");
 
         // then
         assertThat(response).isNotNull();
@@ -179,7 +185,7 @@ class GoogleAuthServiceTest {
         given(googleOAuthClient.fetchUserInfo("google-token")).willReturn(userInfo);
 
         // when & then
-        assertThatThrownBy(() -> googleAuthService.login(code))
+        assertThatThrownBy(() -> googleAuthService.login(code, "valid-state"))
                 .isInstanceOf(DevpickException.class)
                 .extracting(e -> ((DevpickException) e).getErrorCode())
                 .isEqualTo(ErrorCode.AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED);
@@ -198,7 +204,7 @@ class GoogleAuthServiceTest {
         given(googleOAuthClient.fetchUserInfo("google-token")).willReturn(userInfo);
 
         // when & then
-        assertThatThrownBy(() -> googleAuthService.login(code))
+        assertThatThrownBy(() -> googleAuthService.login(code, "valid-state"))
                 .isInstanceOf(DevpickException.class)
                 .extracting(e -> ((DevpickException) e).getErrorCode())
                 .isEqualTo(ErrorCode.AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED);
@@ -226,10 +232,43 @@ class GoogleAuthServiceTest {
         given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
 
         // when
-        googleAuthService.login(code);
+        googleAuthService.login(code, "valid-state");
 
         // then
         verify(refreshTokenRepository).deleteByUser(existingUser);
         verify(refreshTokenRepository).save(any(RefreshToken.class));
+    }
+
+    // ── state 파라미터 검증 (DP-284) ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("유효하지 않은 state이면 AUTH_INVALID_STATE 예외가 발생하고 Google API를 호출하지 않는다")
+    void login_invalidState_throwsInvalidStateException() {
+        // given
+        doThrow(new DevpickException(ErrorCode.AUTH_INVALID_STATE))
+                .when(oAuthStateService).validateAndDeleteState("invalid-state");
+
+        // when & then
+        assertThatThrownBy(() -> googleAuthService.login("code", "invalid-state"))
+                .isInstanceOf(DevpickException.class)
+                .extracting(e -> ((DevpickException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AUTH_INVALID_STATE);
+
+        verify(googleOAuthClient, never()).exchangeToken(anyString());
+    }
+
+    @Test
+    @DisplayName("generateAuthorizationUrl은 OAuthStateService에서 state를 생성하고 Google 클라이언트 URL을 반환한다")
+    void generateAuthorizationUrl_returnsUrlWithState() {
+        // given
+        given(oAuthStateService.generateState()).willReturn("test-state-uuid");
+        given(googleOAuthClient.getAuthorizationUrl("test-state-uuid"))
+                .willReturn("https://accounts.google.com/o/oauth2/v2/auth?client_id=xxx&state=test-state-uuid");
+
+        // when
+        OAuthAuthorizationResponse response = googleAuthService.generateAuthorizationUrl();
+
+        // then
+        assertThat(response.authorizationUrl()).contains("state=test-state-uuid");
     }
 }

@@ -2,6 +2,7 @@ package com.devpick.domain.user.controller;
 
 import com.devpick.domain.user.dto.LoginRequest;
 import com.devpick.domain.user.dto.LoginResponse;
+import com.devpick.domain.user.dto.OAuthAuthorizationResponse;
 import com.devpick.domain.user.dto.RefreshRequest;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
@@ -10,6 +11,7 @@ import com.devpick.domain.user.service.AuthService;
 import com.devpick.domain.user.service.EmailVerificationService;
 import com.devpick.domain.user.service.GitHubAuthService;
 import com.devpick.domain.user.service.GoogleAuthService;
+import com.devpick.domain.user.service.OAuthStateService;
 import com.devpick.domain.user.service.TokenService;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -63,6 +65,9 @@ class AuthControllerTest {
 
     @Mock
     private GoogleAuthService googleAuthService;
+
+    @Mock
+    private OAuthStateService oAuthStateService;
 
     @InjectMocks
     private AuthController authController;
@@ -312,19 +317,56 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(false));
     }
 
-    // ── GitHub 소셜 로그인 콜백 (DP-183) ──────────────────────────────────────────────
+    // ── GitHub 소셜 로그인 시작 (DP-284) ──────────────────────────────────────────────
 
     @Test
-    @DisplayName("GET /auth/github/callback - 유효한 인가 코드로 200과 토큰을 반환한다")
+    @DisplayName("GET /auth/github - 200과 authorizationUrl을 반환한다")
+    void githubAuthorize_success() throws Exception {
+        // given
+        OAuthAuthorizationResponse response = new OAuthAuthorizationResponse(
+                "https://github.com/login/oauth/authorize?client_id=xxx&state=test-state");
+        given(gitHubAuthService.generateAuthorizationUrl()).willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/auth/github"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.authorizationUrl").value(
+                        "https://github.com/login/oauth/authorize?client_id=xxx&state=test-state"));
+    }
+
+    // ── Google 소셜 로그인 시작 (DP-284) ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("GET /auth/google - 200과 authorizationUrl을 반환한다")
+    void googleAuthorize_success() throws Exception {
+        // given
+        OAuthAuthorizationResponse response = new OAuthAuthorizationResponse(
+                "https://accounts.google.com/o/oauth2/v2/auth?client_id=xxx&state=test-state");
+        given(googleAuthService.generateAuthorizationUrl()).willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/auth/google"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.authorizationUrl").value(
+                        "https://accounts.google.com/o/oauth2/v2/auth?client_id=xxx&state=test-state"));
+    }
+
+    // ── GitHub 소셜 로그인 콜백 (DP-183, DP-284) ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("GET /auth/github/callback - 유효한 인가 코드와 state로 200과 토큰을 반환한다")
     void githubCallback_success() throws Exception {
         // given
         LoginResponse response = new LoginResponse(
                 "access-token", "refresh-token", UUID.randomUUID(), "hayoung@test.com", "하영");
-        given(gitHubAuthService.login(anyString())).willReturn(response);
+        given(gitHubAuthService.login(anyString(), anyString())).willReturn(response);
 
         // when & then
         mockMvc.perform(get("/auth/github/callback")
-                        .param("code", "valid-github-code"))
+                        .param("code", "valid-github-code")
+                        .param("state", "valid-state"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
@@ -332,15 +374,31 @@ class AuthControllerTest {
     }
 
     @Test
+    @DisplayName("GET /auth/github/callback - 유효하지 않은 state이면 400을 반환한다")
+    void githubCallback_invalidState_returns400() throws Exception {
+        // given
+        given(gitHubAuthService.login(anyString(), anyString()))
+                .willThrow(new DevpickException(ErrorCode.AUTH_INVALID_STATE));
+
+        // when & then
+        mockMvc.perform(get("/auth/github/callback")
+                        .param("code", "some-code")
+                        .param("state", "invalid-state"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
     @DisplayName("GET /auth/github/callback - GitHub API 실패 시 502를 반환한다")
     void githubCallback_githubApiFailed_returns502() throws Exception {
         // given
-        given(gitHubAuthService.login(anyString()))
+        given(gitHubAuthService.login(anyString(), anyString()))
                 .willThrow(new DevpickException(ErrorCode.AUTH_SOCIAL_GITHUB_FAILED));
 
         // when & then
         mockMvc.perform(get("/auth/github/callback")
-                        .param("code", "bad-code"))
+                        .param("code", "bad-code")
+                        .param("state", "valid-state"))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.success").value(false));
     }
@@ -349,29 +407,31 @@ class AuthControllerTest {
     @DisplayName("GET /auth/github/callback - GitHub 이메일 미공개 시 400을 반환한다")
     void githubCallback_emailNotPublic_returns400() throws Exception {
         // given
-        given(gitHubAuthService.login(anyString()))
+        given(gitHubAuthService.login(anyString(), anyString()))
                 .willThrow(new DevpickException(ErrorCode.AUTH_SOCIAL_EMAIL_REQUIRED));
 
         // when & then
         mockMvc.perform(get("/auth/github/callback")
-                        .param("code", "no-email-code"))
+                        .param("code", "no-email-code")
+                        .param("state", "valid-state"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
 
-    // ── Google 소셜 로그인 콜백 (DP-184) ──────────────────────────────────────────────
+    // ── Google 소셜 로그인 콜백 (DP-184, DP-284) ──────────────────────────────────────────────
 
     @Test
-    @DisplayName("GET /auth/google/callback - 유효한 인가 코드로 200과 토큰을 반환한다")
+    @DisplayName("GET /auth/google/callback - 유효한 인가 코드와 state로 200과 토큰을 반환한다")
     void googleCallback_success() throws Exception {
         // given
         LoginResponse response = new LoginResponse(
                 "access-token", "refresh-token", UUID.randomUUID(), "hayoung@gmail.com", "하영");
-        given(googleAuthService.login(anyString())).willReturn(response);
+        given(googleAuthService.login(anyString(), anyString())).willReturn(response);
 
         // when & then
         mockMvc.perform(get("/auth/google/callback")
-                        .param("code", "valid-google-code"))
+                        .param("code", "valid-google-code")
+                        .param("state", "valid-state"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
@@ -379,15 +439,31 @@ class AuthControllerTest {
     }
 
     @Test
+    @DisplayName("GET /auth/google/callback - 유효하지 않은 state이면 400을 반환한다")
+    void googleCallback_invalidState_returns400() throws Exception {
+        // given
+        given(googleAuthService.login(anyString(), anyString()))
+                .willThrow(new DevpickException(ErrorCode.AUTH_INVALID_STATE));
+
+        // when & then
+        mockMvc.perform(get("/auth/google/callback")
+                        .param("code", "some-code")
+                        .param("state", "invalid-state"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
     @DisplayName("GET /auth/google/callback - Google API 실패 시 502를 반환한다")
     void googleCallback_googleApiFailed_returns502() throws Exception {
         // given
-        given(googleAuthService.login(anyString()))
+        given(googleAuthService.login(anyString(), anyString()))
                 .willThrow(new DevpickException(ErrorCode.AUTH_SOCIAL_GOOGLE_FAILED));
 
         // when & then
         mockMvc.perform(get("/auth/google/callback")
-                        .param("code", "bad-code"))
+                        .param("code", "bad-code")
+                        .param("state", "valid-state"))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.success").value(false));
     }
@@ -396,12 +472,13 @@ class AuthControllerTest {
     @DisplayName("GET /auth/google/callback - Google 이메일 없는 경우 400을 반환한다")
     void googleCallback_emailRequired_returns400() throws Exception {
         // given
-        given(googleAuthService.login(anyString()))
+        given(googleAuthService.login(anyString(), anyString()))
                 .willThrow(new DevpickException(ErrorCode.AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED));
 
         // when & then
         mockMvc.perform(get("/auth/google/callback")
-                        .param("code", "no-email-code"))
+                        .param("code", "no-email-code")
+                        .param("state", "valid-state"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }

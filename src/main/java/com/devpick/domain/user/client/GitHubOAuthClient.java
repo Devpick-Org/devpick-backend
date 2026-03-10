@@ -33,6 +33,24 @@ public class GitHubOAuthClient {
     @Value("${oauth.github.user-url:https://api.github.com/user}")
     private String userUrl;
 
+    @Value("${oauth.github.authorize-url:https://github.com/login/oauth/authorize}")
+    private String authorizeUrl;
+
+    @Value("${oauth.frontend-base-url:http://localhost:3000}")
+    private String frontendBaseUrl;
+
+    /**
+     * GitHub OAuth 인가 URL 생성 (DP-284).
+     * state 파라미터로 CSRF 방지.
+     */
+    public String getAuthorizationUrl(String state) {
+        return authorizeUrl
+                + "?client_id=" + clientId
+                + "&redirect_uri=" + frontendBaseUrl + "/auth/github/callback"
+                + "&scope=user:email"
+                + "&state=" + state;
+    }
+
     /**
      * GitHub 인가 코드 → GitHub Access Token 교환 (DP-183).
      */

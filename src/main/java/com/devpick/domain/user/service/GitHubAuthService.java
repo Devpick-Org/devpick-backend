@@ -3,6 +3,7 @@ package com.devpick.domain.user.service;
 import com.devpick.domain.user.client.GitHubOAuthClient;
 import com.devpick.domain.user.dto.GitHubUserInfo;
 import com.devpick.domain.user.dto.LoginResponse;
+import com.devpick.domain.user.dto.OAuthAuthorizationResponse;
 import com.devpick.domain.user.entity.RefreshToken;
 import com.devpick.domain.user.entity.SocialAccount;
 import com.devpick.domain.user.entity.User;
@@ -23,20 +24,32 @@ public class GitHubAuthService {
     private static final String GITHUB_PROVIDER = "github";
 
     private final GitHubOAuthClient gitHubOAuthClient;
+    private final OAuthStateService oAuthStateService;
     private final UserRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
 
     /**
-     * GitHub 소셜 로그인 처리 (DP-183).
-     * 1. 인가 코드 → GitHub Access Token 교환
-     * 2. GitHub 사용자 정보 조회
-     * 3. 기존 소셜 계정 조회 or 신규 User + SocialAccount 생성
-     * 4. JWT Access + Refresh Token 발급
+     * GitHub OAuth 시작 URL 발급 (DP-284).
+     * state UUID를 Redis에 저장(5분)하고 인가 URL에 포함.
+     */
+    public OAuthAuthorizationResponse generateAuthorizationUrl() {
+        String state = oAuthStateService.generateState();
+        return new OAuthAuthorizationResponse(gitHubOAuthClient.getAuthorizationUrl(state));
+    }
+
+    /**
+     * GitHub 소셜 로그인 처리 (DP-183, DP-284).
+     * 1. state 검증 (CSRF 방지) → Redis에서 확인 후 삭제
+     * 2. 인가 코드 → GitHub Access Token 교환
+     * 3. GitHub 사용자 정보 조회
+     * 4. 기존 소셜 계정 조회 or 신규 User + SocialAccount 생성
+     * 5. JWT Access + Refresh Token 발급
      */
     @Transactional
-    public LoginResponse login(String code) {
+    public LoginResponse login(String code, String state) {
+        oAuthStateService.validateAndDeleteState(state);
         String githubAccessToken = gitHubOAuthClient.exchangeToken(code);
         GitHubUserInfo userInfo = gitHubOAuthClient.fetchUserInfo(githubAccessToken);
 

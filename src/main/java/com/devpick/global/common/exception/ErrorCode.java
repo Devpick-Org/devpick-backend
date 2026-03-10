@@ -14,6 +14,10 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN, "COMMON_003", "접근 권한이 없습니다."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON_004", "리소스를 찾을 수 없습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON_005", "서버 오류가 발생했습니다."),
+    INVALID_HTTP_BODY(HttpStatus.BAD_REQUEST, "GLOBAL_400_1", "HTTP 요청 바디의 형식이 잘못되었습니다."),
+    INVALID_HTTP_PARAMETER(HttpStatus.BAD_REQUEST, "GLOBAL_400_2", "HTTP 요청 파라미터의 형식이 잘못되었습니다."),
+    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "GLOBAL_405", "지원하지 않는 HTTP 메서드입니다."),
+    ENDPOINT_NOT_FOUND(HttpStatus.NOT_FOUND, "GLOBAL_404", "존재하지 않는 엔드포인트입니다."),
 
     // Auth
     AUTH_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_001", "유효하지 않은 토큰입니다."),
@@ -32,6 +36,7 @@ public enum ErrorCode {
     AUTH_SOCIAL_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "AUTH_014", "GitHub 계정의 이메일 정보를 가져올 수 없습니다. GitHub 계정에서 이메일 공개 설정을 확인해 주세요."),
     AUTH_SOCIAL_GOOGLE_FAILED(HttpStatus.BAD_GATEWAY, "AUTH_015", "Google 소셜 로그인 처리 중 오류가 발생했습니다."),
     AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "AUTH_016", "Google 계정의 이메일 정보를 가져올 수 없습니다."),
+    AUTH_INVALID_STATE(HttpStatus.BAD_REQUEST, "AUTH_017", "유효하지 않은 state 파라미터입니다. 다시 로그인해 주세요."),
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "사용자를 찾을 수 없습니다."),
