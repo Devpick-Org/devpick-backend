@@ -166,7 +166,7 @@ jobs:
           path: build/
 
       - name: SonarCloud Scan
-        run: ./gradlew sonar --no-daemon -Dsonar.qualitygate.wait=true
+        run: ./gradlew sonar --no-daemon
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -186,4 +186,21 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
 
       - name: Check SonarCloud Quality Gate
-        run: echo "SonarCloud Quality Gate check completed via sonar.qualitygate.wait=true"
+        run: |
+          echo "Waiting for SonarCloud analysis to complete..."
+          for i in $(seq 1 20); do
+            RESPONSE=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
+              "https://sonarcloud.io/api/qualitygates/project_status?projectKey=Devpick-Org_devpick-backend")
+            STATUS=$(echo "$RESPONSE" | jq -r '.projectStatus.status')
+            echo "Attempt $i: Quality Gate status = $STATUS"
+            if [ "$STATUS" = "OK" ] || [ "$STATUS" = "ERROR" ] || [ "$STATUS" = "WARN" ]; then
+              break
+            fi
+            sleep 10
+          done
+          if [ "$STATUS" = "OK" ]; then
+            echo "SonarCloud Quality Gate PASSED."
+          else
+            echo "SonarCloud Quality Gate FAILED (status=$STATUS)."
+            exit 1
+          fi
