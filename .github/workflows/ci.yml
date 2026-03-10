@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - develop
+      - main
 
 jobs:
   build-test:
@@ -166,7 +167,7 @@ jobs:
           path: build/
 
       - name: SonarCloud Scan
-        run: ./gradlew sonar --no-daemon
+        run: ./gradlew sonar --no-daemon -Dsonar.qualitygate.wait=true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -184,23 +185,3 @@ jobs:
           MONGO_USERNAME: devpick
           MONGO_PASSWORD: devpick
           JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
-
-      - name: Check SonarCloud Quality Gate
-        run: |
-          echo "Waiting for SonarCloud analysis to complete..."
-          for i in $(seq 1 20); do
-            RESPONSE=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
-              "https://sonarcloud.io/api/qualitygates/project_status?projectKey=Devpick-Org_devpick-backend")
-            STATUS=$(echo "$RESPONSE" | jq -r '.projectStatus.status')
-            echo "Attempt $i: Quality Gate status = $STATUS"
-            if [ "$STATUS" = "OK" ] || [ "$STATUS" = "ERROR" ] || [ "$STATUS" = "WARN" ]; then
-              break
-            fi
-            sleep 10
-          done
-          if [ "$STATUS" = "OK" ]; then
-            echo "SonarCloud Quality Gate PASSED."
-          else
-            echo "SonarCloud Quality Gate FAILED (status=$STATUS)."
-            exit 1
-          fi
