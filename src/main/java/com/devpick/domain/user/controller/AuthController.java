@@ -4,6 +4,7 @@ import com.devpick.domain.user.dto.EmailSendRequest;
 import com.devpick.domain.user.dto.EmailVerifyRequest;
 import com.devpick.domain.user.dto.LoginRequest;
 import com.devpick.domain.user.dto.LoginResponse;
+import com.devpick.domain.user.dto.OAuthAuthorizationResponse;
 import com.devpick.domain.user.dto.RefreshRequest;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
+
 
 @Tag(name = "Auth", description = "회원가입/로그인/소셜인증/토큰 관리")
 @RestController
@@ -115,27 +117,51 @@ public class AuthController {
         return ApiResponse.ok(null);
     }
 
-    @Operation(summary = "GitHub 소셜 로그인 콜백", description = "GitHub OAuth 인가 코드를 받아 JWT를 발급합니다. 브라우저 리다이렉트 후 자동 호출됩니다.")
+    @Operation(summary = "GitHub 소셜 로그인 시작", description = "CSRF 방지 state 파라미터가 포함된 GitHub OAuth 인가 URL을 반환합니다. 프론트는 이 URL로 브라우저를 이동시킵니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "인가 URL 반환 성공")
+    })
+    @GetMapping("/github")
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<OAuthAuthorizationResponse> githubAuthorize() {
+        return ApiResponse.ok(gitHubAuthService.generateAuthorizationUrl());
+    }
+
+    @Operation(summary = "Google 소셜 로그인 시작", description = "CSRF 방지 state 파라미터가 포함된 Google OAuth 인가 URL을 반환합니다. 프론트는 이 URL로 브라우저를 이동시킵니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "인가 URL 반환 성공")
+    })
+    @GetMapping("/google")
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<OAuthAuthorizationResponse> googleAuthorize() {
+        return ApiResponse.ok(googleAuthService.generateAuthorizationUrl());
+    }
+
+    @Operation(summary = "GitHub 소셜 로그인 콜백", description = "GitHub OAuth 인가 코드와 state를 받아 JWT를 발급합니다. state로 CSRF 공격을 방지합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "GitHub 인가 코드 유효하지 않음")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효하지 않은 state"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "502", description = "GitHub 인가 코드 유효하지 않음")
     })
     @GetMapping("/github/callback")
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<LoginResponse> githubCallback(
-            @Parameter(description = "GitHub OAuth 인가 코드", required = true) @RequestParam String code) {
-        return ApiResponse.ok(gitHubAuthService.login(code));
+            @Parameter(description = "GitHub OAuth 인가 코드", required = true) @RequestParam String code,
+            @Parameter(description = "CSRF 방지 state 파라미터", required = true) @RequestParam String state) {
+        return ApiResponse.ok(gitHubAuthService.login(code, state));
     }
 
-    @Operation(summary = "Google 소셜 로그인 콜백", description = "Google OAuth 인가 코드를 받아 JWT를 발급합니다. 브라우저 리다이렉트 후 자동 호출됩니다.")
+    @Operation(summary = "Google 소셜 로그인 콜백", description = "Google OAuth 인가 코드와 state를 받아 JWT를 발급합니다. state로 CSRF 공격을 방지합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Google 인가 코드 유효하지 않음")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효하지 않은 state"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "502", description = "Google 인가 코드 유효하지 않음")
     })
     @GetMapping("/google/callback")
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<LoginResponse> googleCallback(
-            @Parameter(description = "Google OAuth 인가 코드", required = true) @RequestParam String code) {
-        return ApiResponse.ok(googleAuthService.login(code));
+            @Parameter(description = "Google OAuth 인가 코드", required = true) @RequestParam String code,
+            @Parameter(description = "CSRF 방지 state 파라미터", required = true) @RequestParam String state) {
+        return ApiResponse.ok(googleAuthService.login(code, state));
     }
 }

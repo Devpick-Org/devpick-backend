@@ -34,9 +34,14 @@ ai-server:
   timeout-ms: ${AI_SERVER_TIMEOUT_MS:10000}
 
 oauth:
+  frontend-base-url: ${FRONTEND_URL:http://localhost:3000}
   github:
     client-id: ${GITHUB_CLIENT_ID}
     client-secret: ${GITHUB_CLIENT_SECRET}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
+    client-secret: ${GOOGLE_CLIENT_SECRET}
+    redirect-uri: ${FRONTEND_URL:http://localhost:3000}/auth/google/callback
 
 spring.mail:
   host: smtp.gmail.com
