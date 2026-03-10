@@ -44,8 +44,8 @@ public enum ErrorCode {
 
     // Content
     CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CONTENT_001", "콘텐츠를 찾을 수 없습니다."),
-    CONTENT_ALREADY_SCRAPED(HttpStatus.CONFLICT, "CONTENT_002", "이미 스크랙한 콘텐츠입니다."),
-    CONTENT_NOT_SCRAPED(HttpStatus.NOT_FOUND, "CONTENT_003", "스크랙하지 않은 콘텐츠입니다."),
+    CONTENT_ALREADY_SCRAPED(HttpStatus.CONFLICT, "CONTENT_002", "이미 스크랩한 콘텐츠입니다."),
+    CONTENT_NOT_SCRAPED(HttpStatus.NOT_FOUND, "CONTENT_003", "스크랩하지 않은 콘텐츠입니다."),
     CONTENT_ALREADY_LIKED(HttpStatus.CONFLICT, "CONTENT_004", "이미 좋아요한 콘텐츠입니다."),
     CONTENT_NOT_LIKED(HttpStatus.NOT_FOUND, "CONTENT_005", "좋아요하지 않은 콘텐츠입니다."),
 
