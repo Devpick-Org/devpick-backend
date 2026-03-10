@@ -6,12 +6,10 @@ import com.devpick.domain.user.dto.GoogleUserInfo;
 import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.entity.SocialAccount;
 import com.devpick.domain.user.entity.User;
-import com.devpick.domain.user.repository.RefreshTokenRepository;
 import com.devpick.domain.user.repository.SocialAccountRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
-import com.devpick.global.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,9 +19,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,8 +42,7 @@ class SocialAuthServiceTest {
 
     @Mock private UserRepository userRepository;
     @Mock private SocialAccountRepository socialAccountRepository;
-    @Mock private RefreshTokenRepository refreshTokenRepository;
-    @Mock private JwtTokenProvider jwtTokenProvider;
+    @Mock private TokenService tokenService;
     @Mock private NicknameGenerator nicknameGenerator;
 
     private OAuthProviderClient githubClient;
@@ -65,8 +62,7 @@ class SocialAuthServiceTest {
                 List.of(githubClient, googleClient),
                 userRepository,
                 socialAccountRepository,
-                refreshTokenRepository,
-                jwtTokenProvider,
+                tokenService,
                 nicknameGenerator
         );
     }
@@ -80,14 +76,14 @@ class SocialAuthServiceTest {
         User existingUser = User.createSocialUser("hayoung@test.com", "hayoung");
         SocialAccount existingAccount = SocialAccount.builder()
                 .user(existingUser).provider("github").providerId("12345").build();
+        LoginResponse mockResponse = new LoginResponse("access-token", "refresh-token",
+                UUID.randomUUID(), "hayoung@test.com", "hayoung");
 
         when(githubClient.exchangeToken("code")).thenReturn("github-token");
         when(githubClient.fetchUserInfo("github-token")).thenReturn(userInfo);
         when(socialAccountRepository.findByProviderAndProviderId("github", "12345"))
                 .thenReturn(Optional.of(existingAccount));
-        when(jwtTokenProvider.generateAccessToken(any())).thenReturn("access-token");
-        when(jwtTokenProvider.generateRefreshToken()).thenReturn("refresh-token");
-        when(jwtTokenProvider.getRefreshTokenExpiresAt()).thenReturn(LocalDateTime.now().plusDays(7));
+        when(tokenService.issueTokenPair(existingUser)).thenReturn(mockResponse);
 
         LoginResponse response = socialAuthService.login("github", "code");
 
@@ -101,6 +97,8 @@ class SocialAuthServiceTest {
     void login_github_newUser_createsUserAndTokens() {
         GitHubUserInfo userInfo = new GitHubUserInfo("12345", "hayoung", "hayoung@test.com", "하영", null);
         User newUser = User.createSocialUser("hayoung@test.com", "하영");
+        LoginResponse mockResponse = new LoginResponse("access-token", "refresh-token",
+                UUID.randomUUID(), "hayoung@test.com", "하영");
 
         when(githubClient.exchangeToken("code")).thenReturn("github-token");
         when(githubClient.fetchUserInfo("github-token")).thenReturn(userInfo);
@@ -108,9 +106,7 @@ class SocialAuthServiceTest {
                 .thenReturn(Optional.empty());
         when(nicknameGenerator.generate(any(), any())).thenReturn("하영");
         when(userRepository.save(any())).thenReturn(newUser);
-        when(jwtTokenProvider.generateAccessToken(any())).thenReturn("access-token");
-        when(jwtTokenProvider.generateRefreshToken()).thenReturn("refresh-token");
-        when(jwtTokenProvider.getRefreshTokenExpiresAt()).thenReturn(LocalDateTime.now().plusDays(7));
+        when(tokenService.issueTokenPair(any())).thenReturn(mockResponse);
 
         LoginResponse response = socialAuthService.login("github", "code");
 
@@ -144,14 +140,14 @@ class SocialAuthServiceTest {
         User existingUser = User.createSocialUser("hayoung@gmail.com", "hayoung");
         SocialAccount existingAccount = SocialAccount.builder()
                 .user(existingUser).provider("google").providerId("99999").build();
+        LoginResponse mockResponse = new LoginResponse("access-token", "refresh-token",
+                UUID.randomUUID(), "hayoung@gmail.com", "hayoung");
 
         when(googleClient.exchangeToken("code")).thenReturn("google-token");
         when(googleClient.fetchUserInfo("google-token")).thenReturn(userInfo);
         when(socialAccountRepository.findByProviderAndProviderId("google", "99999"))
                 .thenReturn(Optional.of(existingAccount));
-        when(jwtTokenProvider.generateAccessToken(any())).thenReturn("access-token");
-        when(jwtTokenProvider.generateRefreshToken()).thenReturn("refresh-token");
-        when(jwtTokenProvider.getRefreshTokenExpiresAt()).thenReturn(LocalDateTime.now().plusDays(7));
+        when(tokenService.issueTokenPair(existingUser)).thenReturn(mockResponse);
 
         LoginResponse response = socialAuthService.login("google", "code");
 
@@ -164,6 +160,8 @@ class SocialAuthServiceTest {
     void login_google_newUser_createsUser() {
         GoogleUserInfo userInfo = new GoogleUserInfo("99999", "hayoung@gmail.com", "하영", null);
         User newUser = User.createSocialUser("hayoung@gmail.com", "하영");
+        LoginResponse mockResponse = new LoginResponse("access-token", "refresh-token",
+                UUID.randomUUID(), "hayoung@gmail.com", "하영");
 
         when(googleClient.exchangeToken("code")).thenReturn("google-token");
         when(googleClient.fetchUserInfo("google-token")).thenReturn(userInfo);
@@ -171,9 +169,7 @@ class SocialAuthServiceTest {
                 .thenReturn(Optional.empty());
         when(nicknameGenerator.generate(any(), any())).thenReturn("하영");
         when(userRepository.save(any())).thenReturn(newUser);
-        when(jwtTokenProvider.generateAccessToken(any())).thenReturn("access-token");
-        when(jwtTokenProvider.generateRefreshToken()).thenReturn("refresh-token");
-        when(jwtTokenProvider.getRefreshTokenExpiresAt()).thenReturn(LocalDateTime.now().plusDays(7));
+        when(tokenService.issueTokenPair(any())).thenReturn(mockResponse);
 
         socialAuthService.login("google", "code");
 

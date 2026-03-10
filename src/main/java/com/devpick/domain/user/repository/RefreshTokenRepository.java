@@ -17,6 +17,8 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
     void deleteByUser(User user);
 
+    void deleteByUserId(UUID userId);
+
     /** 만료된 토큰 정리
      * 확장 포인트 (DP-XXX): 주기적 만료 토큰 정리 스케줄러 연동 시 사용
      */

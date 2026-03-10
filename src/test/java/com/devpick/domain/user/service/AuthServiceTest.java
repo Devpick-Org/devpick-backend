@@ -4,13 +4,10 @@ import com.devpick.domain.user.dto.LoginRequest;
 import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
-import com.devpick.domain.user.entity.RefreshToken;
 import com.devpick.domain.user.entity.User;
-import com.devpick.domain.user.repository.RefreshTokenRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
-import com.devpick.global.security.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,8 +16,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,10 +39,7 @@ class AuthServiceTest {
     private PasswordEncoder passwordEncoder;
 
     @Mock
-    private JwtTokenProvider jwtTokenProvider;
-
-    @Mock
-    private RefreshTokenRepository refreshTokenRepository;
+    private TokenService tokenService;
 
     @Test
     @DisplayName("정상 회원가입 - 이메일, 비밀번호, 닉네임으로 가입 시 User가 저장된다")
@@ -98,18 +92,18 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("정상 로그인 - 이메일/비밀번호 일치 시 LoginResponse를 반환하고 refreshToken이 저장된다")
+    @DisplayName("정상 로그인 - 이메일/비밀번호 일치 시 TokenService에 위임하여 LoginResponse를 반환한다")
     void login_success() {
         // given
         LoginRequest request = new LoginRequest("test@devpick.kr", "password123!");
         User user = User.createEmailUser("test@devpick.kr", "encodedPassword", "하영");
         user.verifyEmail();
+        LoginResponse mockResponse = new LoginResponse(
+                "mockAccessToken", "mockRefreshToken", UUID.randomUUID(), user.getEmail(), user.getNickname());
 
         given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
         given(passwordEncoder.matches(request.password(), user.getPasswordHash())).willReturn(true);
-        given(jwtTokenProvider.generateAccessToken(any())).willReturn("mockAccessToken");
-        given(jwtTokenProvider.generateRefreshToken()).willReturn("mockRefreshToken");
-        given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
+        given(tokenService.issueTokenPair(user)).willReturn(mockResponse);
 
         // when
         LoginResponse response = authService.login(request);
@@ -118,8 +112,7 @@ class AuthServiceTest {
         assertThat(response.accessToken()).isEqualTo("mockAccessToken");
         assertThat(response.refreshToken()).isEqualTo("mockRefreshToken");
         assertThat(response.email()).isEqualTo(request.email());
-        verify(refreshTokenRepository).deleteByUser(user);
-        verify(refreshTokenRepository).save(any(RefreshToken.class));
+        verify(tokenService).issueTokenPair(user);
     }
 
     @Test

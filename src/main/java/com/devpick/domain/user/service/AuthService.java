@@ -4,13 +4,10 @@ import com.devpick.domain.user.dto.LoginRequest;
 import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
-import com.devpick.domain.user.entity.RefreshToken;
 import com.devpick.domain.user.entity.User;
-import com.devpick.domain.user.repository.RefreshTokenRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
-import com.devpick.global.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,8 +19,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider;
-    private final RefreshTokenRepository refreshTokenRepository;
+    private final TokenService tokenService;
 
     @Transactional
     public SignupResponse signup(SignupRequest request) {
@@ -53,17 +49,7 @@ public class AuthService {
             throw new DevpickException(ErrorCode.AUTH_INVALID_PASSWORD);
         }
 
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId());
-        String refreshToken = jwtTokenProvider.generateRefreshToken();
-
-        refreshTokenRepository.deleteByUser(user);
-        refreshTokenRepository.save(RefreshToken.builder()
-                .user(user)
-                .token(refreshToken)
-                .expiresAt(jwtTokenProvider.getRefreshTokenExpiresAt())
-                .build());
-
-        return LoginResponse.of(accessToken, refreshToken, user);
+        return tokenService.issueTokenPair(user);
     }
 
     // ── private ──────────────────────────────────────────────
