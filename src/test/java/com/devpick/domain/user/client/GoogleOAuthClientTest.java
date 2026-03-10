@@ -33,12 +33,13 @@ class GoogleOAuthClientTest {
     @Mock
     private WebClient webClient;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    /** 에러 응답 바디 직렬화 전용 ObjectMapper (테스트용) */
+    private final ObjectMapper testObjectMapper = new ObjectMapper();
     private GoogleOAuthClient googleOAuthClient;
 
     @BeforeEach
     void setUp() throws Exception {
-        googleOAuthClient = new GoogleOAuthClient(webClient, objectMapper);
+        googleOAuthClient = new GoogleOAuthClient(webClient);
         setField(googleOAuthClient, "clientId", "test-client-id");
         setField(googleOAuthClient, "clientSecret", "test-client-secret");
         setField(googleOAuthClient, "redirectUri", "http://localhost:3000/auth/google/callback");
@@ -111,7 +112,7 @@ class GoogleOAuthClientTest {
     @DisplayName("exchangeToken - error=redirect_uri_mismatch 이면 AUTH_OAUTH_REDIRECT_URI_MISMATCH 예외 발생")
     @SuppressWarnings("unchecked")
     void exchangeToken_redirectUriMismatch_throws() throws Exception {
-        String errorBody = objectMapper.writeValueAsString(
+        String errorBody = testObjectMapper.writeValueAsString(
                 new GoogleTokenResponse(null, null, null, null, "redirect_uri_mismatch", "Redirect URI mismatch"));
         WebClientResponseException ex = WebClientResponseException.create(
                 HttpStatus.BAD_REQUEST.value(), "Bad Request",
@@ -141,7 +142,7 @@ class GoogleOAuthClientTest {
     @DisplayName("exchangeToken - error=invalid_grant 이면 AUTH_OAUTH_CODE_EXPIRED 예외 발생")
     @SuppressWarnings("unchecked")
     void exchangeToken_invalidGrant_throws() throws Exception {
-        String errorBody = objectMapper.writeValueAsString(
+        String errorBody = testObjectMapper.writeValueAsString(
                 new GoogleTokenResponse(null, null, null, null, "invalid_grant", "Token has been expired or revoked"));
         WebClientResponseException ex = WebClientResponseException.create(
                 HttpStatus.BAD_REQUEST.value(), "Bad Request",
@@ -171,7 +172,7 @@ class GoogleOAuthClientTest {
     @DisplayName("exchangeToken - error=access_denied 이면 AUTH_OAUTH_ACCESS_DENIED 예외 발생")
     @SuppressWarnings("unchecked")
     void exchangeToken_accessDenied_throws() throws Exception {
-        String errorBody = objectMapper.writeValueAsString(
+        String errorBody = testObjectMapper.writeValueAsString(
                 new GoogleTokenResponse(null, null, null, null, "access_denied", "The user denied your request"));
         WebClientResponseException ex = WebClientResponseException.create(
                 HttpStatus.BAD_REQUEST.value(), "Bad Request",
@@ -201,7 +202,7 @@ class GoogleOAuthClientTest {
     @DisplayName("exchangeToken - 알 수 없는 error 이면 AUTH_SOCIAL_GOOGLE_FAILED 예외 발생")
     @SuppressWarnings("unchecked")
     void exchangeToken_unknownError_throwsGoogleFailed() throws Exception {
-        String errorBody = objectMapper.writeValueAsString(
+        String errorBody = testObjectMapper.writeValueAsString(
                 new GoogleTokenResponse(null, null, null, null, "unknown_error", "Unknown error"));
         WebClientResponseException ex = WebClientResponseException.create(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(), "Internal Server Error",
