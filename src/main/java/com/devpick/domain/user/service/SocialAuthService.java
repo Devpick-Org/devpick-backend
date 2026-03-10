@@ -12,7 +12,6 @@ import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.security.JwtTokenProvider;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,28 +31,31 @@ import java.util.stream.Collectors;
  * 5. JWT 발급
  */
 @Service
-@RequiredArgsConstructor
 public class SocialAuthService {
 
-    private final List<OAuthProviderClient> clients;
+    private final Map<String, OAuthProviderClient> clientMap;
     private final UserRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final NicknameGenerator nicknameGenerator;
 
-    /** provider 이름 → 클라이언트 맵 (애플리케이션 시작 시 주입된 clients로 초기화) */
-    private Map<String, OAuthProviderClient> clientMap;
-
-    private Map<String, OAuthProviderClient> getClientMap() {
-        if (clientMap == null) {
-            clientMap = clients.stream()
-                    .collect(Collectors.toMap(
-                            OAuthProviderClient::getProviderName,
-                            Function.identity()
-                    ));
-        }
-        return clientMap;
+    public SocialAuthService(List<OAuthProviderClient> clients,
+                             UserRepository userRepository,
+                             SocialAccountRepository socialAccountRepository,
+                             RefreshTokenRepository refreshTokenRepository,
+                             JwtTokenProvider jwtTokenProvider,
+                             NicknameGenerator nicknameGenerator) {
+        this.clientMap = clients.stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        OAuthProviderClient::getProviderName,
+                        Function.identity()
+                ));
+        this.userRepository = userRepository;
+        this.socialAccountRepository = socialAccountRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.nicknameGenerator = nicknameGenerator;
     }
 
     /**
@@ -64,7 +66,7 @@ public class SocialAuthService {
      */
     @Transactional
     public LoginResponse login(String providerName, String code) {
-        OAuthProviderClient client = getClientMap().get(providerName);
+        OAuthProviderClient client = clientMap.get(providerName);
         if (client == null) {
             throw new DevpickException(ErrorCode.AUTH_OAUTH_UNSUPPORTED_PROVIDER);
         }

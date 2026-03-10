@@ -6,6 +6,7 @@ import com.devpick.domain.user.dto.OAuthUserInfo;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -22,7 +23,13 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 public class GoogleOAuthClient implements OAuthProviderClient {
 
     private final WebClient webClient;
-    private final ObjectMapper objectMapper;
+
+    /**
+     * Google API 응답은 snake_case 필드명을 사용하므로 전용 ObjectMapper를 로컬 상수로 보유.
+     * 전역 Spring ObjectMapper 빈에 영향을 주지 않도록 인스턴스를 직접 생성한다.
+     */
+    private static final ObjectMapper GOOGLE_OBJECT_MAPPER =
+            new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
 
     @Value("${oauth.google.client-id}")
     private String clientId;
@@ -112,7 +119,7 @@ public class GoogleOAuthClient implements OAuthProviderClient {
      */
     private ErrorCode resolveGoogleTokenError(WebClientResponseException e) {
         try {
-            GoogleTokenResponse errorBody = objectMapper.readValue(
+            GoogleTokenResponse errorBody = GOOGLE_OBJECT_MAPPER.readValue(
                     e.getResponseBodyAsString(), GoogleTokenResponse.class);
             if (errorBody.error() == null) {
                 return ErrorCode.AUTH_SOCIAL_GOOGLE_FAILED;
