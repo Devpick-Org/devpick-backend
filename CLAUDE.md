@@ -12,6 +12,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `authored-by claude`, `co-authored-by claude`, session URL, 기타 Claude 관련 내용 **절대 포함 금지**
 - 형식: `DP-{티켓번호}: {작업 내용}` (예: `DP-177: 이메일 회원가입 API 개발`)
 
+### PR 생성 전 필수 확인 절차
+
+**PR을 올리기 전에 반드시 아래 순서대로 로컬 검증을 완료해야 한다.**
+
+#### 1단계: 빌드 + 테스트 통과 확인
+```bash
+./gradlew build --no-daemon
+```
+- 빌드 실패 또는 테스트 실패 시 PR 생성 금지 — 원인 수정 후 재시도
+- 실패 원인은 `build/reports/tests/` 확인
+
+#### 2단계: SonarCloud Quality Gate 사전 점검 (코드 리뷰)
+PR 생성 전 **아래 항목을 코드에서 직접 눈으로 확인**한다:
+
+| 항목 | 확인 방법 |
+|------|----------|
+| **신규 코드 커버리지 ≥ 80%** | 새 Service/Controller 메서드마다 테스트 케이스 존재 여부 |
+| **코드 중복률 ≤ 3%** | 복붙한 코드 없는지, 공통 추상 클래스로 추출 가능한지 |
+| **Security Hotspot** | `csrf().disable()` 등에 `// NOSONAR java:Sxxxx` 주석 추가 여부 |
+| **버그/취약점 0개** | Null 체크, 하드코딩 비밀번호, SQL 인젝션 없는지 |
+
+#### 3단계: PR 생성
+위 두 단계 모두 통과한 경우에만 PR을 생성한다.
+
+> **왜 중요한가**: CI가 실패하면 auto-merge가 블로킹되고, SonarCloud Quality Gate 실패 시 PR이 develop에 머지되지 않는다. 로컬 검증 없이 PR을 올리면 반복 수정 커밋이 생겨 히스토리가 지저분해진다.
+
 ### SonarCloud Quality Gate — 코드 작성 시 필수 준수
 
 모든 PR은 SonarCloud Quality Gate를 통과해야 머지 가능. **코드 작성 전/후 반드시 아래 기준 확인.**
@@ -474,7 +500,7 @@ class AuthControllerTest {
 
 - **도구**: JUnit 5 + Mockito (단위), Spring Boot Test + MockMvc (API)
 - **커버리지 목표**: Service 레이어 **70% 이상**
-- **CI 트리거**: PR → develop 시 자동 실행
+- **CI 트리거**: PR → develop / PR → main 시 자동 실행
 - **테스트 패턴**: given / when / then 구조
 
 ---
@@ -522,7 +548,7 @@ class AuthControllerTest {
 
 | 파일 | 트리거 | 역할 |
 |------|--------|------|
-| `ci.yml` | PR → develop | 빌드 · 테스트 · SonarCloud 분석 |
+| `ci.yml` | PR → develop, PR → main | 빌드 · 테스트 · SonarCloud 분석 |
 | `auto-merge.yml` | PR → develop (`auto/` 브랜치만) | CI 통과 시 자동 squash 머지 |
 
 ### SonarCloud 자동 PR 분석
@@ -682,3 +708,33 @@ signing server returned status 400:
 #### 재발 방지
 - 세션 컨텍스트 오류 시 새 대화를 시작하면 서명 서버가 재초기화됨
 - 또는 GitHub API를 통한 서버사이드 작업으로 우회 (위 TRB-001 해결 방법 참고)
+
+---
+
+### [TRB-005] SonarCloud Quality Gate `STATUS=NONE` 타임아웃
+
+**발생일**: 2026-03-10
+**심각도**: 중간 (SonarCloud 서버 응답 지연 시 CI 오탐 실패)
+
+#### 문제 상황
+- `./gradlew sonar --no-daemon` 실행 후 별도 polling 스크립트가 10초 × 20회(최대 200초) 대기
+- SonarCloud 서버 분석이 200초 초과 시 `STATUS=NONE` 상태로 `exit 1` → CI 실패
+- QG 결과가 실제로는 PASS임에도 타임아웃으로 인한 오탐 실패 발생
+
+#### 원인
+- scanner는 분석 제출 후 즉시 반환하며, QG 결과는 서버에서 비동기로 산출됨
+- 별도 polling 스크립트의 200초 한도가 서버 지연보다 짧을 수 있음
+
+#### 해결 방법
+`-Dsonar.qualitygate.wait=true` 옵션 사용:
+```yaml
+# ci.yml sonar job
+- name: SonarCloud Scan
+  run: ./gradlew sonar --no-daemon -Dsonar.qualitygate.wait=true
+```
+- scanner 자체가 QG 결과를 직접 폴링해서 기다림 (200초 한도 없음)
+- QG PASS → exit 0, FAIL → exit 1 — 별도 polling step 불필요 → 삭제
+
+#### 재발 방지
+- `ci.yml`에서 별도 `Check SonarCloud Quality Gate` step 사용 금지
+- `-Dsonar.qualitygate.wait=true`가 동일 역할을 처리함
