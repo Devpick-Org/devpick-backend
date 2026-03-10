@@ -19,6 +19,7 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -108,5 +109,28 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("COMMON_005"));
+    }
+
+    @Test
+    @DisplayName("잘못된 JSON 형식 요청 시 400과 GLOBAL_400_1이 반환된다")
+    void handleHttpMessageNotReadable_returns400() throws Exception {
+        // when & then
+        mockMvc.perform(post("/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{invalid json}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("GLOBAL_400_1"));
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 HTTP 메서드 요청 시 405와 GLOBAL_405가 반환된다")
+    void handleMethodNotAllowed_returns405() throws Exception {
+        // when & then — /auth/signup은 POST만 지원
+        mockMvc.perform(get("/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("GLOBAL_405"));
     }
 }
