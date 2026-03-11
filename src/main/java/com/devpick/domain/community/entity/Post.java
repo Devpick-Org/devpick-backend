@@ -29,4 +29,10 @@ public class Post extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(length = 20, nullable = false)
     private Level level;
+
+    public void update(String title, String content, Level level) {
+        this.title = title;
+        this.content = content;
+        this.level = level;
+    }
 }
