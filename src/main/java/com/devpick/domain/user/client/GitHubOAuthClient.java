@@ -103,9 +103,10 @@ public class GitHubOAuthClient implements OAuthProviderClient {
 
     /**
      * GitHub Access Token → GitHub 사용자 정보 조회 (DP-183).
+     * 코버리언트 반환 타입: OAuthProviderClient 인터페이스 상속을 유지하면서 GitHubUserInfo를 직접 반환.
      */
     @Override
-    public OAuthUserInfo fetchUserInfo(String accessToken) {
+    public GitHubUserInfo fetchUserInfo(String accessToken) {
         try {
             GitHubUserInfo userInfo = webClient.get()
                     .uri(userUrl)

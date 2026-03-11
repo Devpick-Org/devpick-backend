@@ -108,9 +108,10 @@ public class GoogleOAuthClient implements OAuthProviderClient {
 
     /**
      * Google Access Token → Google 사용자 정보 조회 (DP-184).
+     * 코버리언트 반환 타입: OAuthProviderClient 인터페이스 상속을 유지하면서 GoogleUserInfo를 직접 반환.
      */
     @Override
-    public OAuthUserInfo fetchUserInfo(String accessToken) {
+    public GoogleUserInfo fetchUserInfo(String accessToken) {
         try {
             GoogleUserInfo userInfo = webClient.get()
                     .uri(userUrl)
