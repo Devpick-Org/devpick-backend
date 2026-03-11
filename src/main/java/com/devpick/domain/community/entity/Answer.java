@@ -31,4 +31,12 @@ public class Answer extends BaseTimeEntity {
     @Column(name = "is_adopted", nullable = false)
     @Builder.Default
     private Boolean isAdopted = false;
+
+    public void update(String content) {
+        this.content = content;
+    }
+
+    public void adopt() {
+        this.isAdopted = true;
+    }
 }
