@@ -39,4 +39,8 @@ public class WeeklyReport extends BaseCreatedEntity {
     @OneToMany(mappedBy = "report", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ReportActivity> activities = new ArrayList<>();
+
+    public void updateShareToken(String token) {
+        this.shareToken = token;
+    }
 }
