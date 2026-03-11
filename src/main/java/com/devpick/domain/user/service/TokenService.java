@@ -1,10 +1,10 @@
 package com.devpick.domain.user.service;
 
+import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.TokenResponse;
 import com.devpick.domain.user.entity.RefreshToken;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.RefreshTokenRepository;
-import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.security.JwtTokenProvider;
@@ -27,7 +27,25 @@ public class TokenService {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final UserRepository userRepository;
+
+    /**
+     * 로그인/소셜 로그인 공통 토큰 발급.
+     * AuthService, SocialAuthService에서 중복되던 발급 로직을 위임받아 처리한다.
+     */
+    @Transactional
+    public LoginResponse issueTokenPair(User user) {
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId());
+        String refreshToken = jwtTokenProvider.generateRefreshToken();
+
+        refreshTokenRepository.deleteByUser(user);
+        refreshTokenRepository.save(RefreshToken.builder()
+                .user(user)
+                .token(refreshToken)
+                .expiresAt(jwtTokenProvider.getRefreshTokenExpiresAt())
+                .build());
+
+        return LoginResponse.of(accessToken, refreshToken, user);
+    }
 
     /**
      * Refresh Token으로 새 Access Token + Refresh Token 재발급.
@@ -70,8 +88,6 @@ public class TokenService {
      */
     @Transactional
     public void logout(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new DevpickException(ErrorCode.AUTH_USER_NOT_FOUND));
-        refreshTokenRepository.deleteByUser(user);
+        refreshTokenRepository.deleteByUserId(userId);
     }
 }
