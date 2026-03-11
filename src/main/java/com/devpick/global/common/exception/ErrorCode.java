@@ -37,6 +37,11 @@ public enum ErrorCode {
     AUTH_SOCIAL_GOOGLE_FAILED(HttpStatus.BAD_GATEWAY, "AUTH_015", "Google 소셜 로그인 처리 중 오류가 발생했습니다."),
     AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "AUTH_016", "Google 계정의 이메일 정보를 가져올 수 없습니다."),
     AUTH_INVALID_STATE(HttpStatus.BAD_REQUEST, "AUTH_017", "유효하지 않은 state 파라미터입니다. 다시 로그인해 주세요."),
+    AUTH_OAUTH_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "AUTH_018", "OAuth 인가 코드가 만료되었거나 올바르지 않습니다."),
+    AUTH_OAUTH_ACCESS_DENIED(HttpStatus.UNAUTHORIZED, "AUTH_019", "사용자가 OAuth 접근을 거부했습니다."),
+    AUTH_OAUTH_REDIRECT_URI_MISMATCH(HttpStatus.BAD_REQUEST, "AUTH_020", "OAuth Redirect URI가 일치하지 않습니다."),
+    AUTH_OAUTH_SCOPE_DENIED(HttpStatus.UNAUTHORIZED, "AUTH_021", "필요한 OAuth 권한(scope)이 거부되었습니다."),
+    AUTH_OAUTH_UNSUPPORTED_PROVIDER(HttpStatus.BAD_REQUEST, "AUTH_022", "지원하지 않는 OAuth 제공자입니다."),
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "사용자를 찾을 수 없습니다."),
