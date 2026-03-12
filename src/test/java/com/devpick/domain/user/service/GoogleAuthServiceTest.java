@@ -45,6 +45,9 @@ class GoogleAuthServiceTest {
     private OAuthStateService oAuthStateService;
 
     @Mock
+    private NicknameGenerator nicknameGenerator;
+
+    @Mock
     private UserRepository userRepository;
 
     @Mock
@@ -61,11 +64,10 @@ class GoogleAuthServiceTest {
     // ── 정상 케이스 ──────────────────────────────────────────────
 
     @Test
-    @DisplayName("기존 Google 소셜 계정이 있으면 신규 회원 생성 없이 토큰을 발급한다")
-    void login_existingSocialAccount_returnsTokensWithoutCreatingNewUser() {
+    @DisplayName("기존 Google 소셜 계정이 있으면 isNewUser=false로 토큰을 발급한다")
+    void login_existingSocialAccount_returnsTokensWithIsNewUserFalse() {
         // given
         String code = "auth-code-123";
-        String googleAccessToken = "google-access-token";
         GoogleUserInfo userInfo = new GoogleUserInfo("12345", "hayoung@gmail.com", "하영", null);
         User existingUser = User.createSocialUser("hayoung@gmail.com", "하영");
         SocialAccount socialAccount = SocialAccount.builder()
@@ -74,8 +76,8 @@ class GoogleAuthServiceTest {
                 .providerId("12345")
                 .build();
 
-        given(googleOAuthClient.exchangeToken(code)).willReturn(googleAccessToken);
-        given(googleOAuthClient.fetchUserInfo(googleAccessToken)).willReturn(userInfo);
+        given(googleOAuthClient.exchangeToken(code)).willReturn("google-access-token");
+        given(googleOAuthClient.fetchUserInfo("google-access-token")).willReturn(userInfo);
         given(socialAccountRepository.findByProviderAndProviderId(GOOGLE_PROVIDER, "12345"))
                 .willReturn(Optional.of(socialAccount));
         given(jwtTokenProvider.generateAccessToken(any())).willReturn("access-token");
@@ -87,25 +89,24 @@ class GoogleAuthServiceTest {
 
         // then
         assertThat(response.accessToken()).isEqualTo("access-token");
-        assertThat(response.refreshToken()).isEqualTo("refresh-token");
+        assertThat(response.isNewUser()).isFalse();
         verify(userRepository, never()).save(any());
         verify(socialAccountRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("신규 Google 소셜 계정이면 User와 SocialAccount를 생성하고 토큰을 발급한다")
-    void login_newSocialAccount_createsUserAndSocialAccountThenReturnsTokens() {
+    @DisplayName("신규 Google 소셜 계정이면 User와 SocialAccount를 생성하고 isNewUser=true를 반환한다")
+    void login_newSocialAccount_createsUserAndReturnsIsNewUserTrue() {
         // given
         String code = "new-auth-code";
-        String googleAccessToken = "google-access-token";
         GoogleUserInfo userInfo = new GoogleUserInfo("99999", "new@gmail.com", "New 하영", null);
         User newUser = User.createSocialUser("new@gmail.com", "New 하영");
 
-        given(googleOAuthClient.exchangeToken(code)).willReturn(googleAccessToken);
-        given(googleOAuthClient.fetchUserInfo(googleAccessToken)).willReturn(userInfo);
+        given(googleOAuthClient.exchangeToken(code)).willReturn("google-access-token");
+        given(googleOAuthClient.fetchUserInfo("google-access-token")).willReturn(userInfo);
         given(socialAccountRepository.findByProviderAndProviderId(GOOGLE_PROVIDER, "99999"))
                 .willReturn(Optional.empty());
-        given(userRepository.existsByNickname("New 하영")).willReturn(false);
+        given(nicknameGenerator.generateFromGoogle(userInfo)).willReturn("New 하영");
         given(userRepository.save(any(User.class))).willReturn(newUser);
         given(jwtTokenProvider.generateAccessToken(any())).willReturn("access-token");
         given(jwtTokenProvider.generateRefreshToken()).willReturn("refresh-token");
@@ -116,60 +117,9 @@ class GoogleAuthServiceTest {
 
         // then
         assertThat(response.accessToken()).isEqualTo("access-token");
+        assertThat(response.isNewUser()).isTrue();
         verify(userRepository).save(any(User.class));
         verify(socialAccountRepository).save(any(SocialAccount.class));
-    }
-
-    @Test
-    @DisplayName("닉네임이 중복이면 email 앞부분 + id suffix로 닉네임을 생성한다")
-    void login_duplicateNickname_useEmailPrefixWithSuffix() {
-        // given
-        String code = "code";
-        GoogleUserInfo userInfo = new GoogleUserInfo("77777", "hayoung@gmail.com", "하영", null);
-        User newUser = User.createSocialUser("hayoung@gmail.com", "hayoung_77777");
-
-        given(googleOAuthClient.exchangeToken(code)).willReturn("google-token");
-        given(googleOAuthClient.fetchUserInfo("google-token")).willReturn(userInfo);
-        given(socialAccountRepository.findByProviderAndProviderId(GOOGLE_PROVIDER, "77777"))
-                .willReturn(Optional.empty());
-        given(userRepository.existsByNickname("하영")).willReturn(true);
-        given(userRepository.save(any(User.class))).willReturn(newUser);
-        given(jwtTokenProvider.generateAccessToken(any())).willReturn("access-token");
-        given(jwtTokenProvider.generateRefreshToken()).willReturn("refresh-token");
-        given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
-
-        // when
-        LoginResponse response = googleAuthService.login(code, "valid-state");
-
-        // then
-        assertThat(response).isNotNull();
-        verify(userRepository).save(any(User.class));
-    }
-
-    @Test
-    @DisplayName("name이 없으면 email 앞부분을 닉네임 후보로 사용한다")
-    void login_noName_useEmailPrefix() {
-        // given
-        String code = "code";
-        GoogleUserInfo userInfo = new GoogleUserInfo("88888", "devhayoung@gmail.com", null, null);
-        User newUser = User.createSocialUser("devhayoung@gmail.com", "devhayoung");
-
-        given(googleOAuthClient.exchangeToken(code)).willReturn("google-token");
-        given(googleOAuthClient.fetchUserInfo("google-token")).willReturn(userInfo);
-        given(socialAccountRepository.findByProviderAndProviderId(GOOGLE_PROVIDER, "88888"))
-                .willReturn(Optional.empty());
-        given(userRepository.existsByNickname("devhayoung")).willReturn(false);
-        given(userRepository.save(any(User.class))).willReturn(newUser);
-        given(jwtTokenProvider.generateAccessToken(any())).willReturn("access-token");
-        given(jwtTokenProvider.generateRefreshToken()).willReturn("refresh-token");
-        given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
-
-        // when
-        LoginResponse response = googleAuthService.login(code, "valid-state");
-
-        // then
-        assertThat(response).isNotNull();
-        verify(userRepository).save(any(User.class));
     }
 
     // ── 예외 케이스 ──────────────────────────────────────────────
@@ -178,14 +128,13 @@ class GoogleAuthServiceTest {
     @DisplayName("Google 사용자 이메일이 null이면 AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED 예외가 발생한다")
     void login_nullEmail_throwsEmailRequiredException() {
         // given
-        String code = "code";
         GoogleUserInfo userInfo = new GoogleUserInfo("55555", null, "No Email", null);
 
-        given(googleOAuthClient.exchangeToken(code)).willReturn("google-token");
+        given(googleOAuthClient.exchangeToken("code")).willReturn("google-token");
         given(googleOAuthClient.fetchUserInfo("google-token")).willReturn(userInfo);
 
         // when & then
-        assertThatThrownBy(() -> googleAuthService.login(code, "valid-state"))
+        assertThatThrownBy(() -> googleAuthService.login("code", "valid-state"))
                 .isInstanceOf(DevpickException.class)
                 .extracting(e -> ((DevpickException) e).getErrorCode())
                 .isEqualTo(ErrorCode.AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED);
@@ -197,14 +146,13 @@ class GoogleAuthServiceTest {
     @DisplayName("Google 사용자 이메일이 빈 문자열이면 AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED 예외가 발생한다")
     void login_blankEmail_throwsEmailRequiredException() {
         // given
-        String code = "code";
         GoogleUserInfo userInfo = new GoogleUserInfo("55556", "  ", "Blank Email", null);
 
-        given(googleOAuthClient.exchangeToken(code)).willReturn("google-token");
+        given(googleOAuthClient.exchangeToken("code")).willReturn("google-token");
         given(googleOAuthClient.fetchUserInfo("google-token")).willReturn(userInfo);
 
         // when & then
-        assertThatThrownBy(() -> googleAuthService.login(code, "valid-state"))
+        assertThatThrownBy(() -> googleAuthService.login("code", "valid-state"))
                 .isInstanceOf(DevpickException.class)
                 .extracting(e -> ((DevpickException) e).getErrorCode())
                 .isEqualTo(ErrorCode.AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED);
@@ -214,16 +162,12 @@ class GoogleAuthServiceTest {
     @DisplayName("Refresh Token을 저장하고 기존 Refresh Token은 삭제한다")
     void login_savesNewRefreshTokenAndDeletesOldOne() {
         // given
-        String code = "code";
         GoogleUserInfo userInfo = new GoogleUserInfo("11111", "token@gmail.com", "토큰테스트", null);
         User existingUser = User.createSocialUser("token@gmail.com", "토큰테스트");
         SocialAccount socialAccount = SocialAccount.builder()
-                .user(existingUser)
-                .provider(GOOGLE_PROVIDER)
-                .providerId("11111")
-                .build();
+                .user(existingUser).provider(GOOGLE_PROVIDER).providerId("11111").build();
 
-        given(googleOAuthClient.exchangeToken(code)).willReturn("google-token");
+        given(googleOAuthClient.exchangeToken("code")).willReturn("google-token");
         given(googleOAuthClient.fetchUserInfo("google-token")).willReturn(userInfo);
         given(socialAccountRepository.findByProviderAndProviderId(GOOGLE_PROVIDER, "11111"))
                 .willReturn(Optional.of(socialAccount));
@@ -232,14 +176,14 @@ class GoogleAuthServiceTest {
         given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
 
         // when
-        googleAuthService.login(code, "valid-state");
+        googleAuthService.login("code", "valid-state");
 
         // then
         verify(refreshTokenRepository).deleteByUser(existingUser);
         verify(refreshTokenRepository).save(any(RefreshToken.class));
     }
 
-    // ── state 파라미터 검증 (DP-284) ──────────────────────────────────────────────
+    // ── state 파라미터 검증 (DP-284) ────────────────────────────────
 
     @Test
     @DisplayName("유효하지 않은 state이면 AUTH_INVALID_STATE 예외가 발생하고 Google API를 호출하지 않는다")
