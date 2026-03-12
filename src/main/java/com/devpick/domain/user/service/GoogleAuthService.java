@@ -17,6 +17,23 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
+/**
+ * Google 소셜 로그인 서비스 (DP-184, DP-284).
+ *
+ * [이슈 1 결정 - DP-284] isNewUser 플래그
+ * - 신규 가입 여부를 login() 반환값에 포함. SocialAccount 존재 여부로 판별.
+ * - 기존 유저: LoginResponse.of(), 신규 유저: LoginResponse.ofNewUser()
+ *
+ * [이슈 2 결정 - DP-184] 닉네임 중복 처리 → emailPrefix + id suffix 확정
+ * - 2-step 가입(tempToken) 방식은 현재 Confluence 스펙에 정의 없어 기각.
+ * - NicknameGenerator에 위임하여 정책 변경 시 단일 지점에서 수정 가능.
+ *
+ * [이슈 3 확인 - DP-284] 환경별 Redirect URI
+ * - oauth.frontend-base-url이 application-local.yml / application-docker.yml에
+ *   이미 분리되어 있어 추가 작업 불필요.
+ */
 @Service
 @RequiredArgsConstructor
 public class GoogleAuthService {
@@ -25,6 +42,7 @@ public class GoogleAuthService {
 
     private final GoogleOAuthClient googleOAuthClient;
     private final OAuthStateService oAuthStateService;
+    private final NicknameGenerator nicknameGenerator;
     private final UserRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -46,6 +64,7 @@ public class GoogleAuthService {
      * 3. Google 사용자 정보 조회
      * 4. 기존 소셜 계정 조회 or 신규 User + SocialAccount 생성
      * 5. JWT Access + Refresh Token 발급
+     * 6. isNewUser 플래그를 응답에 포함 (DP-284 이슈 1)
      */
     @Transactional
     public LoginResponse login(String code, String state) {
@@ -57,8 +76,11 @@ public class GoogleAuthService {
             throw new DevpickException(ErrorCode.AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED);
         }
 
-        User user = socialAccountRepository
-                .findByProviderAndProviderId(GOOGLE_PROVIDER, userInfo.id())
+        Optional<SocialAccount> existingAccount =
+                socialAccountRepository.findByProviderAndProviderId(GOOGLE_PROVIDER, userInfo.id());
+
+        boolean isNewUser = existingAccount.isEmpty();
+        User user = existingAccount
                 .map(SocialAccount::getUser)
                 .orElseGet(() -> registerNewSocialUser(userInfo));
 
@@ -72,11 +94,14 @@ public class GoogleAuthService {
                 .expiresAt(jwtTokenProvider.getRefreshTokenExpiresAt())
                 .build());
 
-        return LoginResponse.of(accessToken, refreshToken, user);
+        return isNewUser
+                ? LoginResponse.ofNewUser(accessToken, refreshToken, user)
+                : LoginResponse.of(accessToken, refreshToken, user);
     }
 
     private User registerNewSocialUser(GoogleUserInfo userInfo) {
-        String nickname = resolveNickname(userInfo);
+        // [이슈 2] NicknameGenerator에 중복 처리 위임 (DP-184)
+        String nickname = nicknameGenerator.generateFromGoogle(userInfo);
         User newUser = User.createSocialUser(userInfo.email(), nickname);
         userRepository.save(newUser);
 
@@ -88,25 +113,5 @@ public class GoogleAuthService {
         socialAccountRepository.save(socialAccount);
 
         return newUser;
-    }
-
-    /**
-     * 닉네임 후보: name → email 앞부분 순으로 사용. 중복 시 email 앞부분 + id suffix 추가.
-     * 확장 포인트 (DP-184): 닉네임 중복 처리 정책을 별도 NicknameGenerator로 분리 가능.
-     */
-    private String resolveNickname(GoogleUserInfo userInfo) {
-        String candidate = (userInfo.name() != null && !userInfo.name().isBlank())
-                ? userInfo.name()
-                : extractEmailPrefix(userInfo.email());
-
-        if (!userRepository.existsByNickname(candidate)) {
-            return candidate;
-        }
-        return extractEmailPrefix(userInfo.email()) + "_" + userInfo.id();
-    }
-
-    private String extractEmailPrefix(String email) {
-        int atIdx = email.indexOf('@');
-        return atIdx > 0 ? email.substring(0, atIdx) : email;
     }
 }

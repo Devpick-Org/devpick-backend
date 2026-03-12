@@ -11,89 +11,81 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
 class NicknameGeneratorTest {
 
-    @Mock
-    private UserRepository userRepository;
-
     @InjectMocks
     private NicknameGenerator nicknameGenerator;
 
+    @Mock
+    private UserRepository userRepository;
+
+    // ── GitHub ──────────────────────────────────────────────
+
     @Test
-    @DisplayName("name이 있고 중복이 없으면 name을 반환한다")
-    void generate_nameAvailable_returnsName() {
-        when(userRepository.existsByNickname("하영")).thenReturn(false);
+    @DisplayName("GitHub name이 있고 중복 없으면 name을 그대로 반환한다")
+    void generateFromGitHub_nameAvailable_returnsName() {
+        GitHubUserInfo userInfo = new GitHubUserInfo("1", "loginuser", "a@test.com", "하영", null);
+        given(userRepository.existsByNickname("하영")).willReturn(false);
 
-        String result = nicknameGenerator.generate("하영", "hayoung", "12345");
-
-        assertThat(result).isEqualTo("하영");
+        assertThat(nicknameGenerator.generateFromGitHub(userInfo)).isEqualTo("하영");
     }
 
     @Test
-    @DisplayName("name이 중복이면 prefix를 시도한다")
-    void generate_nameDuplicated_returnsPrefix() {
-        when(userRepository.existsByNickname("하영")).thenReturn(true);
-        when(userRepository.existsByNickname("hayoung")).thenReturn(false);
+    @DisplayName("GitHub name이 null이면 login을 후보로 사용한다")
+    void generateFromGitHub_nullName_usesLogin() {
+        GitHubUserInfo userInfo = new GitHubUserInfo("2", "loginuser", "a@test.com", null, null);
+        given(userRepository.existsByNickname("loginuser")).willReturn(false);
 
-        String result = nicknameGenerator.generate("하영", "hayoung", "12345");
-
-        assertThat(result).isEqualTo("hayoung");
+        assertThat(nicknameGenerator.generateFromGitHub(userInfo)).isEqualTo("loginuser");
     }
 
     @Test
-    @DisplayName("name, prefix 모두 중복이면 prefix_providerId suffix를 반환한다")
-    void generate_bothDuplicated_returnsSuffix() {
-        when(userRepository.existsByNickname("하영")).thenReturn(true);
-        when(userRepository.existsByNickname("hayoung")).thenReturn(true);
+    @DisplayName("GitHub name이 blank이면 login을 후보로 사용한다")
+    void generateFromGitHub_blankName_usesLogin() {
+        GitHubUserInfo userInfo = new GitHubUserInfo("3", "loginuser", "a@test.com", "  ", null);
+        given(userRepository.existsByNickname("loginuser")).willReturn(false);
 
-        String result = nicknameGenerator.generate("하영", "hayoung", "12345");
-
-        assertThat(result).isEqualTo("hayoung_12345");
+        assertThat(nicknameGenerator.generateFromGitHub(userInfo)).isEqualTo("loginuser");
     }
 
     @Test
-    @DisplayName("name이 null이면 prefix를 바로 시도한다")
-    void generate_nameNull_triesPrefix() {
-        when(userRepository.existsByNickname("hayoung")).thenReturn(false);
+    @DisplayName("GitHub 닉네임 중복 시 login + id suffix를 반환한다")
+    void generateFromGitHub_duplicateNickname_returnsLoginWithSuffix() {
+        GitHubUserInfo userInfo = new GitHubUserInfo("77777", "devhayoung", "dup@test.com", "하영", null);
+        given(userRepository.existsByNickname("하영")).willReturn(true);
 
-        String result = nicknameGenerator.generate(null, "hayoung", "12345");
+        assertThat(nicknameGenerator.generateFromGitHub(userInfo)).isEqualTo("devhayoung_77777");
+    }
 
-        assertThat(result).isEqualTo("hayoung");
+    // ── Google ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("Google name이 있고 중복 없으면 name을 그대로 반환한다")
+    void generateFromGoogle_nameAvailable_returnsName() {
+        GoogleUserInfo userInfo = new GoogleUserInfo("1", "a@gmail.com", "하영", null);
+        given(userRepository.existsByNickname("하영")).willReturn(false);
+
+        assertThat(nicknameGenerator.generateFromGoogle(userInfo)).isEqualTo("하영");
     }
 
     @Test
-    @DisplayName("name이 blank이면 prefix를 바로 시도한다")
-    void generate_nameBlank_triesPrefix() {
-        when(userRepository.existsByNickname("hayoung")).thenReturn(false);
+    @DisplayName("Google name이 null이면 email 앞부분을 후보로 사용한다")
+    void generateFromGoogle_nullName_usesEmailPrefix() {
+        GoogleUserInfo userInfo = new GoogleUserInfo("2", "devhayoung@gmail.com", null, null);
+        given(userRepository.existsByNickname("devhayoung")).willReturn(false);
 
-        String result = nicknameGenerator.generate("  ", "hayoung", "12345");
-
-        assertThat(result).isEqualTo("hayoung");
+        assertThat(nicknameGenerator.generateFromGoogle(userInfo)).isEqualTo("devhayoung");
     }
 
     @Test
-    @DisplayName("GitHubUserInfo OAuthUserInfo 오버로드 - getNicknamePrefix()는 login이다")
-    void generate_githubUserInfo_usesLogin() {
-        GitHubUserInfo userInfo = new GitHubUserInfo("12345", "hayoung", "hayoung@test.com", "하영", null);
-        when(userRepository.existsByNickname("hayoung")).thenReturn(false);
+    @DisplayName("Google 닉네임 중복 시 emailPrefix + id suffix를 반환한다")
+    void generateFromGoogle_duplicateNickname_returnsEmailPrefixWithSuffix() {
+        GoogleUserInfo userInfo = new GoogleUserInfo("77777", "hayoung@gmail.com", "하영", null);
+        given(userRepository.existsByNickname("하영")).willReturn(true);
 
-        String result = nicknameGenerator.generate(null, userInfo);
-
-        assertThat(result).isEqualTo("hayoung");
-    }
-
-    @Test
-    @DisplayName("GoogleUserInfo OAuthUserInfo 오버로드 - getNicknamePrefix()는 email @ 앞부분이다")
-    void generate_googleUserInfo_usesEmailPrefix() {
-        GoogleUserInfo userInfo = new GoogleUserInfo("99999", "hayoung@gmail.com", "하영", null);
-        when(userRepository.existsByNickname("하영")).thenReturn(true); // name 중복
-        when(userRepository.existsByNickname("hayoung")).thenReturn(false); // email prefix 사용
-
-        String result = nicknameGenerator.generate("하영", userInfo);
-
-        assertThat(result).isEqualTo("hayoung");
+        assertThat(nicknameGenerator.generateFromGoogle(userInfo)).isEqualTo("hayoung_77777");
     }
 }

@@ -17,6 +17,23 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
+/**
+ * GitHub 소셜 로그인 서비스 (DP-183, DP-284).
+ *
+ * [이슈 1 결정 - DP-284] isNewUser 플래그
+ * - 신규 가입 여부를 login() 반환값에 포함. SocialAccount 존재 여부로 판별.
+ * - 기존 유저: LoginResponse.of(), 신규 유저: LoginResponse.ofNewUser()
+ *
+ * [이슈 2 결정 - DP-183] 닉네임 중복 처리 → login + id suffix 확정
+ * - 2-step 가입(tempToken) 방식은 현재 Confluence 스펙에 정의 없어 기각.
+ * - NicknameGenerator에 위임하여 정책 변경 시 단일 지점에서 수정 가능.
+ *
+ * [이슈 3 확인 - DP-284] 환경별 Redirect URI
+ * - oauth.frontend-base-url이 application-local.yml / application-docker.yml에
+ *   이미 분리되어 있어 추가 작업 불필요.
+ */
 @Service
 @RequiredArgsConstructor
 public class GitHubAuthService {
@@ -25,6 +42,7 @@ public class GitHubAuthService {
 
     private final GitHubOAuthClient gitHubOAuthClient;
     private final OAuthStateService oAuthStateService;
+    private final NicknameGenerator nicknameGenerator;
     private final UserRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -46,6 +64,7 @@ public class GitHubAuthService {
      * 3. GitHub 사용자 정보 조회
      * 4. 기존 소셜 계정 조회 or 신규 User + SocialAccount 생성
      * 5. JWT Access + Refresh Token 발급
+     * 6. isNewUser 플래그를 응답에 포함 (DP-284 이슈 1)
      */
     @Transactional
     public LoginResponse login(String code, String state) {
@@ -53,8 +72,11 @@ public class GitHubAuthService {
         String githubAccessToken = gitHubOAuthClient.exchangeToken(code);
         GitHubUserInfo userInfo = gitHubOAuthClient.fetchUserInfo(githubAccessToken);
 
-        User user = socialAccountRepository
-                .findByProviderAndProviderId(GITHUB_PROVIDER, userInfo.id())
+        Optional<SocialAccount> existingAccount =
+                socialAccountRepository.findByProviderAndProviderId(GITHUB_PROVIDER, userInfo.id());
+
+        boolean isNewUser = existingAccount.isEmpty();
+        User user = existingAccount
                 .map(SocialAccount::getUser)
                 .orElseGet(() -> registerNewSocialUser(userInfo));
 
@@ -68,7 +90,9 @@ public class GitHubAuthService {
                 .expiresAt(jwtTokenProvider.getRefreshTokenExpiresAt())
                 .build());
 
-        return LoginResponse.of(accessToken, refreshToken, user);
+        return isNewUser
+                ? LoginResponse.ofNewUser(accessToken, refreshToken, user)
+                : LoginResponse.of(accessToken, refreshToken, user);
     }
 
     private User registerNewSocialUser(GitHubUserInfo userInfo) {
@@ -76,7 +100,8 @@ public class GitHubAuthService {
             throw new DevpickException(ErrorCode.AUTH_SOCIAL_EMAIL_REQUIRED);
         }
 
-        String nickname = resolveNickname(userInfo);
+        // [이슈 2] NicknameGenerator에 중복 처리 위임 (DP-183)
+        String nickname = nicknameGenerator.generateFromGitHub(userInfo);
         User newUser = User.createSocialUser(userInfo.email(), nickname);
         userRepository.save(newUser);
 
@@ -88,20 +113,5 @@ public class GitHubAuthService {
         socialAccountRepository.save(socialAccount);
 
         return newUser;
-    }
-
-    /**
-     * 닉네임 후보: name → login 순으로 사용. 중복 시 login + 숫자 suffix 추가.
-     * 확장 포인트 (DP-183): 닉네임 중복 처리 정책을 별도 NicknameGenerator로 분리 가능.
-     */
-    private String resolveNickname(GitHubUserInfo userInfo) {
-        String candidate = (userInfo.name() != null && !userInfo.name().isBlank())
-                ? userInfo.name()
-                : userInfo.login();
-
-        if (!userRepository.existsByNickname(candidate)) {
-            return candidate;
-        }
-        return userInfo.login() + "_" + userInfo.id();
     }
 }

@@ -123,8 +123,9 @@ class AuthControllerTest {
     void login_success() throws Exception {
         // given
         LoginRequest request = new LoginRequest("test@devpick.kr", "password123!");
+        // 이메일/패스워드 로그인은 항상 기존 유저 → isNewUser=false
         LoginResponse response = new LoginResponse(
-                "access-token", "refresh-token", UUID.randomUUID(), "test@devpick.kr", "하영");
+                "access-token", "refresh-token", UUID.randomUUID(), "test@devpick.kr", "하영", false);
         given(authService.login(any(LoginRequest.class))).willReturn(response);
 
         // when & then
@@ -134,7 +135,8 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
-                .andExpect(jsonPath("$.data.email").value("test@devpick.kr"));
+                .andExpect(jsonPath("$.data.email").value("test@devpick.kr"))
+                .andExpect(jsonPath("$.data.isNewUser").value(false));
     }
 
     @Test
@@ -191,9 +193,6 @@ class AuthControllerTest {
     @DisplayName("POST /auth/logout - 인증된 사용자가 로그아웃하면 200을 반환한다")
     void logout_success() throws Exception {
         // given
-        // Authentication.getPrincipal() 로 UUID를 반환하는 토큰을 standaloneSetup에 주입
-        // 컨트롤러는 authentication.getPrincipal()로 UUID를 겨지므로
-        // UsernamePasswordAuthenticationToken(principal=testUserId, ...) 형태로 주입하면 동작함
         doNothing().when(tokenService).logout(any(UUID.class));
 
         // when & then
@@ -359,8 +358,9 @@ class AuthControllerTest {
     @DisplayName("GET /auth/github/callback - 유효한 인가 코드와 state로 200과 토큰을 반환한다")
     void githubCallback_success() throws Exception {
         // given
+        // 기존 유저 시나리오 → isNewUser=false
         LoginResponse response = new LoginResponse(
-                "access-token", "refresh-token", UUID.randomUUID(), "hayoung@test.com", "하영");
+                "access-token", "refresh-token", UUID.randomUUID(), "hayoung@test.com", "하영", false);
         given(gitHubAuthService.login(anyString(), anyString())).willReturn(response);
 
         // when & then
@@ -370,7 +370,8 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
-                .andExpect(jsonPath("$.data.email").value("hayoung@test.com"));
+                .andExpect(jsonPath("$.data.email").value("hayoung@test.com"))
+                .andExpect(jsonPath("$.data.isNewUser").value(false));
     }
 
     @Test
@@ -424,8 +425,9 @@ class AuthControllerTest {
     @DisplayName("GET /auth/google/callback - 유효한 인가 코드와 state로 200과 토큰을 반환한다")
     void googleCallback_success() throws Exception {
         // given
+        // 기존 유저 시나리오 → isNewUser=false
         LoginResponse response = new LoginResponse(
-                "access-token", "refresh-token", UUID.randomUUID(), "hayoung@gmail.com", "하영");
+                "access-token", "refresh-token", UUID.randomUUID(), "hayoung@gmail.com", "하영", false);
         given(googleAuthService.login(anyString(), anyString())).willReturn(response);
 
         // when & then
@@ -435,7 +437,8 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
-                .andExpect(jsonPath("$.data.email").value("hayoung@gmail.com"));
+                .andExpect(jsonPath("$.data.email").value("hayoung@gmail.com"))
+                .andExpect(jsonPath("$.data.isNewUser").value(false));
     }
 
     @Test

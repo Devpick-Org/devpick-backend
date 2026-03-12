@@ -1,17 +1,20 @@
 package com.devpick.domain.user.service;
 
-import com.devpick.domain.user.dto.OAuthUserInfo;
+import com.devpick.domain.user.dto.GitHubUserInfo;
+import com.devpick.domain.user.dto.GoogleUserInfo;
 import com.devpick.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * 닉네임 생성 로직 (SRP 분리).
+ * OAuth 소셜 로그인 닉네임 생성 전략 (DP-183, DP-184).
  *
- * 생성 정쇝:
- * 1. OAuthUserInfo.name()이 있으면 우선 시도
- * 2. 없거나 중복이면 getNicknamePrefix() 시도 (GitHub: login, Google: email@앞)
- * 3. 아돈 다 중복이면 prefix + "_" + providerId suffix 부착
+ * [이슈 2 결정] 닉네임 중복 시 suffix 방식 확정
+ * - 2-step 가입(tempToken + 닉네임 입력 폼 유도) 방식은 기각.
+ *   현재 Confluence 연동 규격에 해당 플로우 정의 없음.
+ *   프론트 추가 구현 비용 대비 효과 불명확, 현행 즉시 완료 방식 유지.
+ * - 중복 시 login(GitHub) 또는 emailPrefix(Google) + "_" + providerId suffix 부여.
+ * - 향후 정책 변경 시 이 클래스만 수정하면 되도록 단일 책임으로 분리.
  */
 @Component
 @RequiredArgsConstructor
@@ -20,27 +23,37 @@ public class NicknameGenerator {
     private final UserRepository userRepository;
 
     /**
-     * @param name       제공자가 되돌려준 display name (nullable)
-     * @param prefix     provider 니크네임 prefix (ex. GitHub login, Google email 앞부분)
-     * @param providerId provider 고유 ID (suffix 시 사용)
+     * GitHub 유저 닉네임 생성.
+     * 후보: name → login 순. 중복 시 login + "_" + id.
      */
-    public String generate(String name, String prefix, String providerId) {
-        // 1차: display name 시도
-        if (name != null && !name.isBlank() && !userRepository.existsByNickname(name)) {
-            return name;
+    public String generateFromGitHub(GitHubUserInfo userInfo) {
+        String candidate = (userInfo.name() != null && !userInfo.name().isBlank())
+                ? userInfo.name()
+                : userInfo.login();
+
+        if (!userRepository.existsByNickname(candidate)) {
+            return candidate;
         }
-        // 2차: prefix 시도
-        if (!userRepository.existsByNickname(prefix)) {
-            return prefix;
-        }
-        // 3차: suffix 부착
-        return prefix + "_" + providerId;
+        return userInfo.login() + "_" + userInfo.id();
     }
 
     /**
-     * OAuthUserInfo 기반 오버로드.
+     * Google 유저 닉네임 생성.
+     * 후보: name → email 앞부분 순. 중복 시 emailPrefix + "_" + id.
      */
-    public String generate(String name, OAuthUserInfo userInfo) {
-        return generate(name, userInfo.getNicknamePrefix(), userInfo.getProviderId());
+    public String generateFromGoogle(GoogleUserInfo userInfo) {
+        String candidate = (userInfo.name() != null && !userInfo.name().isBlank())
+                ? userInfo.name()
+                : extractEmailPrefix(userInfo.email());
+
+        if (!userRepository.existsByNickname(candidate)) {
+            return candidate;
+        }
+        return extractEmailPrefix(userInfo.email()) + "_" + userInfo.id();
+    }
+
+    private String extractEmailPrefix(String email) {
+        int atIdx = email.indexOf('@');
+        return atIdx > 0 ? email.substring(0, atIdx) : email;
     }
 }
