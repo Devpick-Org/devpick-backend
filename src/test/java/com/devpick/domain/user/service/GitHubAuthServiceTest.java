@@ -90,7 +90,7 @@ class GitHubAuthServiceTest {
 
         // then
         assertThat(response.accessToken()).isEqualTo("access-token");
-        assertThat(response.refreshToken()).isEqualTo("refresh-token");
+        assertThat(response.refreshTokenValue()).isEqualTo("refresh-token");
         assertThat(response.isNewUser()).isFalse();
         verify(userRepository, never()).save(any());
         verify(socialAccountRepository, never()).save(any());

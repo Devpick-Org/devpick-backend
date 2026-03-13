@@ -100,7 +100,7 @@ class AuthServiceTest {
         user.verifyEmail();
         // 이메일/패스워드 로그인은 항상 기존 유저 → isNewUser=false
         LoginResponse mockResponse = new LoginResponse(
-                "mockAccessToken", "mockRefreshToken", UUID.randomUUID(), user.getEmail(), user.getNickname(), false);
+                "mockAccessToken", UUID.randomUUID(), user.getEmail(), user.getNickname(), false, "mockRefreshToken");
 
         given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
         given(passwordEncoder.matches(request.password(), user.getPasswordHash())).willReturn(true);
@@ -111,7 +111,7 @@ class AuthServiceTest {
 
         // then
         assertThat(response.accessToken()).isEqualTo("mockAccessToken");
-        assertThat(response.refreshToken()).isEqualTo("mockRefreshToken");
+        assertThat(response.refreshTokenValue()).isEqualTo("mockRefreshToken");
         assertThat(response.email()).isEqualTo(request.email());
         assertThat(response.isNewUser()).isFalse();
         verify(tokenService).issueTokenPair(user);

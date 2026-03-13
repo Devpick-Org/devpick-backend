@@ -1,7 +1,6 @@
 package com.devpick.domain.user.service;
 
 import com.devpick.domain.user.dto.LoginResponse;
-import com.devpick.domain.user.dto.TokenResponse;
 import com.devpick.domain.user.entity.RefreshToken;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.RefreshTokenRepository;
@@ -49,9 +48,12 @@ public class TokenService {
 
     /**
      * Refresh Token으로 새 Access Token + Refresh Token 재발급.
+     * refreshToken은 HttpOnly Cookie로 내려주므로 컨트롤러에서 Cookie를 Set한다.
+     *
+     * @return [0] newAccessToken, [1] newRefreshToken
      */
     @Transactional
-    public TokenResponse reissueTokens(String refreshToken) {
+    public String[] reissueTokens(String refreshToken) {
         // 1. DB에 존재하는지 확인
         RefreshToken stored = refreshTokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> new DevpickException(ErrorCode.AUTH_INVALID_REFRESH_TOKEN));
@@ -76,7 +78,7 @@ public class TokenService {
                 .expiresAt(jwtTokenProvider.getRefreshTokenExpiresAt())
                 .build());
 
-        return new TokenResponse(newAccessToken, newRefreshToken);
+        return new String[]{newAccessToken, newRefreshToken};
     }
 
     /**
