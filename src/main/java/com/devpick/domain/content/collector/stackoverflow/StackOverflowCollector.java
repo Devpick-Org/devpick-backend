@@ -1,6 +1,7 @@
 package com.devpick.domain.content.collector.stackoverflow;
 
 import com.devpick.domain.content.collector.CollectedContent;
+import com.devpick.domain.content.collector.ContentCollector;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.ContentSource;
 import com.devpick.domain.content.repository.ContentRepository;
@@ -26,7 +27,7 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class StackOverflowCollector {
+public class StackOverflowCollector implements ContentCollector {
 
     private static final String SOURCE_NAME = "Stack Overflow";
     private static final String BASE_URL = "https://api.stackexchange.com/2.3";
@@ -41,12 +42,18 @@ public class StackOverflowCollector {
     @Value("${stackoverflow.api-key:}")
     private String apiKey;
 
+    @Override
+    public String sourceName() {
+        return SOURCE_NAME;
+    }
+
     /**
      * Stack Overflow에서 최신 질문 수집 후 저장.
-     * @param tags 수집할 태그 목록 (세미콜론 구분, 예: "java;spring-boot")
+     * @param query 수집할 태그 목록 (세미콜론 구분, 예: "java;spring-boot")
      * @return 신규 저장된 콘텐츠 수
      */
-    public int collect(String tags) {
+    @Override
+    public int collect(String query) {
         ContentSource source = contentSourceRepository.findByNameAndIsActiveTrue(SOURCE_NAME)
                 .orElseGet(() -> {
                     log.warn("Stack Overflow ContentSource not found in DB, skipping collection.");
@@ -57,7 +64,7 @@ public class StackOverflowCollector {
             return 0;
         }
 
-        List<CollectedContent> collected = fetchQuestions(tags);
+        List<CollectedContent> collected = fetchQuestions(query);
         int savedCount = 0;
 
         for (CollectedContent item : collected) {
