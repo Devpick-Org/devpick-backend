@@ -4,7 +4,6 @@ import com.devpick.domain.content.collector.CollectedContent;
 import com.devpick.domain.content.collector.ContentCollector;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.content.repository.ContentSourceRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -23,7 +22,6 @@ import java.util.List;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class StackOverflowCollector extends ContentCollector {
 
     private static final String SOURCE_NAME = "Stack Overflow";
@@ -33,32 +31,22 @@ public class StackOverflowCollector extends ContentCollector {
     private static final int PAGE_SIZE = 30;
 
     private final WebClient webClient;
-    private final ContentRepository contentRepository;
-    private final ContentSourceRepository contentSourceRepository;
 
     @Value("${stackoverflow.api-key:}")
     private String apiKey;
+
+    public StackOverflowCollector(WebClient webClient,
+                                  ContentRepository contentRepository,
+                                  ContentSourceRepository contentSourceRepository) {
+        super(contentRepository, contentSourceRepository);
+        this.webClient = webClient;
+    }
 
     @Override
     public String sourceName() {
         return SOURCE_NAME;
     }
 
-    @Override
-    protected ContentRepository contentRepository() {
-        return contentRepository;
-    }
-
-    @Override
-    protected ContentSourceRepository contentSourceRepository() {
-        return contentSourceRepository;
-    }
-
-    /**
-     * Stack Overflow 질문을 수집한다.
-     *
-     * @param query 수집할 태그 (세미콜론 구분, 예: "java;spring-boot")
-     */
     @Override
     public List<CollectedContent> fetchItems(String query) {
         return fetchQuestions(query);

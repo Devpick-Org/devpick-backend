@@ -4,7 +4,6 @@ import com.devpick.domain.content.collector.CollectedContent;
 import com.devpick.domain.content.collector.ContentCollector;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.content.repository.ContentSourceRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -18,33 +17,20 @@ import java.util.List;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class VelogCollector extends ContentCollector {
 
     private static final String SOURCE_NAME = "Velog";
 
-    private final ContentRepository contentRepository;
-    private final ContentSourceRepository contentSourceRepository;
+    public VelogCollector(ContentRepository contentRepository,
+                          ContentSourceRepository contentSourceRepository) {
+        super(contentRepository, contentSourceRepository);
+    }
 
     @Override
     public String sourceName() {
         return SOURCE_NAME;
     }
 
-    @Override
-    protected ContentRepository contentRepository() {
-        return contentRepository;
-    }
-
-    @Override
-    protected ContentSourceRepository contentSourceRepository() {
-        return contentSourceRepository;
-    }
-
-    /**
-     * GraphQL 쿼리로 Velog 포스트 목록을 가져온다.
-     * DP-201에서 구현 예정.
-     */
     @Override
     public List<CollectedContent> fetchItems(String query) {
         return fetchPosts();

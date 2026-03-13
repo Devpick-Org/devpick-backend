@@ -24,8 +24,14 @@ import java.util.List;
 @Slf4j
 public abstract class ContentCollector {
 
-    protected abstract ContentSourceRepository contentSourceRepository();
-    protected abstract ContentRepository contentRepository();
+    protected final ContentRepository contentRepository;
+    protected final ContentSourceRepository contentSourceRepository;
+
+    protected ContentCollector(ContentRepository contentRepository,
+                               ContentSourceRepository contentSourceRepository) {
+        this.contentRepository = contentRepository;
+        this.contentSourceRepository = contentSourceRepository;
+    }
 
     /** content_sources.name 과 일치하는 소스 이름 */
     public abstract String sourceName();
@@ -40,7 +46,7 @@ public abstract class ContentCollector {
      * @return 신규 저장된 콘텐츠 수
      */
     public int collect(String query) {
-        ContentSource source = contentSourceRepository().findByNameAndIsActiveTrue(sourceName())
+        ContentSource source = contentSourceRepository.findByNameAndIsActiveTrue(sourceName())
                 .orElseGet(() -> {
                     log.warn("{} ContentSource not found in DB, skipping collection.", sourceName());
                     return null;
@@ -55,12 +61,13 @@ public abstract class ContentCollector {
 
         for (CollectedContent item : collected) {
             try {
-                contentRepository().save(toEntity(item, source));
+                contentRepository.save(toEntity(item, source));
                 savedCount++;
             } catch (DataIntegrityViolationException e) {
                 log.debug("Duplicate {} content skipped: {}", sourceName(), item.canonicalUrl());
             } catch (Exception e) {
-                log.error("Failed to save {} content: url={}, error={}", sourceName(), item.canonicalUrl(), e.getMessage());
+                log.error("Failed to save {} content: url={}, error={}",
+                        sourceName(), item.canonicalUrl(), e.getMessage());
             }
         }
 
