@@ -88,7 +88,7 @@ class StackOverflowCollectorTest {
         StackOverflowCollector spyCollector = spy(collector);
         CollectedContent item1 = buildCollectedContent("https://stackoverflow.com/q/1");
         CollectedContent item2 = buildCollectedContent("https://stackoverflow.com/q/2");
-        doReturn(List.of(item1, item2)).when(spyCollector).fetchQuestions(anyString());
+        doReturn(List.of(item1, item2)).when(spyCollector).fetchItems(anyString());
         given(contentRepository.save(any(Content.class))).willAnswer(inv -> inv.getArgument(0));
 
         int result = spyCollector.collect("java");
@@ -105,7 +105,7 @@ class StackOverflowCollectorTest {
 
         StackOverflowCollector spyCollector = spy(collector);
         CollectedContent item = buildCollectedContent("https://stackoverflow.com/q/1");
-        doReturn(List.of(item)).when(spyCollector).fetchQuestions(anyString());
+        doReturn(List.of(item)).when(spyCollector).fetchItems(anyString());
         given(contentRepository.save(any(Content.class)))
                 .willThrow(new DataIntegrityViolationException("duplicate key"));
 
@@ -123,7 +123,7 @@ class StackOverflowCollectorTest {
         StackOverflowCollector spyCollector = spy(collector);
         CollectedContent item1 = buildCollectedContent("https://stackoverflow.com/q/1");
         CollectedContent item2 = buildCollectedContent("https://stackoverflow.com/q/2");
-        doReturn(List.of(item1, item2)).when(spyCollector).fetchQuestions(anyString());
+        doReturn(List.of(item1, item2)).when(spyCollector).fetchItems(anyString());
 
         given(contentRepository.save(any(Content.class)))
                 .willThrow(new RuntimeException("DB error"))
@@ -255,7 +255,7 @@ class StackOverflowCollectorTest {
 
         StackOverflowCollector spyCollector = spy(collector);
         CollectedContent item = buildCollectedContent("https://stackoverflow.com/q/999");
-        doReturn(List.of(item)).when(spyCollector).fetchQuestions(anyString());
+        doReturn(List.of(item)).when(spyCollector).fetchItems(anyString());
 
         ArgumentCaptor<Content> captor = ArgumentCaptor.forClass(Content.class);
         given(contentRepository.save(captor.capture())).willAnswer(inv -> inv.getArgument(0));

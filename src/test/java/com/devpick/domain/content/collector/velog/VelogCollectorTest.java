@@ -11,17 +11,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+/**
+ * VelogCollector 단위 테스트.
+ * fetchPosts() 구현은 DP-201에서 완료 예정.
+ * collect() 흐름 테스트는 DP-201 완료 후 추가.
+ */
 @ExtendWith(MockitoExtension.class)
 class VelogCollectorTest {
 
@@ -75,81 +78,10 @@ class VelogCollectorTest {
     }
 
     @Test
-    @DisplayName("collect — 중복 URL은 저장 안 하고 카운트에서 제외")
-    void collect_duplicateUrl_skippedSilently() {
-        given(contentSourceRepository.findByNameAndIsActiveTrue("Velog"))
-                .willReturn(Optional.of(velogSource));
-
-        VelogCollector spyCollector = spy(collector);
-        doReturn(List.of(buildCollectedContent("https://velog.io/@user/post-1")))
-                .when(spyCollector).fetchPosts(any());
-        given(contentRepository.save(any()))
-                .willThrow(new DataIntegrityViolationException("duplicate key"));
-
-        int result = spyCollector.collect("spring");
-
-        assertThat(result).isZero();
-    }
-
-    @Test
-    @DisplayName("collect — 저장 중 예외 발생해도 나머지 계속 처리")
-    void collect_saveException_continuesProcessing() {
-        given(contentSourceRepository.findByNameAndIsActiveTrue("Velog"))
-                .willReturn(Optional.of(velogSource));
-
-        VelogCollector spyCollector = spy(collector);
-        doReturn(List.of(
-                buildCollectedContent("https://velog.io/@user/post-1"),
-                buildCollectedContent("https://velog.io/@user/post-2")
-        )).when(spyCollector).fetchPosts(any());
-
-        given(contentRepository.save(any()))
-                .willThrow(new RuntimeException("DB error"))
-                .willAnswer(inv -> inv.getArgument(0));
-
-        int result = spyCollector.collect("spring");
-
-        assertThat(result).isEqualTo(1);
-        verify(contentRepository, times(2)).save(any());
-    }
-
-    @Test
-    @DisplayName("collect — 정상 수집 후 저장 수 반환")
-    void collect_success_returnsSavedCount() {
-        given(contentSourceRepository.findByNameAndIsActiveTrue("Velog"))
-                .willReturn(Optional.of(velogSource));
-
-        VelogCollector spyCollector = spy(collector);
-        doReturn(List.of(
-                buildCollectedContent("https://velog.io/@user/post-1"),
-                buildCollectedContent("https://velog.io/@user/post-2")
-        )).when(spyCollector).fetchPosts(any());
-        given(contentRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
-
-        int result = spyCollector.collect("spring");
-
-        assertThat(result).isEqualTo(2);
-    }
-
-    @Test
     @DisplayName("fetchPosts — 미구현 상태에서 빈 리스트 반환")
     void fetchPosts_notImplemented_returnsEmpty() {
         List<CollectedContent> result = collector.fetchPosts("spring");
 
         assertThat(result).isEmpty();
-    }
-
-    private CollectedContent buildCollectedContent(String url) {
-        return new CollectedContent(
-                "Velog 포스트 제목",
-                "velogUser",
-                url,
-                "preview text",
-                "full body",
-                false,
-                null,
-                LocalDateTime.now(),
-                List.of("spring", "java")
-        );
     }
 }

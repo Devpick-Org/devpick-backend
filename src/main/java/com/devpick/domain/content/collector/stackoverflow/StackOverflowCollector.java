@@ -2,14 +2,11 @@ package com.devpick.domain.content.collector.stackoverflow;
 
 import com.devpick.domain.content.collector.CollectedContent;
 import com.devpick.domain.content.collector.ContentCollector;
-import com.devpick.domain.content.entity.Content;
-import com.devpick.domain.content.entity.ContentSource;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.content.repository.ContentSourceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -21,7 +18,7 @@ import java.util.List;
 
 /**
  * Stack Overflow API v2.3 수집기.
- * CC BY-SA 4.0 라이선스 — 저자명 + 원문 링크 표시 조건으로 원문 표시 허용.
+ * CC BY-SA 4.0 — 저자명 + 원문 링크 표시 조건으로 원문 표시 허용.
  * API 키 없으면 일일 300회, 있으면 10,000회 쿼터.
  */
 @Slf4j
@@ -47,40 +44,25 @@ public class StackOverflowCollector implements ContentCollector {
         return SOURCE_NAME;
     }
 
+    @Override
+    public ContentRepository contentRepository() {
+        return contentRepository;
+    }
+
+    @Override
+    public ContentSourceRepository contentSourceRepository() {
+        return contentSourceRepository;
+    }
+
     /**
-     * Stack Overflow에서 최신 질문 수집 후 저장.
-     * @param query 수집할 태그 목록 (세미콜론 구분, 예: "java;spring-boot")
-     * @return 신규 저장된 콘텐츠 수
+     * Stack Overflow 질문을 수집한다.
+     *
+     * @param query 수집할 태그 (세미콜론 구분, 예: "java;spring-boot")
+     * @return 수집된 CollectedContent 목록
      */
     @Override
-    public int collect(String query) {
-        ContentSource source = contentSourceRepository.findByNameAndIsActiveTrue(SOURCE_NAME)
-                .orElseGet(() -> {
-                    log.warn("Stack Overflow ContentSource not found in DB, skipping collection.");
-                    return null;
-                });
-
-        if (source == null) {
-            return 0;
-        }
-
-        List<CollectedContent> collected = fetchQuestions(query);
-        int savedCount = 0;
-
-        for (CollectedContent item : collected) {
-            try {
-                contentRepository.save(toEntity(item, source));
-                savedCount++;
-            } catch (DataIntegrityViolationException e) {
-                // canonical_url unique 제약 위반 → 중복 콘텐츠, 정상 스킵
-                log.debug("Duplicate content skipped: {}", item.canonicalUrl());
-            } catch (Exception e) {
-                log.error("Failed to save Stack Overflow content: url={}, error={}", item.canonicalUrl(), e.getMessage());
-            }
-        }
-
-        log.info("Stack Overflow collection done. fetched={}, saved={}", collected.size(), savedCount);
-        return savedCount;
+    public List<CollectedContent> fetchItems(String query) {
+        return fetchQuestions(query);
     }
 
     List<CollectedContent> fetchQuestions(String tags) {
@@ -151,25 +133,10 @@ public class StackOverflowCollector implements ContentCollector {
                 q.link(),
                 preview,
                 q.bodyMarkdown(),
-                true,           // CC BY-SA 4.0 → 원문 표시 허용
+                true,
                 LICENSE_TYPE,
                 publishedAt,
                 q.tags() != null ? q.tags() : List.of()
         );
-    }
-
-    private Content toEntity(CollectedContent item, ContentSource source) {
-        return Content.builder()
-                .source(source)
-                .title(item.title())
-                .author(item.author())
-                .canonicalUrl(item.canonicalUrl())
-                .preview(item.preview())
-                .originalContent(item.originalContent())
-                .isOriginalVisible(item.isOriginalVisible())
-                .licenseType(item.licenseType())
-                .publishedAt(item.publishedAt())
-                .isAvailable(true)
-                .build();
     }
 }
