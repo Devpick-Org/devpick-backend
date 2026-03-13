@@ -15,11 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * AI 레포 내부 전용 콘텐츠 수신 콘트롤러.
- * /internal/** 경로는 Nginx 네트워크 격리로 외부 노cd9c 차단 예정.
+ * AI 레포(FastAPI) 전용 내부 API 컨트롤러.
+ * 외부 노출 없음 — Nginx에서 /internal/ 경로 자단 예정 (인증 방식 맰결, 홍근 확인 필요).
  * DP-289
  */
-@Tag(name = "Internal", description = "AI 레포 내부 전용 API (외부 노드 불가)")
+@Tag(name = "Internal", description = "AI 레포 전용 내부 API")
 @RestController
 @RequestMapping("/internal")
 @RequiredArgsConstructor
@@ -27,14 +27,10 @@ public class InternalContentController {
 
     private final InternalContentService internalContentService;
 
-    @Operation(
-            summary = "AI 수집 콘텐츠 일괄 저장",
-            description = "AI 레포(FastAPI)가 수집/정규화한 콘텐츠 리스트를 백엔드로 전달하는 내부 API. Nginx 네트워크 격리 적용."
-    )
+    @Operation(summary = "AI 콘텐츠 일괄 수신", description = "AI 레포가 수집/정규화한 콘텐츠를 배치로 전달하면 PostgreSQL에 저장한다.")
     @PostMapping("/contents")
     public ResponseEntity<IngestResultResponse> ingest(
-            @RequestBody List<NormalizedContentDto> items
-    ) {
+            @RequestBody List<NormalizedContentDto> items) {
         return ResponseEntity.ok(internalContentService.ingest(items));
     }
 }

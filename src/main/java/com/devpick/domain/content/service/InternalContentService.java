@@ -6,6 +6,8 @@ import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.ContentSource;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.content.repository.ContentSourceRepository;
+import com.devpick.global.common.exception.DevpickException;
+import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -13,11 +15,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
- * AI 레포로부터 수신한 NormalizedContentDto 를 PostgreSQL contents 테이블에 저장하는 서비스.
- * DP-289: POST /internal/contents 핵심 로직.
+ * AI 레포(FastAPI)가 전달하는 정규화 콘텐츠를 PostgreSQL에 저장하는 서비스.
+ * ADR-001: PostgreSQL 저장 주체 = 백엔드
+ * DP-289: POST /internal/contents 내부 API 구현
  */
 @Slf4j
 @Service
@@ -28,10 +30,10 @@ public class InternalContentService {
     private final ContentSourceRepository contentSourceRepository;
 
     /**
-     * AI 레포가 전달한 콘텐츠 리스트를 일괄 저장한다.
+     * AI 레포에서 배치로 수신한 NormalizedContentDto 리스트를 PostgreSQL에 저장한다.
      *
-     * @param items AI 레포에서 전달된 NormalizedContentDto 리스트
-     * @return 저장/스킵 결과
+     * @param items AI 레포가 전송한 정규화 콘텐츠 목록
+     * @return saved/skipped 카운트
      */
     @Transactional
     public IngestResultResponse ingest(List<NormalizedContentDto> items) {
@@ -39,45 +41,40 @@ public class InternalContentService {
         int skipped = 0;
 
         for (NormalizedContentDto item : items) {
-            Optional<ContentSource> sourceOpt = contentSourceRepository.findByNameAndIsActiveTrue(item.sourceName());
-            if (sourceOpt.isEmpty()) {
-                log.warn("ContentSource not found or inactive: sourceName={}", item.sourceName());
-                skipped++;
-                continue;
-            }
+            ContentSource source = contentSourceRepository.findByNameAndIsActiveTrue(item.sourceName())
+                    .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_SOURCE_NOT_FOUND));
 
             try {
-                contentRepository.save(toEntity(item, sourceOpt.get()));
+                contentRepository.save(toEntity(item, source));
                 saved++;
             } catch (DataIntegrityViolationException e) {
-                log.debug("Duplicate content skipped: canonicalUrl={}", item.canonicalUrl());
-                skipped++;
-            } catch (Exception e) {
-                log.error("Failed to save content: canonicalUrl={}, error={}", item.canonicalUrl(), e.getMessage());
+                // canonical_url unique 제약 위반 → 중복 콘텐츠, 정상 스킵
+                log.debug("Duplicate content skipped: {}", item.canonicalUrl());
                 skipped++;
             }
         }
 
-        log.info("Ingest complete. saved={}, skipped={}", saved, skipped);
+        log.info("Internal ingest done. total={}, saved={}, skipped={}", items.size(), saved, skipped);
         return new IngestResultResponse(saved, skipped);
     }
 
-    private Content toEntity(NormalizedContentDto item, ContentSource source) {
+    private Content toEntity(NormalizedContentDto dto, ContentSource source) {
         return Content.builder()
                 .source(source)
-                .title(item.title() != null ? item.title() : "")
-                .canonicalUrl(item.canonicalUrl())
-                .preview(item.preview())
-                .originalContent(item.bodyCandidate())
-                .isOriginalVisible(isOriginalVisible(item.contentKind()))
-                .publishedAt(item.parsedPublishedAt())
+                .title(dto.title() != null ? dto.title() : "")
+                .canonicalUrl(dto.canonicalUrl())
+                .preview(dto.preview())
+                .originalContent(dto.bodyCandidate())
+                .isOriginalVisible(isOriginalVisible(dto.contentKind()))
+                .publishedAt(dto.parsedPublishedAt())
                 .isAvailable(true)
                 .build();
     }
 
     /**
-     * content_kind 값에 따라 원문 표시 여부 결정.
-     * "full_body" 인 경우만 원문 표시 허용.
+     * content_kind 값 기준으로 원문 표시 여부 결정.
+     * full_body: 본문 있음 → true
+     * preview_only 또는 미정의 값: false
      */
     private boolean isOriginalVisible(String contentKind) {
         return "full_body".equals(contentKind);
