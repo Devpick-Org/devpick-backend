@@ -10,16 +10,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
 
 /**
  * Velog GraphQL API 수집기.
- * 엔드포인트: https://v2.velog.io/graphql
- * ADR-006 확인 완료.
+ * 엔드포인트: https://v2.velog.io/graphql (ADR-006 확인 완료)
  *
- * <p>DP-201에서 구현 예정.
+ * <p>GraphQL 수집 로직은 DP-201에서 구현 예정.
  */
 @Slf4j
 @Component
@@ -27,9 +25,7 @@ import java.util.List;
 public class VelogCollector implements ContentCollector {
 
     private static final String SOURCE_NAME = "Velog";
-    private static final String GRAPHQL_URL = "https://v2.velog.io/graphql";
 
-    private final WebClient webClient;
     private final ContentRepository contentRepository;
     private final ContentSourceRepository contentSourceRepository;
 

@@ -12,7 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,8 +28,6 @@ class VelogCollectorTest {
     @InjectMocks
     private VelogCollector collector;
 
-    @Mock
-    private WebClient webClient;
     @Mock
     private ContentRepository contentRepository;
     @Mock
