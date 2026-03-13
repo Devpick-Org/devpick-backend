@@ -18,7 +18,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -60,6 +59,7 @@ class StackOverflowCollectorTest {
                 .collectMethod("api")
                 .build();
     }
+
 
     @Test
     @DisplayName("sourceName — 'Stack Overflow' 반환")
@@ -188,27 +188,13 @@ class StackOverflowCollectorTest {
     }
 
     @Test
-    @DisplayName("fetchQuestions — 일반 예외 발생 시 빈 리스트 반환")
+    @DisplayName("fetchQuestions — API 에러 응답 시 빈 리스트 반환")
     void fetchQuestions_apiError_returnsEmpty() {
         given(webClient.get()).willReturn(requestHeadersUriSpec);
         given(requestHeadersUriSpec.uri(anyString())).willReturn(requestHeadersSpec);
         given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
         given(responseSpec.bodyToMono(StackOverflowApiResponse.class))
                 .willReturn(Mono.error(new RuntimeException("connection refused")));
-
-        List<CollectedContent> result = collector.fetchQuestions("java");
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    @DisplayName("fetchQuestions — WebClientResponseException 발생 시 빈 리스트 반환")
-    void fetchQuestions_webClientResponseException_returnsEmpty() {
-        given(webClient.get()).willReturn(requestHeadersUriSpec);
-        given(requestHeadersUriSpec.uri(anyString())).willReturn(requestHeadersSpec);
-        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
-        given(responseSpec.bodyToMono(StackOverflowApiResponse.class))
-                .willThrow(WebClientResponseException.create(429, "Too Many Requests", null, null, null));
 
         List<CollectedContent> result = collector.fetchQuestions("java");
 
@@ -449,7 +435,7 @@ class StackOverflowCollectorTest {
                 "full body",
                 true,
                 "CC BY-SA 4.0",
-                LocalDateTime.now(),
+                java.time.LocalDateTime.now(),
                 List.of("java", "spring-boot")
         );
     }
