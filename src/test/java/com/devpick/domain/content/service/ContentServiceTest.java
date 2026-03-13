@@ -236,6 +236,81 @@ class ContentServiceTest {
     }
 
     @Test
+    @DisplayName("getDetail — 유저 없으면 USER_NOT_FOUND 예외")
+    void getDetail_userNotFound_throwsException() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> contentService.getDetail(userId, contentId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("addScrap — 유저 없으면 USER_NOT_FOUND 예외")
+    void addScrap_userNotFound_throwsException() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(scrapRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> contentService.addScrap(userId, contentId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("addLike — 유저 없으면 USER_NOT_FOUND 예외")
+    void addLike_userNotFound_throwsException() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(likeRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> contentService.addLike(userId, contentId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("removeLike — 좋아요 없으면 CONTENT_NOT_LIKED 예외")
+    void removeLike_notFound_throwsException() {
+        given(likeRepository.findByUser_IdAndContent_Id(userId, contentId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> contentService.removeLike(userId, contentId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.CONTENT_NOT_LIKED));
+    }
+
+    @Test
+    @DisplayName("getDetail — isScrapped/isLiked true 반영")
+    void getDetail_withScrapAndLike_flagsTrue() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(scrapRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(true);
+        given(likeRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(true);
+
+        ContentDetailResponse response = contentService.getDetail(userId, contentId);
+
+        assertThat(response.isScrapped()).isTrue();
+        assertThat(response.isLiked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("search — 결과 없으면 빈 리스트 반환")
+    void search_noResult_returnsEmpty() {
+        given(contentRepository.searchContents(any(), any(), any()))
+                .willReturn(new PageImpl<>(List.of()));
+
+        ContentListResponse response = contentService.search(userId, "없는키워드", null, PageRequest.of(0, 20));
+
+        assertThat(response.contents()).isEmpty();
+        assertThat(response.totalElements()).isZero();
+    }
+
+    @Test
     @DisplayName("search — 쿼리와 태그로 검색 결과 반환")
     void search_returnsMatchingContents() {
         given(contentRepository.searchContents(any(), any(), any()))

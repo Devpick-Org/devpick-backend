@@ -22,8 +22,10 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -259,6 +261,162 @@ class StackOverflowCollectorTest {
         assertThat(saved.getIsOriginalVisible()).isTrue();
         assertThat(saved.getLicenseType()).isEqualTo("CC BY-SA 4.0");
         assertThat(saved.getSource()).isEqualTo(stackOverflowSource);
+    }
+
+    @Test
+    @DisplayName("fetchQuestions — response.items()가 null이면 빈 리스트 반환")
+    void fetchQuestions_nullItems_returnsEmpty() {
+        StackOverflowApiResponse apiResponse = new StackOverflowApiResponse(null, false, 9990);
+
+        given(webClient.get()).willReturn(requestHeadersUriSpec);
+        given(requestHeadersUriSpec.uri(anyString())).willReturn(requestHeadersSpec);
+        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
+        given(responseSpec.bodyToMono(StackOverflowApiResponse.class))
+                .willReturn(Mono.just(apiResponse));
+
+        List<CollectedContent> result = collector.fetchQuestions("java");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("fetchQuestions — WebClientResponseException 발생 시 빈 리스트 반환")
+    void fetchQuestions_webClientResponseException_returnsEmpty() {
+        given(webClient.get()).willReturn(requestHeadersUriSpec);
+        given(requestHeadersUriSpec.uri(anyString())).willReturn(requestHeadersSpec);
+        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
+        given(responseSpec.bodyToMono(StackOverflowApiResponse.class))
+                .willReturn(Mono.error(
+                        WebClientResponseException.create(429, "Too Many Requests", null, null, null)
+                ));
+
+        List<CollectedContent> result = collector.fetchQuestions("java");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("fetchQuestions — tags null이면 tagged 파라미터 없이 URI 생성")
+    void fetchQuestions_nullTags_buildUriWithoutTagged() {
+        StackOverflowApiResponse apiResponse = new StackOverflowApiResponse(List.of(), false, 9990);
+
+        given(webClient.get()).willReturn(requestHeadersUriSpec);
+        given(requestHeadersUriSpec.uri(anyString())).willReturn(requestHeadersSpec);
+        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
+        given(responseSpec.bodyToMono(StackOverflowApiResponse.class))
+                .willReturn(Mono.just(apiResponse));
+
+        List<CollectedContent> result = collector.fetchQuestions(null);
+
+        assertThat(result).isEmpty();
+        verify(requestHeadersUriSpec).uri(argThat((String uri) -> !uri.contains("tagged=")));
+    }
+
+    @Test
+    @DisplayName("fetchQuestions — owner는 있지만 displayName null이면 author Unknown 처리")
+    void fetchQuestions_ownerWithNullDisplayName_usesUnknownAuthor() {
+        StackOverflowQuestion.Owner ownerNoName = new StackOverflowQuestion.Owner(null, 42L);
+        StackOverflowQuestion question = new StackOverflowQuestion(
+                10L, "No-name question", "https://stackoverflow.com/questions/10",
+                ownerNoName, List.of("java"), "body text", 1700000000L, 1, 10, false
+        );
+        StackOverflowApiResponse apiResponse = new StackOverflowApiResponse(List.of(question), false, 9990);
+
+        given(webClient.get()).willReturn(requestHeadersUriSpec);
+        given(requestHeadersUriSpec.uri(anyString())).willReturn(requestHeadersSpec);
+        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
+        given(responseSpec.bodyToMono(StackOverflowApiResponse.class))
+                .willReturn(Mono.just(apiResponse));
+
+        List<CollectedContent> result = collector.fetchQuestions("java");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).author()).isEqualTo("Unknown");
+    }
+
+    @Test
+    @DisplayName("fetchQuestions — bodyMarkdown null이면 preview도 null로 처리")
+    void fetchQuestions_nullBodyMarkdown_previewNull() {
+        StackOverflowQuestion.Owner owner = new StackOverflowQuestion.Owner("Dev", 1L);
+        StackOverflowQuestion question = new StackOverflowQuestion(
+                20L, "Null body question", "https://stackoverflow.com/questions/20",
+                owner, List.of("spring"), null, 1700000000L, 0, 5, false
+        );
+        StackOverflowApiResponse apiResponse = new StackOverflowApiResponse(List.of(question), false, 9990);
+
+        given(webClient.get()).willReturn(requestHeadersUriSpec);
+        given(requestHeadersUriSpec.uri(anyString())).willReturn(requestHeadersSpec);
+        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
+        given(responseSpec.bodyToMono(StackOverflowApiResponse.class))
+                .willReturn(Mono.just(apiResponse));
+
+        List<CollectedContent> result = collector.fetchQuestions("spring");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).preview()).isNull();
+        assertThat(result.get(0).originalContent()).isNull();
+    }
+
+    @Test
+    @DisplayName("fetchQuestions — tags null이면 빈 리스트로 처리")
+    void fetchQuestions_nullTags_usesEmptyList() {
+        StackOverflowQuestion.Owner owner = new StackOverflowQuestion.Owner("Dev", 1L);
+        StackOverflowQuestion question = new StackOverflowQuestion(
+                30L, "No tags question", "https://stackoverflow.com/questions/30",
+                owner, null, "body", 1700000000L, 0, 5, false
+        );
+        StackOverflowApiResponse apiResponse = new StackOverflowApiResponse(List.of(question), false, 9990);
+
+        given(webClient.get()).willReturn(requestHeadersUriSpec);
+        given(requestHeadersUriSpec.uri(anyString())).willReturn(requestHeadersSpec);
+        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
+        given(responseSpec.bodyToMono(StackOverflowApiResponse.class))
+                .willReturn(Mono.just(apiResponse));
+
+        List<CollectedContent> result = collector.fetchQuestions("java");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).tags()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("fetchQuestions — apiKey 설정 시 key 파라미터 URI에 포함")
+    void fetchQuestions_withApiKey_includesKeyInUri() throws Exception {
+        // apiKey 필드에 값 주입
+        java.lang.reflect.Field field = StackOverflowCollector.class.getDeclaredField("apiKey");
+        field.setAccessible(true);
+        field.set(collector, "test-api-key-1234");
+
+        StackOverflowApiResponse apiResponse = new StackOverflowApiResponse(List.of(), false, 9990);
+        given(webClient.get()).willReturn(requestHeadersUriSpec);
+        given(requestHeadersUriSpec.uri(anyString())).willReturn(requestHeadersSpec);
+        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
+        given(responseSpec.bodyToMono(StackOverflowApiResponse.class))
+                .willReturn(Mono.just(apiResponse));
+
+        collector.fetchQuestions("java");
+
+        verify(requestHeadersUriSpec).uri(argThat((String uri) -> uri.contains("key=test-api-key-1234")));
+
+        // 원래대로 복원
+        field.set(collector, "");
+    }
+
+    @Test
+    @DisplayName("fetchQuestions — tags 빈 문자열이면 tagged 파라미터 없이 URI 생성")
+    void fetchQuestions_blankTags_buildUriWithoutTagged() {
+        StackOverflowApiResponse apiResponse = new StackOverflowApiResponse(List.of(), false, 9990);
+
+        given(webClient.get()).willReturn(requestHeadersUriSpec);
+        given(requestHeadersUriSpec.uri(anyString())).willReturn(requestHeadersSpec);
+        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
+        given(responseSpec.bodyToMono(StackOverflowApiResponse.class))
+                .willReturn(Mono.just(apiResponse));
+
+        List<CollectedContent> result = collector.fetchQuestions("   ");
+
+        assertThat(result).isEmpty();
+        verify(requestHeadersUriSpec).uri(argThat((String uri) -> !uri.contains("tagged=")));
     }
 
     private CollectedContent buildCollectedContent(String url) {
