@@ -159,6 +159,34 @@ class InternalContentServiceTest {
     }
 
     @Test
+    @DisplayName("title null 수신 → 빈 문자열로 저장")
+    void ingest_nullTitle_savedAsEmptyString() {
+        NormalizedContentDto dto = new NormalizedContentDto(
+                "techblog",
+                null,
+                "https://example.com/post/notitle",
+                "2026-03-10T09:00:00Z",
+                "미리보기",
+                "본문",
+                "rss",
+                "full_body",
+                null
+        );
+
+        given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
+                .willReturn(Optional.of(mockSource));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Content.class);
+        given(contentRepository.save(captor.capture()))
+                .willAnswer(inv -> inv.getArgument(0));
+
+        IngestResultResponse result = internalContentService.ingest(List.of(dto));
+
+        assertThat(result.saved()).isEqualTo(1);
+        assertThat(captor.getValue().getTitle()).isEqualTo("");
+    }
+
+    @Test
     @DisplayName("content_kind preview_only → isOriginalVisible false")
     void ingest_previewOnlyKind_isOriginalVisibleFalse() {
         NormalizedContentDto dto = new NormalizedContentDto(

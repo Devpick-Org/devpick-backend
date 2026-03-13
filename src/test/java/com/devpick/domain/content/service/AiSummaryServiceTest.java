@@ -214,4 +214,143 @@ class AiSummaryServiceTest {
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.CONTENT_NOT_FOUND));
     }
+
+    @Test
+    @DisplayName("getSummary — Redis 캐시 있지만 만료 → MongoDB fallback")
+    void getSummary_redisCacheExpired_fallsBackToMongodb() throws JsonProcessingException {
+        // Redis에서 역직렬화는 성공하지만 expiresAt이 과거 → 캐시 만료 처리
+        AiSummaryResponse expiredResponse = new AiSummaryResponse(
+                contentId.toString(), level, "핵심 요약", List.of("포인트1"), List.of("Spring"),
+                "보통", "다음 읽기", 0.9, List.of("질문1"),
+                LocalDateTime.now().minusDays(8),
+                LocalDateTime.now().minusDays(1)    // expiresAt 과거
+        );
+
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(valueOps.get(anyString())).willReturn("{\"expired\":true}");
+        given(objectMapper.readValue(anyString(), eq(AiSummaryResponse.class))).willReturn(expiredResponse);
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
+                .willReturn(Optional.of(document));  // MongoDB 히트
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        AiSummaryResponse response = aiSummaryService.getSummary(userId, contentId, level);
+
+        assertThat(response.coreSummary()).isEqualTo("핵심 요약");
+        verify(aiServerClient, never()).fetchSummary(any(), any());
+        verify(aiSummaryRepository).findByContentIdAndLevel(contentId.toString(), level);
+    }
+
+    @Test
+    @DisplayName("getSummary — Redis/MongoDB 모두 만료 → FastAPI 호출")
+    void getSummary_bothCachesExpired_callsFastApi() throws JsonProcessingException {
+        AiSummaryResponse expiredRedisResponse = new AiSummaryResponse(
+                contentId.toString(), level, "핵심 요약", List.of(), List.of(),
+                "보통", "다음", 0.9, List.of(),
+                LocalDateTime.now().minusDays(8),
+                LocalDateTime.now().minusDays(1)   // expiresAt 과거
+        );
+        AiSummaryDocument expiredDoc = AiSummaryDocument.builder()
+                .contentId(contentId.toString()).level(level)
+                .coreSummary("핵심 요약").keyPoints(List.of()).keywords(List.of())
+                .difficulty("보통").nextRecommendation("다음").confidence(0.9)
+                .additionalQuestions(List.of())
+                .cachedAt(LocalDateTime.now().minusDays(8))
+                .expiresAt(LocalDateTime.now().minusDays(1))  // 만료
+                .build();
+
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(valueOps.get(anyString())).willReturn("{\"expired\":true}");
+        given(objectMapper.readValue(anyString(), eq(AiSummaryResponse.class))).willReturn(expiredRedisResponse);
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
+                .willReturn(Optional.of(expiredDoc));  // MongoDB도 만료
+        given(aiServerClient.fetchSummary(contentId, level)).willReturn(fastApiResult);
+        given(aiSummaryRepository.save(any())).willReturn(document);
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        aiSummaryService.getSummary(userId, contentId, level);
+
+        verify(aiServerClient).fetchSummary(contentId, level);
+        verify(aiSummaryRepository).save(any(AiSummaryDocument.class));
+    }
+
+    @Test
+    @DisplayName("getSummary — Redis 캐시 있지만 expiresAt null → MongoDB fallback")
+    void getSummary_redisCacheExpiresAtNull_fallsBackToMongodb() throws JsonProcessingException {
+        AiSummaryResponse noExpiry = new AiSummaryResponse(
+                contentId.toString(), level, "핵심 요약", List.of(), List.of(),
+                "보통", "다음", 0.9, List.of(),
+                LocalDateTime.now(),
+                null   // expiresAt == null → 유효하지 않은 캐시로 처리
+        );
+
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(valueOps.get(anyString())).willReturn("{\"no-expiry\":true}");
+        given(objectMapper.readValue(anyString(), eq(AiSummaryResponse.class))).willReturn(noExpiry);
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
+                .willReturn(Optional.of(document));
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        AiSummaryResponse response = aiSummaryService.getSummary(userId, contentId, level);
+
+        assertThat(response.coreSummary()).isEqualTo("핵심 요약");
+        verify(aiServerClient, never()).fetchSummary(any(), any());
+    }
+
+    @Test
+    @DisplayName("getSummary — MongoDB doc의 expiresAt null → FastAPI 호출")
+    void getSummary_mongoDbExpiresAtNull_callsFastApi() throws JsonProcessingException {
+        AiSummaryDocument docNoExpiry = AiSummaryDocument.builder()
+                .contentId(contentId.toString()).level(level)
+                .coreSummary("핵심 요약").keyPoints(List.of()).keywords(List.of())
+                .difficulty("보통").nextRecommendation("다음").confidence(0.9)
+                .additionalQuestions(List.of())
+                .cachedAt(LocalDateTime.now())
+                .expiresAt(null)  // expiresAt null → 유효하지 않은 캐시
+                .build();
+
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(valueOps.get(anyString())).willReturn(null);
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
+                .willReturn(Optional.of(docNoExpiry));
+        given(aiServerClient.fetchSummary(contentId, level)).willReturn(fastApiResult);
+        given(aiSummaryRepository.save(any())).willReturn(document);
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        aiSummaryService.getSummary(userId, contentId, level);
+
+        verify(aiServerClient).fetchSummary(contentId, level);
+    }
+
+    @Test
+    @DisplayName("retrySummary — saveToRedis 직렬화 실패해도 응답 반환")
+    void retrySummary_saveToRedisFails_stillReturnsResponse() throws JsonProcessingException {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(aiServerClient.fetchSummary(contentId, level)).willReturn(fastApiResult);
+        given(aiSummaryRepository.save(any())).willReturn(document);
+        given(objectMapper.writeValueAsString(any()))
+                .willThrow(new com.fasterxml.jackson.core.JsonGenerationException("write error", (com.fasterxml.jackson.core.JsonGenerator) null));
+
+        AiSummaryResponse response = aiSummaryService.retrySummary(userId, contentId, level);
+
+        assertThat(response.coreSummary()).isEqualTo("핵심 요약");
+        verify(redisTemplate).delete(anyString());
+        verify(aiServerClient).fetchSummary(contentId, level);
+    }
+
+    @Test
+    @DisplayName("getSummary — Redis 역직렬화 실패 → MongoDB fallback")
+    void getSummary_redisDeserializationFails_fallsBackToMongodb() throws JsonProcessingException {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(valueOps.get(anyString())).willReturn("malformed-json");
+        given(objectMapper.readValue(anyString(), eq(AiSummaryResponse.class)))
+                .willThrow(new com.fasterxml.jackson.core.JsonParseException(null, "parse error"));
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
+                .willReturn(Optional.of(document));
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        AiSummaryResponse response = aiSummaryService.getSummary(userId, contentId, level);
+
+        assertThat(response.coreSummary()).isEqualTo("핵심 요약");
+        verify(aiServerClient, never()).fetchSummary(any(), any());
+    }
 }
