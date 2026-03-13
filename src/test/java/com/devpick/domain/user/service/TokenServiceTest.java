@@ -1,7 +1,6 @@
 package com.devpick.domain.user.service;
 
 import com.devpick.domain.user.dto.LoginResponse;
-import com.devpick.domain.user.dto.TokenResponse;
 import com.devpick.domain.user.entity.RefreshToken;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.RefreshTokenRepository;
@@ -53,7 +52,8 @@ class TokenServiceTest {
         LoginResponse response = tokenService.issueTokenPair(user);
 
         assertThat(response.accessToken()).isEqualTo("access-token");
-        assertThat(response.refreshToken()).isEqualTo("refresh-token");
+        // refreshToken은 @JsonIgnore이지만 내부 값은 Cookie 설정용으로 유지
+        assertThat(response.refreshTokenValue()).isEqualTo("refresh-token");
         verify(refreshTokenRepository).deleteByUser(user);
         verify(refreshTokenRepository).save(any(RefreshToken.class));
     }
@@ -78,10 +78,10 @@ class TokenServiceTest {
         given(refreshTokenRepository.save(any(RefreshToken.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
-        TokenResponse response = tokenService.reissueTokens("old-refresh-token");
+        String[] tokens = tokenService.reissueTokens("old-refresh-token");
 
-        assertThat(response.accessToken()).isEqualTo("new-access-token");
-        assertThat(response.refreshToken()).isEqualTo("new-refresh-token");
+        assertThat(tokens[0]).isEqualTo("new-access-token");
+        assertThat(tokens[1]).isEqualTo("new-refresh-token");
         verify(refreshTokenRepository).deleteByUser(user);
     }
 
