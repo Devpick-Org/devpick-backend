@@ -12,7 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -80,7 +79,7 @@ class VelogCollectorTest {
     @Test
     @DisplayName("fetchPosts — 미구현 상태에서 빈 리스트 반환")
     void fetchPosts_notImplemented_returnsEmpty() {
-        List<CollectedContent> result = collector.fetchPosts("spring");
+        List<CollectedContent> result = collector.fetchPosts();
 
         assertThat(result).isEmpty();
     }

@@ -24,7 +24,7 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class StackOverflowCollector implements ContentCollector {
+public class StackOverflowCollector extends ContentCollector {
 
     private static final String SOURCE_NAME = "Stack Overflow";
     private static final String BASE_URL = "https://api.stackexchange.com/2.3";
@@ -45,12 +45,12 @@ public class StackOverflowCollector implements ContentCollector {
     }
 
     @Override
-    public ContentRepository contentRepository() {
+    protected ContentRepository contentRepository() {
         return contentRepository;
     }
 
     @Override
-    public ContentSourceRepository contentSourceRepository() {
+    protected ContentSourceRepository contentSourceRepository() {
         return contentSourceRepository;
     }
 
@@ -58,7 +58,6 @@ public class StackOverflowCollector implements ContentCollector {
      * Stack Overflow 질문을 수집한다.
      *
      * @param query 수집할 태그 (세미콜론 구분, 예: "java;spring-boot")
-     * @return 수집된 CollectedContent 목록
      */
     @Override
     public List<CollectedContent> fetchItems(String query) {

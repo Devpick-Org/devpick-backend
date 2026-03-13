@@ -19,7 +19,7 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class VelogCollector implements ContentCollector {
+public class VelogCollector extends ContentCollector {
 
     private static final String SOURCE_NAME = "Velog";
 
@@ -32,12 +32,12 @@ public class VelogCollector implements ContentCollector {
     }
 
     @Override
-    public ContentRepository contentRepository() {
+    protected ContentRepository contentRepository() {
         return contentRepository;
     }
 
     @Override
-    public ContentSourceRepository contentSourceRepository() {
+    protected ContentSourceRepository contentSourceRepository() {
         return contentSourceRepository;
     }
 
@@ -47,10 +47,10 @@ public class VelogCollector implements ContentCollector {
      */
     @Override
     public List<CollectedContent> fetchItems(String query) {
-        return fetchPosts(query);
+        return fetchPosts();
     }
 
-    List<CollectedContent> fetchPosts(String query) {
+    List<CollectedContent> fetchPosts() {
         log.warn("VelogCollector.fetchPosts() is not implemented yet. (DP-201)");
         return List.of();
     }
