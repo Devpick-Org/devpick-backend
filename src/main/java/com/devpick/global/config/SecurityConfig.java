@@ -40,10 +40,6 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/reports/weekly/share/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                        // TODO(ADR-009 미결): 인증 방식 확정 후 처리
-                        // - Nginx 네트워크 격리 채택 시 → 이 라인 유지
-                        // - 내부 토큰(X-Internal-Key) 채택 시 → 이 라인 제거 후 InternalAuthFilter 추가
-                        // 담당: 홍근
                         .requestMatchers("/internal/**").permitAll()
                         .anyRequest().authenticated()
                 )
