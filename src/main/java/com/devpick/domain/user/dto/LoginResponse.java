@@ -1,6 +1,7 @@
 package com.devpick.domain.user.dto;
 
 import com.devpick.domain.user.entity.User;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.UUID;
 
@@ -17,22 +18,24 @@ import java.util.UUID;
  * [보안 결정 - DP-181] refreshToken → HttpOnly Cookie 전환
  * - refreshToken은 JS로 접근 불가한 HttpOnly Cookie로 내려준다.
  * - XSS 공격으로 인한 refreshToken 탈취 방지.
- * - 응답 바디에서 refreshToken 필드 제거, accessToken만 바디로 반환.
+ * - refreshTokenValue 필드는 @JsonIgnore로 바디 직렬화에서 제외.
+ *   컨트롤러에서 Cookie Set 후 프론트에는 노출되지 않는다.
  */
 public record LoginResponse(
         String accessToken,
         UUID userId,
         String email,
         String nickname,
-        boolean isNewUser
+        boolean isNewUser,
+        @JsonIgnore String refreshTokenValue
 ) {
     /** 기존 유저 로그인 — isNewUser = false */
-    public static LoginResponse of(String accessToken, User user) {
-        return new LoginResponse(accessToken, user.getId(), user.getEmail(), user.getNickname(), false);
+    public static LoginResponse of(String accessToken, String refreshToken, User user) {
+        return new LoginResponse(accessToken, user.getId(), user.getEmail(), user.getNickname(), false, refreshToken);
     }
 
     /** 신규 유저 최초 가입 — isNewUser = true */
-    public static LoginResponse ofNewUser(String accessToken, User user) {
-        return new LoginResponse(accessToken, user.getId(), user.getEmail(), user.getNickname(), true);
+    public static LoginResponse ofNewUser(String accessToken, String refreshToken, User user) {
+        return new LoginResponse(accessToken, user.getId(), user.getEmail(), user.getNickname(), true, refreshToken);
     }
 }
