@@ -46,6 +46,7 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at) VALUES
 -- Stack Overflow: CC BY-SA 4.0, 저자명 + 원문 링크 필수 표시
 (gen_random_uuid(), 'Stack Overflow', 'https://api.stackexchange.com/2.3', 'api', true, NOW()),
--- 우아한형제들 기술 블로그: robots.txt 크롤링 전면 허용, 출처 명시
-(gen_random_uuid(), '우아한형제들 기술 블로그', 'https://techblog.woowahan.com/feed/', 'rss', true, NOW())
+-- Velog: GraphQL API 수집 (v2.velog.io/graphql), ADR-006 확인 완료
+(gen_random_uuid(), 'Velog', 'https://v2.velog.io/graphql', 'api', true, NOW())
 ON CONFLICT (name) DO NOTHING;
+-- 참고: RSS 기반 수집(우아한형제들 등)은 devpick-ai 레포에서 담당 (DP-202)
