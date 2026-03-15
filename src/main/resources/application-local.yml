@@ -23,6 +23,7 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
 
 jwt:
   secret: ${JWT_SECRET}
@@ -61,3 +62,9 @@ logging:
     com.devpick: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.orm.jdbc.bind: TRACE
+
+springdoc:
+  server-url: https://nonprofitable-coltishly-elvira.ngrok-free.dev
+
+cors:
+  extra-origin: https://nonprofitable-coltishly-elvira.ngrok-free.dev
