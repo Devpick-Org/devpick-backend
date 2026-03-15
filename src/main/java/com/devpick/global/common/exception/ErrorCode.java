@@ -68,6 +68,8 @@ public enum ErrorCode {
     COMMUNITY_UNAUTHORIZED_POST_ACTION(HttpStatus.FORBIDDEN, "COMMUNITY_004", "게시글 수정/삭제 권한이 없습니다."),
     COMMUNITY_UNAUTHORIZED_ANSWER_ACTION(HttpStatus.FORBIDDEN, "COMMUNITY_005", "답변 수정/삭제 권한이 없습니다."),
     COMMUNITY_ONLY_POST_AUTHOR_CAN_ADOPT(HttpStatus.FORBIDDEN, "COMMUNITY_006", "게시글 작성자만 답변을 채택할 수 있습니다."),
+    COMMUNITY_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMUNITY_007", "댓글을 찾을 수 없습니다."),
+    COMMUNITY_UNAUTHORIZED_COMMENT_ACTION(HttpStatus.FORBIDDEN, "COMMUNITY_008", "댓글 삭제 권한이 없습니다."),
 
     // Report
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "REPORT_001", "주간 리포트를 찾을 수 없습니다."),
