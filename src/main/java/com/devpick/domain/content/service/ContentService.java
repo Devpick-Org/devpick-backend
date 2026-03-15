@@ -101,7 +101,7 @@ public class ContentService {
         scrapRepository.save(Scrap.builder().user(user).content(content).build());
         historyRepository.save(History.builder()
                 .user(user)
-                .actionType("scrapped")
+                .actionType("content_saved")
                 .content(content)
                 .build());
     }
