@@ -155,4 +155,37 @@ public class ContentService {
                 page.getTotalPages()
         );
     }
+
+    @Transactional(readOnly = true)
+    public ContentListResponse getRecommendations(UUID userId, UUID contentId, Pageable pageable) {
+        Content content = contentRepository.findByIdAndIsAvailableTrue(contentId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
+
+        List<UUID> tagIds = content.getContentTags().stream()
+                .map(ct -> ct.getTag().getId())
+                .toList();
+
+        Page<Content> page;
+        if (tagIds.isEmpty()) {
+            page = contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(pageable);
+        } else {
+            page = contentRepository.findRecommendationsByTagIds(tagIds, contentId, pageable);
+        }
+
+        List<ContentSummaryResponse> contents = page.getContent().stream()
+                .map(c -> ContentSummaryResponse.of(
+                        c,
+                        scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
+                        likeRepository.existsByUser_IdAndContent_Id(userId, c.getId())
+                ))
+                .toList();
+
+        return new ContentListResponse(
+                contents,
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages()
+        );
+    }
 }

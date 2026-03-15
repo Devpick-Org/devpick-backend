@@ -14,7 +14,7 @@ import lombok.*;
 @AllArgsConstructor
 public class ContentSource extends BaseCreatedEntity {
 
-    @Column(length = 100, nullable = false)
+    @Column(length = 100, nullable = false, unique = true)
     private String name;
 
     @Column(length = 500, nullable = false)

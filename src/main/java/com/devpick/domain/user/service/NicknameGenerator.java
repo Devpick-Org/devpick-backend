@@ -2,6 +2,7 @@ package com.devpick.domain.user.service;
 
 import com.devpick.domain.user.dto.GitHubUserInfo;
 import com.devpick.domain.user.dto.GoogleUserInfo;
+import com.devpick.domain.user.dto.OAuthUserInfo;
 import com.devpick.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,19 @@ import org.springframework.stereotype.Component;
 public class NicknameGenerator {
 
     private final UserRepository userRepository;
+
+    /**
+     * 소셜 로그인 공통 닉네임 생성 (SocialAuthService에서 사용).
+     * 후보: getName() → getNicknamePrefix() 순. 중복 시 prefix + "_" + providerId.
+     */
+    public String generate(OAuthUserInfo userInfo) {
+        String name = userInfo.getName();
+        String candidate = (name != null && !name.isBlank()) ? name : userInfo.getNicknamePrefix();
+        if (!userRepository.existsByNickname(candidate)) {
+            return candidate;
+        }
+        return userInfo.getNicknamePrefix() + "_" + userInfo.getProviderId();
+    }
 
     /**
      * GitHub 유저 닉네임 생성.

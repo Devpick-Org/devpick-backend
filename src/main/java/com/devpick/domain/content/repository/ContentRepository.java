@@ -26,4 +26,7 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
            "AND (:#{#tags == null || #tags.isEmpty()} = true OR t.name IN :tags) " +
            "ORDER BY c.publishedAt DESC")
     Page<Content> searchContents(@Param("query") String query, @Param("tags") List<String> tags, Pageable pageable);
+
+    @Query("SELECT DISTINCT c FROM Content c JOIN c.contentTags ct WHERE ct.tag.id IN :tagIds AND c.isAvailable = true AND c.id <> :excludeId ORDER BY c.publishedAt DESC")
+    Page<Content> findRecommendationsByTagIds(@Param("tagIds") List<UUID> tagIds, @Param("excludeId") UUID excludeId, Pageable pageable);
 }

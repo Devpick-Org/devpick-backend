@@ -29,6 +29,11 @@ public record GitHubUserInfo(
      * name은 선택적이므로 Service 레이어의 NicknameGenerator가 name → prefix 순으로 시도한다.
      */
     @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
     public String getNicknamePrefix() {
         return login;
     }

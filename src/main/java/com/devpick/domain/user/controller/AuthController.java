@@ -10,8 +10,7 @@ import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.dto.TokenResponse;
 import com.devpick.domain.user.service.AuthService;
 import com.devpick.domain.user.service.EmailVerificationService;
-import com.devpick.domain.user.service.GitHubAuthService;
-import com.devpick.domain.user.service.GoogleAuthService;
+import com.devpick.domain.user.service.SocialAuthService;
 import com.devpick.domain.user.service.TokenService;
 import com.devpick.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,8 +48,7 @@ public class AuthController {
     private final AuthService authService;
     private final EmailVerificationService emailVerificationService;
     private final TokenService tokenService;
-    private final GitHubAuthService gitHubAuthService;
-    private final GoogleAuthService googleAuthService;
+    private final SocialAuthService socialAuthService;
 
     @Operation(summary = "이메일 회원가입", description = "이메일/비밀번호로 신규 계정을 생성합니다. 가입 후 이메일 인증을 완료해야 로그인이 가능합니다.")
     @ApiResponses({
@@ -138,7 +136,7 @@ public class AuthController {
     @GetMapping("/github")
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<OAuthAuthorizationResponse> githubAuthorize() {
-        return ApiResponse.ok(gitHubAuthService.generateAuthorizationUrl());
+        return ApiResponse.ok(socialAuthService.generateAuthorizationUrl("github"));
     }
 
     @Operation(summary = "Google 소셜 로그인 시작", description = "CSRF 방지 state 파라미터가 포함된 Google OAuth 인가 URL을 반환합니다.")
@@ -148,7 +146,7 @@ public class AuthController {
     @GetMapping("/google")
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<OAuthAuthorizationResponse> googleAuthorize() {
-        return ApiResponse.ok(googleAuthService.generateAuthorizationUrl());
+        return ApiResponse.ok(socialAuthService.generateAuthorizationUrl("google"));
     }
 
     @Operation(summary = "GitHub 소셜 로그인 콜백", description = "GitHub OAuth 인가 코드와 state를 받아 JWT를 발급합니다.")
@@ -163,7 +161,7 @@ public class AuthController {
             @Parameter(description = "GitHub OAuth 인가 코드", required = true) @RequestParam String code,
             @Parameter(description = "CSRF 방지 state 파라미터", required = true) @RequestParam String state,
             HttpServletResponse response) {
-        LoginResponse loginResponse = gitHubAuthService.login(code, state);
+        LoginResponse loginResponse = socialAuthService.login("github", code, state);
         setRefreshTokenCookie(response, loginResponse.refreshTokenValue());
         return ApiResponse.ok(loginResponse);
     }
@@ -180,7 +178,7 @@ public class AuthController {
             @Parameter(description = "Google OAuth 인가 코드", required = true) @RequestParam String code,
             @Parameter(description = "CSRF 방지 state 파라미터", required = true) @RequestParam String state,
             HttpServletResponse response) {
-        LoginResponse loginResponse = googleAuthService.login(code, state);
+        LoginResponse loginResponse = socialAuthService.login("google", code, state);
         setRefreshTokenCookie(response, loginResponse.refreshTokenValue());
         return ApiResponse.ok(loginResponse);
     }

@@ -28,6 +28,11 @@ public record GoogleUserInfo(
      * name은 선택적이므로 Service 레이어의 NicknameGenerator가 name → prefix 순으로 시도한다.
      */
     @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
     public String getNicknamePrefix() {
         int atIdx = (email != null) ? email.indexOf('@') : -1;
         return atIdx > 0 ? email.substring(0, atIdx) : email;

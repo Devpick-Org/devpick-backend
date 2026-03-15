@@ -16,7 +16,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://devpick:devpick@localhost:27017/devpick?authSource=admin}
@@ -24,6 +23,14 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
 
 jwt:
   secret: ${JWT_SECRET}
@@ -37,21 +44,12 @@ ai-server:
 oauth:
   frontend-base-url: ${FRONTEND_URL:http://localhost:3000}
   github:
-    client-id: ${GITHUB_CLIENT_ID}
-    client-secret: ${GITHUB_CLIENT_SECRET}
+    client-id: ${GITHUB_CLIENT_ID:local-github-client-id}
+    client-secret: ${GITHUB_CLIENT_SECRET:local-github-client-secret}
   google:
-    client-id: ${GOOGLE_CLIENT_ID}
-    client-secret: ${GOOGLE_CLIENT_SECRET}
+    client-id: ${GOOGLE_CLIENT_ID:local-google-client-id}
+    client-secret: ${GOOGLE_CLIENT_SECRET:local-google-client-secret}
     redirect-uri: ${FRONTEND_URL:http://localhost:3000}/auth/google/callback
-
-spring.mail:
-  host: smtp.gmail.com
-  port: 587
-  username: ${MAIL_USERNAME:}
-  password: ${MAIL_PASSWORD:}
-  properties:
-    mail.smtp.auth: true
-    mail.smtp.starttls.enable: true
 
 stackoverflow:
   api-key: ${STACKOVERFLOW_API_KEY:}

@@ -131,4 +131,19 @@ public class ContentController {
             @Parameter(description = "콘텐츠 ID (UUID)", required = true) @PathVariable UUID contentId) {
         contentService.removeLike(userId, contentId);
     }
+
+    @Operation(summary = "추천 콘텐츠 조회", description = "특정 콘텐츠의 태그를 기반으로 유사한 추천 콘텐츠를 반환합니다. 태그가 없으면 최신 콘텐츠를 반환합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "콘텐츠를 찾을 수 없음")
+    })
+    @GetMapping("/{contentId}/recommendations")
+    public ApiResponse<ContentListResponse> getRecommendations(
+            @AuthenticationPrincipal UUID userId,
+            @Parameter(description = "콘텐츠 ID (UUID)", required = true) @PathVariable UUID contentId,
+            @Parameter(description = "추천 개수", example = "5") @RequestParam(defaultValue = "5") int size) {
+        Pageable pageable = PageRequest.of(0, size);
+        return ApiResponse.ok(contentService.getRecommendations(userId, contentId, pageable));
+    }
 }

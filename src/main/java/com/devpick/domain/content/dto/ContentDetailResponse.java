@@ -10,7 +10,9 @@ public record ContentDetailResponse(
         UUID id,
         String title,
         String author,
+        String sourceName,
         String preview,
+        String thumbnailUrl,
         String canonicalUrl,
         String originalContent,
         boolean isOriginalVisible,
@@ -18,8 +20,7 @@ public record ContentDetailResponse(
         LocalDateTime publishedAt,
         List<String> tags,
         boolean isScrapped,
-        boolean isLiked,
-        String sourceName
+        boolean isLiked
 ) {
     public static ContentDetailResponse of(Content content, boolean isScrapped, boolean isLiked) {
         List<String> tags = content.getContentTags().stream()
@@ -29,7 +30,9 @@ public record ContentDetailResponse(
                 content.getId(),
                 content.getTitle(),
                 content.getAuthor(),
+                content.getSource().getName(),
                 content.getPreview(),
+                content.getThumbnailUrl(),
                 content.getCanonicalUrl(),
                 content.getOriginalContent(),
                 content.getIsOriginalVisible(),
@@ -37,8 +40,7 @@ public record ContentDetailResponse(
                 content.getPublishedAt(),
                 tags,
                 isScrapped,
-                isLiked,
-                content.getSource().getName()
+                isLiked
         );
     }
 }

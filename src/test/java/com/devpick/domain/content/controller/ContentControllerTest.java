@@ -75,8 +75,8 @@ class ContentControllerTest {
     @DisplayName("GET /contents - 피드 조회 성공 시 200과 콘텐츠 목록 반환")
     void getFeed_success() throws Exception {
         ContentSummaryResponse summary = new ContentSummaryResponse(
-                UUID.randomUUID(), "Spring Boot 가이드", "홍근",
-                "입문 가이드", "https://velog.io/@test/spring",
+                UUID.randomUUID(), "Spring Boot 가이드", "홍근", "Velog",
+                "입문 가이드", null, "https://velog.io/@test/spring",
                 List.of("Spring"), LocalDateTime.now(), false, false);
         ContentListResponse response = new ContentListResponse(List.of(summary), 0, 20, 1L, 1);
         given(contentService.getFeed(eq(userId), any())).willReturn(response);
@@ -92,8 +92,8 @@ class ContentControllerTest {
     @DisplayName("GET /contents/search - 검색 성공 시 200과 검색 결과 반환")
     void search_success() throws Exception {
         ContentSummaryResponse summary = new ContentSummaryResponse(
-                UUID.randomUUID(), "React 훅 가이드", "홍근",
-                "훅 설명", "https://velog.io/@test/react",
+                UUID.randomUUID(), "React 훅 가이드", "홍근", "Velog",
+                "훅 설명", null, "https://velog.io/@test/react",
                 List.of("React"), LocalDateTime.now(), false, false);
         ContentListResponse response = new ContentListResponse(List.of(summary), 0, 20, 1L, 1);
         given(contentService.search(eq(userId), any(), any(), any())).willReturn(response);
@@ -109,10 +109,10 @@ class ContentControllerTest {
     void getDetail_success() throws Exception {
         UUID contentId = UUID.randomUUID();
         ContentDetailResponse response = new ContentDetailResponse(
-                contentId, "Spring Boot 가이드", "홍근",
-                "입문 가이드", "https://velog.io/@test/spring",
+                contentId, "Spring Boot 가이드", "홍근", "Velog",
+                "입문 가이드", null, "https://velog.io/@test/spring",
                 null, false, null, LocalDateTime.now(),
-                List.of("Spring"), false, false, "Velog");
+                List.of("Spring"), false, false);
         given(contentService.getDetail(userId, contentId)).willReturn(response);
 
         mockMvc.perform(get("/contents/" + contentId))
@@ -188,5 +188,22 @@ class ContentControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(contentService).removeLike(userId, contentId);
+    }
+
+    @Test
+    @DisplayName("GET /contents/{contentId}/recommendations - 추천 콘텐츠 조회 성공")
+    void getRecommendations_success() throws Exception {
+        UUID contentId = UUID.randomUUID();
+        ContentSummaryResponse summary = new ContentSummaryResponse(
+                UUID.randomUUID(), "추천 콘텐츠", "작성자", "Velog",
+                "설명", null, "https://velog.io/@test/rec",
+                List.of("Spring"), LocalDateTime.now(), false, false);
+        ContentListResponse response = new ContentListResponse(List.of(summary), 0, 5, 1L, 1);
+        given(contentService.getRecommendations(eq(userId), eq(contentId), any())).willReturn(response);
+
+        mockMvc.perform(get("/contents/" + contentId + "/recommendations"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.contents[0].title").value("추천 콘텐츠"));
     }
 }

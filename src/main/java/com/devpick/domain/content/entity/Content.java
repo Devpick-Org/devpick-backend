@@ -37,6 +37,9 @@ public class Content extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String preview;
 
+    @Column(name = "thumbnail_url", columnDefinition = "TEXT")
+    private String thumbnailUrl;
+
     @Column(name = "is_original_visible", nullable = false)
     @Builder.Default
     private Boolean isOriginalVisible = false;

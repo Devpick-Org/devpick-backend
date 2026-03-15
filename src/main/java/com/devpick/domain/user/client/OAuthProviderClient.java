@@ -11,6 +11,13 @@ import com.devpick.domain.user.dto.OAuthUserInfo;
 public interface OAuthProviderClient {
 
     /**
+     * OAuth 인가 URL 생성.
+     * @param state CSRF 방지용 state 값
+     * @return OAuth provider 인가 URL
+     */
+    String getAuthorizationUrl(String state);
+
+    /**
      * 인가 코드 → Access Token 교환.
      * @param code OAuth 콜백으로 받은 인가 코드
      * @return 확인된 provider access token

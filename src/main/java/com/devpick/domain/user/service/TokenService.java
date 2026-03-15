@@ -33,6 +33,15 @@ public class TokenService {
      */
     @Transactional
     public LoginResponse issueTokenPair(User user) {
+        return issueTokenPair(user, false);
+    }
+
+    /**
+     * 소셜 로그인 토큰 발급 — isNewUser 플래그 지원 (DP-284).
+     * 신규 가입 여부에 따라 LoginResponse.ofNewUser() / LoginResponse.of() 를 선택한다.
+     */
+    @Transactional
+    public LoginResponse issueTokenPair(User user, boolean isNewUser) {
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId());
         String refreshToken = jwtTokenProvider.generateRefreshToken();
 
@@ -43,7 +52,9 @@ public class TokenService {
                 .expiresAt(jwtTokenProvider.getRefreshTokenExpiresAt())
                 .build());
 
-        return LoginResponse.of(accessToken, refreshToken, user);
+        return isNewUser
+                ? LoginResponse.ofNewUser(accessToken, refreshToken, user)
+                : LoginResponse.of(accessToken, refreshToken, user);
     }
 
     /**
