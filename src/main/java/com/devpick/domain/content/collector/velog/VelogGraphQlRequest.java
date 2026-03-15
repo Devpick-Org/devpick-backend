@@ -2,26 +2,25 @@ package com.devpick.domain.content.collector.velog;
 
 /**
  * Velog GraphQL API 요청 바디.
- * POST https://v2.velog.io/graphql
+ * POST https://v3.velog.io/graphql
  *
- * <p>variables 에는 cursor(String), limit(int) 를 넣는다.
- * cursor 가 null 이면 첫 페이지부터 수집한다.
+ * <p>trendingPosts 쿼리는 limit, offset, timeframe 을 flat하게 넘긴다.
+ * timeframe 은 반드시 명시해야 데이터가 반환된다 (day/week/month/year).
  */
 public record VelogGraphQlRequest(
+        String operationName,
         String query,
         Variables variables
 ) {
 
     private static final String TRENDING_POSTS_QUERY = """
-            query TrendingPosts($input: TrendingPostsInput!) {
-              trendingPosts(input: $input) {
+            query TrendingPosts($limit: Int, $offset: Int, $timeframe: String) {
+              trendingPosts(limit: $limit, offset: $offset, timeframe: $timeframe) {
                 id
                 title
                 short_description
                 url_slug
-                thumbnail
                 released_at
-                updated_at
                 tags
                 user {
                   username
@@ -30,20 +29,13 @@ public record VelogGraphQlRequest(
             }
             """;
 
-    /**
-     * 트렌딩 게시물 수집용 요청 객체를 생성한다.
-     *
-     * @param offset 페이지 오프셋 (0부터 시작)
-     * @param limit  한 번에 가져올 게시물 수
-     */
-    public static VelogGraphQlRequest trendingPosts(int offset, int limit) {
+    public static VelogGraphQlRequest trendingPosts(int offset, int limit, String timeframe) {
         return new VelogGraphQlRequest(
+                "TrendingPosts",
                 TRENDING_POSTS_QUERY,
-                new Variables(new TrendingPostsInput(offset, limit))
+                new Variables(limit, offset, timeframe)
         );
     }
 
-    public record Variables(TrendingPostsInput input) {}
-
-    public record TrendingPostsInput(int offset, int limit) {}
+    public record Variables(int limit, int offset, String timeframe) {}
 }

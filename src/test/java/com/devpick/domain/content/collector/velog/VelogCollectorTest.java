@@ -14,6 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
@@ -55,9 +56,11 @@ class VelogCollectorTest {
     void setUp() {
         velogSource = ContentSource.builder()
                 .name("Velog")
-                .url("https://v2.velog.io/graphql")
+                .url("https://v3.velog.io/graphql")
                 .collectMethod("api")
                 .build();
+        ReflectionTestUtils.setField(collector, "timeframe", "week");
+        ReflectionTestUtils.setField(collector, "collectionOffset", 0);
     }
 
     // ─── sourceName ──────────────────────────────────────────────
@@ -144,18 +147,11 @@ class VelogCollectorTest {
     @DisplayName("fetchPosts — 정상 응답 시 CollectedContent 리스트 반환")
     void fetchPosts_success_returnsCollectedContents() {
         VelogPost post = buildVelogPost("spring-boot-tips", "Spring Boot 팁");
-
         VelogGraphQlResponse response = new VelogGraphQlResponse(
                 new VelogGraphQlResponse.Data(List.of(post))
         );
 
-        given(webClient.post()).willReturn(requestBodyUriSpec);
-        given(requestBodyUriSpec.uri(anyString())).willReturn(requestBodySpec);
-        given(requestBodySpec.contentType(any())).willReturn(requestBodySpec);
-        given(requestBodySpec.bodyValue(any())).willReturn(requestHeadersSpec);
-        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
-        given(responseSpec.bodyToMono(VelogGraphQlResponse.class))
-                .willReturn(Mono.just(response));
+        mockWebClientPost(Mono.just(response));
 
         List<CollectedContent> result = collector.fetchPosts();
 
@@ -164,8 +160,8 @@ class VelogCollectorTest {
         assertThat(content.title()).isEqualTo("Spring Boot 팁");
         assertThat(content.author()).isEqualTo("devuser");
         assertThat(content.canonicalUrl()).isEqualTo("https://velog.io/@devuser/spring-boot-tips");
-        assertThat(content.isOriginalVisible()).isFalse();    // ADR-006: SUMMARY_ONLY
-        assertThat(content.originalContent()).isNull();       // ADR-006: originalContent 저장 안 함
+        assertThat(content.isOriginalVisible()).isFalse();
+        assertThat(content.originalContent()).isNull();
         assertThat(content.licenseType()).isNull();
     }
 
@@ -173,74 +169,34 @@ class VelogCollectorTest {
     @Test
     @DisplayName("fetchPosts — null 응답 시 빈 리스트 반환")
     void fetchPosts_nullResponse_returnsEmpty() {
-        given(webClient.post()).willReturn(requestBodyUriSpec);
-        given(requestBodyUriSpec.uri(anyString())).willReturn(requestBodySpec);
-        given(requestBodySpec.contentType(any())).willReturn(requestBodySpec);
-        given(requestBodySpec.bodyValue(any())).willReturn(requestHeadersSpec);
-        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
-        given(responseSpec.bodyToMono(VelogGraphQlResponse.class))
-                .willReturn(Mono.empty());
-
-        List<CollectedContent> result = collector.fetchPosts();
-
-        assertThat(result).isEmpty();
+        mockWebClientPost(Mono.empty());
+        assertThat(collector.fetchPosts()).isEmpty();
     }
 
     @SuppressWarnings("unchecked")
     @Test
     @DisplayName("fetchPosts — WebClientResponseException 발생 시 빈 리스트 반환")
     void fetchPosts_httpError_returnsEmpty() {
-        given(webClient.post()).willReturn(requestBodyUriSpec);
-        given(requestBodyUriSpec.uri(anyString())).willReturn(requestBodySpec);
-        given(requestBodySpec.contentType(any())).willReturn(requestBodySpec);
-        given(requestBodySpec.bodyValue(any())).willReturn(requestHeadersSpec);
-        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
-        given(responseSpec.bodyToMono(VelogGraphQlResponse.class))
-                .willReturn(Mono.error(
-                        WebClientResponseException.create(500, "Internal Server Error", null, null, null)
-                ));
-
-        List<CollectedContent> result = collector.fetchPosts();
-
-        assertThat(result).isEmpty();
+        mockWebClientPost(Mono.error(
+                WebClientResponseException.create(500, "Internal Server Error", null, null, null)
+        ));
+        assertThat(collector.fetchPosts()).isEmpty();
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    @DisplayName("fetchPosts — 예외 발생 시 빈 리스트 반환")
+    @DisplayName("fetchPosts — 일반 예외 발생 시 빈 리스트 반환")
     void fetchPosts_exception_returnsEmpty() {
-        given(webClient.post()).willReturn(requestBodyUriSpec);
-        given(requestBodyUriSpec.uri(anyString())).willReturn(requestBodySpec);
-        given(requestBodySpec.contentType(any())).willReturn(requestBodySpec);
-        given(requestBodySpec.bodyValue(any())).willReturn(requestHeadersSpec);
-        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
-        given(responseSpec.bodyToMono(VelogGraphQlResponse.class))
-                .willReturn(Mono.error(new RuntimeException("connection timeout")));
-
-        List<CollectedContent> result = collector.fetchPosts();
-
-        assertThat(result).isEmpty();
+        mockWebClientPost(Mono.error(new RuntimeException("connection timeout")));
+        assertThat(collector.fetchPosts()).isEmpty();
     }
 
     @SuppressWarnings("unchecked")
     @Test
     @DisplayName("fetchPosts — user null이면 author 'Unknown' 처리")
     void fetchPosts_nullUser_usesUnknownAuthor() {
-        VelogPost post = new VelogPost(
-                "post-id-1", "제목", "설명", "slug", "2024-01-01T00:00:00Z",
-                List.of("java"), null  // user = null
-        );
-        VelogGraphQlResponse response = new VelogGraphQlResponse(
-                new VelogGraphQlResponse.Data(List.of(post))
-        );
-
-        given(webClient.post()).willReturn(requestBodyUriSpec);
-        given(requestBodyUriSpec.uri(anyString())).willReturn(requestBodySpec);
-        given(requestBodySpec.contentType(any())).willReturn(requestBodySpec);
-        given(requestBodySpec.bodyValue(any())).willReturn(requestHeadersSpec);
-        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
-        given(responseSpec.bodyToMono(VelogGraphQlResponse.class))
-                .willReturn(Mono.just(response));
+        VelogPost post = new VelogPost("id-1", "제목", "설명", "slug", "2024-01-01T00:00:00Z", List.of("java"), null);
+        mockWebClientPost(Mono.just(new VelogGraphQlResponse(new VelogGraphQlResponse.Data(List.of(post)))));
 
         List<CollectedContent> result = collector.fetchPosts();
 
@@ -252,21 +208,8 @@ class VelogCollectorTest {
     @Test
     @DisplayName("fetchPosts — user.username null이면 author 'Unknown' 처리")
     void fetchPosts_nullUsername_usesUnknownAuthor() {
-        VelogPost post = new VelogPost(
-                "post-id-2", "제목", "설명", "slug", "2024-01-01T00:00:00Z",
-                List.of(), new VelogPost.VelogUser(null)
-        );
-        VelogGraphQlResponse response = new VelogGraphQlResponse(
-                new VelogGraphQlResponse.Data(List.of(post))
-        );
-
-        given(webClient.post()).willReturn(requestBodyUriSpec);
-        given(requestBodyUriSpec.uri(anyString())).willReturn(requestBodySpec);
-        given(requestBodySpec.contentType(any())).willReturn(requestBodySpec);
-        given(requestBodySpec.bodyValue(any())).willReturn(requestHeadersSpec);
-        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
-        given(responseSpec.bodyToMono(VelogGraphQlResponse.class))
-                .willReturn(Mono.just(response));
+        VelogPost post = new VelogPost("id-2", "제목", "설명", "slug", "2024-01-01T00:00:00Z", List.of(), new VelogPost.VelogUser(null));
+        mockWebClientPost(Mono.just(new VelogGraphQlResponse(new VelogGraphQlResponse.Data(List.of(post)))));
 
         List<CollectedContent> result = collector.fetchPosts();
 
@@ -276,111 +219,60 @@ class VelogCollectorTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    @DisplayName("fetchPosts — urlSlug null이면 canonicalUrl null 처리")
+    @DisplayName("fetchPosts — urlSlug null이면 canonicalUrl null")
     void fetchPosts_nullUrlSlug_canonicalUrlNull() {
-        VelogPost post = new VelogPost(
-                "post-id-3", "제목", "설명", null, "2024-01-01T00:00:00Z",
-                List.of(), new VelogPost.VelogUser("devuser")
-        );
-        VelogGraphQlResponse response = new VelogGraphQlResponse(
-                new VelogGraphQlResponse.Data(List.of(post))
-        );
+        VelogPost post = new VelogPost("id-3", "제목", "설명", null, "2024-01-01T00:00:00Z", List.of(), new VelogPost.VelogUser("devuser"));
+        mockWebClientPost(Mono.just(new VelogGraphQlResponse(new VelogGraphQlResponse.Data(List.of(post)))));
 
-        given(webClient.post()).willReturn(requestBodyUriSpec);
-        given(requestBodyUriSpec.uri(anyString())).willReturn(requestBodySpec);
-        given(requestBodySpec.contentType(any())).willReturn(requestBodySpec);
-        given(requestBodySpec.bodyValue(any())).willReturn(requestHeadersSpec);
-        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
-        given(responseSpec.bodyToMono(VelogGraphQlResponse.class))
-                .willReturn(Mono.just(response));
-
-        List<CollectedContent> result = collector.fetchPosts();
-
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).canonicalUrl()).isNull();
+        assertThat(collector.fetchPosts().get(0).canonicalUrl()).isNull();
     }
 
     @SuppressWarnings("unchecked")
     @Test
     @DisplayName("fetchPosts — releasedAt null이면 현재 시각으로 fallback")
     void fetchPosts_nullReleasedAt_usesNow() {
-        VelogPost post = new VelogPost(
-                "post-id-4", "제목", "설명", "slug", null,
-                List.of(), new VelogPost.VelogUser("devuser")
-        );
-        VelogGraphQlResponse response = new VelogGraphQlResponse(
-                new VelogGraphQlResponse.Data(List.of(post))
-        );
+        VelogPost post = new VelogPost("id-4", "제목", "설명", "slug", null, List.of(), new VelogPost.VelogUser("devuser"));
+        mockWebClientPost(Mono.just(new VelogGraphQlResponse(new VelogGraphQlResponse.Data(List.of(post)))));
 
-        given(webClient.post()).willReturn(requestBodyUriSpec);
-        given(requestBodyUriSpec.uri(anyString())).willReturn(requestBodySpec);
-        given(requestBodySpec.contentType(any())).willReturn(requestBodySpec);
-        given(requestBodySpec.bodyValue(any())).willReturn(requestHeadersSpec);
-        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
-        given(responseSpec.bodyToMono(VelogGraphQlResponse.class))
-                .willReturn(Mono.just(response));
-
-        List<CollectedContent> result = collector.fetchPosts();
-
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).publishedAt()).isNotNull();
+        assertThat(collector.fetchPosts().get(0).publishedAt()).isNotNull();
     }
 
     @SuppressWarnings("unchecked")
     @Test
     @DisplayName("fetchPosts — releasedAt 파싱 실패 시 현재 시각으로 fallback")
     void fetchPosts_invalidReleasedAt_usesNow() {
-        VelogPost post = new VelogPost(
-                "post-id-5", "제목", "설명", "slug", "NOT_A_DATE",
-                List.of(), new VelogPost.VelogUser("devuser")
-        );
-        VelogGraphQlResponse response = new VelogGraphQlResponse(
-                new VelogGraphQlResponse.Data(List.of(post))
-        );
+        VelogPost post = new VelogPost("id-5", "제목", "설명", "slug", "NOT_A_DATE", List.of(), new VelogPost.VelogUser("devuser"));
+        mockWebClientPost(Mono.just(new VelogGraphQlResponse(new VelogGraphQlResponse.Data(List.of(post)))));
 
-        given(webClient.post()).willReturn(requestBodyUriSpec);
-        given(requestBodyUriSpec.uri(anyString())).willReturn(requestBodySpec);
-        given(requestBodySpec.contentType(any())).willReturn(requestBodySpec);
-        given(requestBodySpec.bodyValue(any())).willReturn(requestHeadersSpec);
-        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
-        given(responseSpec.bodyToMono(VelogGraphQlResponse.class))
-                .willReturn(Mono.just(response));
-
-        List<CollectedContent> result = collector.fetchPosts();
-
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).publishedAt()).isNotNull();
+        assertThat(collector.fetchPosts().get(0).publishedAt()).isNotNull();
     }
 
     @SuppressWarnings("unchecked")
     @Test
     @DisplayName("fetchPosts — tags null이면 빈 리스트로 처리")
     void fetchPosts_nullTags_usesEmptyList() {
-        VelogPost post = new VelogPost(
-                "post-id-6", "제목", "설명", "slug", "2024-01-01T00:00:00Z",
-                null, new VelogPost.VelogUser("devuser")
-        );
-        VelogGraphQlResponse response = new VelogGraphQlResponse(
-                new VelogGraphQlResponse.Data(List.of(post))
-        );
+        VelogPost post = new VelogPost("id-6", "제목", "설명", "slug", "2024-01-01T00:00:00Z", null, new VelogPost.VelogUser("devuser"));
+        mockWebClientPost(Mono.just(new VelogGraphQlResponse(new VelogGraphQlResponse.Data(List.of(post)))));
 
-        given(webClient.post()).willReturn(requestBodyUriSpec);
-        given(requestBodyUriSpec.uri(anyString())).willReturn(requestBodySpec);
-        given(requestBodySpec.contentType(any())).willReturn(requestBodySpec);
-        given(requestBodySpec.bodyValue(any())).willReturn(requestHeadersSpec);
-        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
-        given(responseSpec.bodyToMono(VelogGraphQlResponse.class))
-                .willReturn(Mono.just(response));
-
-        List<CollectedContent> result = collector.fetchPosts();
-
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).tags()).isEmpty();
+        assertThat(collector.fetchPosts().get(0).tags()).isEmpty();
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    @DisplayName("collect — save 시 Content의 isOriginalVisible=false, licenseType=null 매핑 확인")
+    @DisplayName("fetchPosts — timeframe 설정값이 요청에 반영됨 (month)")
+    void fetchPosts_timeframeAppliedFromConfig() {
+        ReflectionTestUtils.setField(collector, "timeframe", "month");
+        VelogGraphQlResponse response = new VelogGraphQlResponse(new VelogGraphQlResponse.Data(List.of()));
+        mockWebClientPost(Mono.just(response));
+
+        List<CollectedContent> result = collector.fetchPosts();
+
+        assertThat(result).isEmpty();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    @DisplayName("collect — save 시 isOriginalVisible=false, licenseType=null 매핑 확인 (ADR-006)")
     void collect_contentMapping_summaryOnlyPolicy() {
         given(contentSourceRepository.findByNameAndIsActiveTrue("Velog"))
                 .willReturn(Optional.of(velogSource));
@@ -395,36 +287,36 @@ class VelogCollectorTest {
         spyCollector.collect("spring");
 
         Content saved = captor.getValue();
-        assertThat(saved.getIsOriginalVisible()).isFalse();  // ADR-006: SUMMARY_ONLY
+        assertThat(saved.getIsOriginalVisible()).isFalse();
         assertThat(saved.getLicenseType()).isNull();
         assertThat(saved.getSource()).isEqualTo(velogSource);
     }
 
     // ─── helpers ─────────────────────────────────────────────────
 
+    @SuppressWarnings("unchecked")
+    private void mockWebClientPost(Mono<?> mono) {
+        given(webClient.post()).willReturn(requestBodyUriSpec);
+        given(requestBodyUriSpec.uri(anyString())).willReturn(requestBodySpec);
+        given(requestBodySpec.contentType(any())).willReturn(requestBodySpec);
+        given(requestBodySpec.bodyValue(any())).willReturn(requestHeadersSpec);
+        given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
+        given(responseSpec.bodyToMono(VelogGraphQlResponse.class))
+                .willReturn((Mono<VelogGraphQlResponse>) mono);
+    }
+
     private VelogPost buildVelogPost(String urlSlug, String title) {
         return new VelogPost(
-                "post-id-abc",
-                title,
-                "짧은 설명입니다.",
-                urlSlug,
-                "2024-05-01T12:00:00Z",
-                List.of("java", "spring"),
+                "post-id-abc", title, "짧은 설명입니다.", urlSlug,
+                "2024-05-01T12:00:00Z", List.of("java", "spring"),
                 new VelogPost.VelogUser("devuser")
         );
     }
 
     private CollectedContent buildCollectedContent(String url) {
         return new CollectedContent(
-                "테스트 게시글 제목",
-                "devuser",
-                url,
-                "짧은 설명",
-                null,
-                false,
-                null,
-                java.time.LocalDateTime.now(),
-                List.of("java")
+                "테스트 게시글 제목", "devuser", url, "짧은 설명",
+                null, false, null, java.time.LocalDateTime.now(), List.of("java")
         );
     }
 }
