@@ -7,12 +7,12 @@
 
 ## 1. 도메인별 책임
 
-| 도메인 | 패키지 | 핵심 책임 |
-|--------|--------|-----------|
-| user | `domain.user` | 회원가입/로그인/소셜인증/프로필/토큰 관리 |
-| content | `domain.content` | 콘텐츠 피드/스크랩/좋아요/검색/수집 파이프라인 |
-| community | `domain.community` | 커뮤니티 게시글/AI질문개선/AI답변/유사질문/답변/댓글 |
-| report | `domain.report` | 주간 리포트 생성/조회/공유 + 학습 히스토리 (※ 설계상 `domain.history` 분리 예정이나 현재 report 하위에 있음) |
+| 도메인 | 패키지 | 핵심 책임 | 구현 상태 |
+|--------|--------|-----------|-----------|
+| user | `domain.user` | 회원가입/로그인/소셜인증/프로필/토큰 관리 | ✅ 완료 |
+| content | `domain.content` | 콘텐츠 피드/스크랩/좋아요/검색/AI요약/수집 파이프라인 | ✅ 완료 |
+| community | `domain.community` | 게시글/답변/AI질문개선/AI답변/댓글 | ✅ 완료 |
+| report | `domain.report` | 주간 리포트 생성/조회/공유 + 학습 히스토리 (※ 설계상 `domain.history` 분리 예정이나 현재 report 하위에 있음) | ✅ 완료 |
 
 ---
 

@@ -59,23 +59,6 @@ PR 생성 전 **아래 항목을 코드에서 직접 눈으로 확인**한다:
 .csrf(AbstractHttpConfigurer::disable) // NOSONAR java:S4502
 ```
 
-### Spring Boot 4.x 라이브러리 호환성 체크리스트
-
-이 프로젝트는 **Spring Boot 4.0.3 (Spring Framework 7.x)** 를 사용한다.
-메이저 버전 점프이므로 많은 서드파티 라이브러리가 아직 호환되지 않는다. **새 의존성 추가 전 반드시 확인.**
-
-| 라이브러리 | 상태 | 비고 |
-|-----------|------|------|
-| `springdoc-openapi-starter-webmvc-ui:2.x` | ⚠️ 테스트 환경 비활성화 필요 | Spring Boot 3.4.4 타겟. `@Profile("!test")` + `springdoc.api-docs.enabled: false` in application-test.yml 적용 중 |
-| `spring-boot-starter-*` 공식 모듈 | ✅ 호환 | Spring Boot BOM이 관리 |
-| `querydsl-jpa` | ⚠️ 버전 확인 필요 | Jakarta EE 마이그레이션 확인 |
-
-**신규 의존성 추가 전 체크:**
-1. 라이브러리 release notes에서 Spring Boot 4 / Spring Framework 7 지원 여부 확인
-2. Maven Central에서 최신 버전이 `spring-boot 3.x`만 타겟하는지 확인
-3. 테스트 실행 후 `contextLoads()` 통과 여부 확인
-4. 문제 발생 시: `@Profile("!test")` 또는 `@ConditionalOnProperty`로 테스트 환경 분리
-
 ### CI/CD 자동 머지 — 필수 통과 조건
 
 `auto/feature/DP-*` 브랜치는 아래 **두 GitHub Actions job이 모두 초록색**이어야 자동 머지됨:
@@ -124,7 +107,7 @@ PR 생성 전 **아래 항목을 코드에서 직접 눈으로 확인**한다:
 | 구분 | 기술 | 버전 |
 |------|------|------|
 | 언어 | Java | 21 (LTS) |
-| 프레임워크 | Spring Boot | 4.0.3 (Spring Framework 7.x) |
+| 프레임워크 | Spring Boot | 3.5.11 (Spring Framework 6.x) |
 | ORM | JPA/Hibernate + QueryDSL | - |
 | 빌드 | Gradle | 최신 |
 | DB (구조화) | PostgreSQL | 16 (AWS RDS) |
@@ -147,9 +130,13 @@ com.devpick
 │   │   ├── repository
 │   │   ├── entity
 │   │   └── dto
-│   ├── content       # 콘텐츠 피드/스크랩/좋아요 (구현 완료)
-│   ├── community     # 커뮤니티 게시글/답변/댓글 (Entity만 구현, Epic D에서 구현 예정)
-│   └── report        # 주간 리포트 + 학습 히스토리 (Entity만 구현, Epic E/F에서 구현 예정)
+│   ├── content       # 콘텐츠 피드/스크랩/좋아요/AI요약 (구현 완료)
+│   │   └── collector/    # CollectedContent, NormalizedContentDto, StackOverflowCollector
+│   │   └── document/     # AiSummaryDocument (MongoDB)
+│   │   └── client/       # AiServerClient (FastAPI 통신)
+│   ├── community     # 게시글/답변/AI질문개선 (구현 완료)
+│   │   └── client/       # AiQuestionClient (FastAPI /refine 호출)
+│   └── report        # 주간 리포트 + 학습 히스토리 (구현 완료)
 │                     # ※ history 패키지는 설계상 분리 예정이나 현재 report 하위에 있음
 ├── global
 │   ├── common
@@ -162,34 +149,7 @@ com.devpick
 
 ---
 
-## 4. 자주 쓰는 커맨드
-
-```bash
-# 개발 서버 실행
-./gradlew bootRun
-
-# 로컬 프로파일 (더미 데이터 포함)
-./gradlew bootRun --args='--spring.profiles.active=local'
-
-# 전체 테스트
-./gradlew test
-
-# 단일 테스트 클래스 실행
-./gradlew test --tests "com.devpick.domain.user.service.AuthServiceTest"
-
-# 단일 테스트 메서드 실행
-./gradlew test --tests "com.devpick.domain.user.service.AuthServiceTest.signup_success"
-
-# 빌드
-./gradlew build
-
-# 전체 서비스 한 번에 (devpick-infra에서)
-cd ../devpick-infra && docker-compose up --build
-```
-
----
-
-## 5. 브랜치 / 커밋 / PR 규칙
+## 4. 브랜치 / 커밋 / PR 규칙
 
 ### 브랜치
 ```bash
@@ -228,7 +188,7 @@ DP-{티켓번호}: {작업 내용}
 
 ---
 
-## 6. API 공통 포맷 (ADR-003)
+## 5. API 공통 포맷 (ADR-003)
 
 **Base URL**: `https://api.devpick.kr/v1`
 **인증**: `Authorization: Bearer {access_token}`
@@ -276,7 +236,7 @@ DP-{티켓번호}: {작업 내용}
 
 ---
 
-## 7. 코드 컨벤션
+## 6. 코드 컨벤션
 
 - **스타일**: Google Java Style Guide, 줄 길이 120자 이하
 - **DTO**: `record` 사용 권장
@@ -293,7 +253,7 @@ DP-{티켓번호}: {작업 내용}
 
 ---
 
-## 8. 핵심 코드 패턴
+## 7. 핵심 코드 패턴
 
 ### 예외 처리
 모든 비즈니스 예외는 `DevpickException`에 `ErrorCode` enum을 넘겨 던진다. `ErrorCode`는 HTTP 상태 코드, 에러 코드 문자열, 메시지를 함께 보유한다.
@@ -324,7 +284,7 @@ return ApiResponse.ok(null);   // 또는 ApiResponse.ok()
 
 ---
 
-## 9. 테스트 패턴
+## 8. 테스트 패턴
 
 테스트 프로파일은 `application-test.yml`을 사용하며, `@ActiveProfiles("test")` 없이 `src/test/resources`에서 자동 로드된다.
 
@@ -378,7 +338,7 @@ class AuthControllerTest {
 
 ---
 
-## 10. API 엔드포인트 전체 목록
+## 9. API 엔드포인트 전체 목록
 
 ### Epic A — 회원/프로필
 | Method | Endpoint | 설명 | 인증 | 담당 |
@@ -405,6 +365,12 @@ class AuthControllerTest {
 | DELETE | `/contents/{contentId}/scrap` | 스크랩 취소 | O | 홍근 (DP-207) |
 | POST | `/contents/{contentId}/like` | 좋아요 | O | 홍근 (DP-208) |
 | DELETE | `/contents/{contentId}/like` | 좋아요 취소 | O | 홍근 (DP-208) |
+| GET | `/contents/{contentId}/recommendations` | 태그 기반 추천 콘텐츠 | O | 홍근 |
+
+### Internal API (AI 레포 전용, Nginx에서 외부 차단 예정)
+| Method | Endpoint | 설명 | 인증 | 담당 |
+|--------|----------|------|------|------|
+| POST | `/internal/contents` | AI 레포가 수집한 콘텐츠 일괄 수신 → PostgreSQL 저장 | X(내부) | 홍근 (DP-289) |
 
 ### Epic C — AI 요약
 | Method | Endpoint | 설명 | 인증 | 담당 |
@@ -445,38 +411,21 @@ class AuthControllerTest {
 
 ---
 
-## 11. 현재 스프린트 — 홍근 담당 티켓
+## 10. 구현 완료 도메인 현황
 
-### Sprint 0 (2/24 ~ 3/2) — 환경 세팅
-| 티켓 | 작업 |
-|------|------|
-| DP-136 | devpick-infra 레포 생성 + docker-compose 초안 |
-| DP-137 | devpick-backend 레포 생성 + Spring Boot 초기화 |
-| DP-140 | GitHub Actions CI 파이프라인 (backend) |
-| DP-143 | .env.example 작성 |
-| DP-144 | PostgreSQL + MongoDB + Redis docker-compose |
-| DP-166 | GitHub-Jira 연동 |
-| DP-167 | PR 템플릿 추가 |
-| DP-168 | 브랜치 보호 규칙 설정 |
-| DP-169 | CLAUDE.md 각 레포에 작성 |
+| 도메인 | 구현 상태 | 주요 티켓 |
+|--------|-----------|----------|
+| user (인증/프로필) | ✅ 완료 | DP-177~189, DP-196 |
+| content (피드/스크랩/좋아요/검색) | ✅ 완료 | DP-204~210, DP-289 |
+| content (AI 요약) | ✅ 완료 | DP-221 |
+| community (게시글/답변/AI질문개선) | ✅ 완료 | DP-229~240 |
+| report (주간 리포트) | ✅ 완료 | DP-256~258 |
 
-### Sprint 1 (3/3 ~ 3/16) — Epic A/B 핵심
-| 티켓 | 작업 |
-|------|------|
-| DP-171 | Spring Security 설정 |
-| DP-172 | CORS 설정 |
-| DP-173 | 공통 에러 핸들러 (ADR-003) |
-| DP-174 | ApiResponse 공통 응답 포맷 |
-| DP-175 | Swagger/OpenAPI 세팅 |
-| DP-186/187 | 프로필 조회/수정 API |
-| DP-188/189 | 회원 탈퇴 API |
-| DP-203/204 | 개인화 피드 조회 API |
-| DP-205 | 글 상세 조회 API |
-| DP-206~210 | 스크랩/좋아요/검색 API |
+> 티켓별 상세 진행 상황은 Jira (프로젝트: DevPick) 참고
 
 ---
 
-## 12. ADR 결정 요약
+## 11. ADR 결정 요약
 
 | ADR | 결정 | 상태 |
 |-----|------|------|
@@ -496,7 +445,7 @@ class AuthControllerTest {
 
 ---
 
-## 13. 테스트 전략
+## 12. 테스트 전략
 
 - **도구**: JUnit 5 + Mockito (단위), Spring Boot Test + MockMvc (API)
 - **커버리지 목표**: Service 레이어 **70% 이상**
@@ -505,7 +454,7 @@ class AuthControllerTest {
 
 ---
 
-## 14. 포트 정보 (로컬 개발)
+## 13. 포트 정보 (로컬 개발)
 
 | 서비스 | 포트 |
 |--------|------|
@@ -518,11 +467,13 @@ class AuthControllerTest {
 
 ---
 
-## 15. 참고 문서
+## 14. 참고 문서
 
 | 문서 | 내용 |
 |------|------|
 | `src/main/java/com/devpick/CLAUDE.md` | 도메인/DB 구조 상세 |
+| `TRB.md` | 트러블슈팅 로그 전체 |
+| `hong.md` | 팀원 하영 온보딩 가이드 |
 | `.env.example` | 환경변수 목록 |
 | `.github/PULL_REQUEST_TEMPLATE.md` | PR 작성 양식 |
 | Confluence ADR | 기술 결정 기록 |
@@ -530,7 +481,7 @@ class AuthControllerTest {
 <!-- auto-merge 테스트 -->
 ---
 
-## 16. CI/CD 자동화 구조
+## 15. CI/CD 자동화 구조
 
 ### 전체 워크플로 (Claude Code 자동화)
 
@@ -585,156 +536,8 @@ class AuthControllerTest {
 
 ---
 
-## 17. 트러블슈팅 로그 (발생 즉시 기록)
+## 16. 트러블슈팅 로그
 
-> **규칙**: 문제를 직면하면 해결 즉시 이 섹션에 추가한다. 같은 문제를 두 번 겪지 않는다.
-
----
-
-### [TRB-001] Squash Merge + Cascade 브랜치로 인한 반복 머지 충돌
-
-**발생일**: 2026-03-07
-**관련 PR**: #24 (MERGED), #25, #26 (OPEN)
-**심각도**: 높음 (PR 머지 불가 상태)
-
-#### 문제 상황
-```
-develop: ─── [c645a05] squash(DP-187/189)
-                   ↑ 분기점이 달라짐
-PR#25:   [b0b0008] → [1664f56] → [5dee31a]
-PR#26:   [b0b0008] → [1664f56] → [5dee31a] → [7c62331]
-```
-- PR #24 (`DP-187/189`)가 `squash merge`로 develop에 들어가면서 `b0b0008` → `c645a05`로 압축됨
-- PR #25와 PR #26은 squash 이전 커밋(`b0b0008`) 위에 쌓여 있었음
-- Git이 두 커밋을 별개 변경으로 인식 → `UserTagRepository.java` add/add 충돌 발생
-
-#### 직접 원인
-1. **Cascade 브랜치 구조**: PR #25 브랜치 위에 PR #26 브랜치를 쌓음 (개발 편의상)
-2. **Squash Merge**: 커밋 히스토리를 압축하여 공통 조상(common ancestor)이 사라짐
-3. 둘이 결합되면 앞선 PR 머지 시마다 뒤 브랜치들에 연쇄 충돌 발생
-
-#### 충돌 파일
-- `src/main/java/com/devpick/domain/user/repository/UserTagRepository.java`
-  - develop 버전: `deleteByUserId`만 있음
-  - PR 버전: `deleteByUserId` + `findByUser_Id` (이 버전이 정답)
-
-#### 해결 방법 (2단계)
-**시도 1**: `git merge origin/develop` → 충돌 해결 후 `git commit`
-**실패 원인**: commit signing 서버 오류 (`source: Field required`) — 세션 재시작 후 서명 컨텍스트 소실
-
-**시도 2 (성공)**: GitHub Git Data API로 서버사이드 머지 커밋 직접 생성
-```bash
-# 1. 두 브랜치의 tree를 분석하여 충돌 파일 특정
-gh api repos/{owner}/{repo}/git/trees/{sha}?recursive=1
-
-# 2. 해결된 tree 생성 (develop base_tree + PR의 추가 파일들)
-gh api repos/{owner}/{repo}/git/trees -X POST \
-  --input '{"base_tree": "<develop_tree>", "tree": [...]}'
-
-# 3. merge commit 생성 (parents: [feature_head, develop_head])
-gh api repos/{owner}/{repo}/git/commits -X POST \
-  --input '{"message": "...", "tree": "<new_tree>", "parents": ["<pr_head>", "<develop_head>"]}'
-
-# 4. 브랜치 레퍼런스 업데이트
-gh api repos/{owner}/{repo}/git/refs/heads/{branch} -X PATCH \
-  -f sha="<merge_commit_sha>"
-```
-
-#### 성과
-- PR #25: `CONFLICTING` → `MERGEABLE` ✅
-- PR #26: `CONFLICTING` → `MERGEABLE` ✅
-- 로컬 서명 서버 우회하여 충돌 해결 달성
-
-#### 재발 방지 규칙 (필수 준수)
-
-**[규칙 1] 항상 develop 최신에서 브랜치 생성**
-```bash
-# ❌ 잘못된 방법 (cascade): PR#25 브랜치 위에 PR#26 생성
-git checkout auto/feature/DP-204-content-feed
-git checkout -b auto/feature/DP-207-scrap-like-search
-
-# ✅ 올바른 방법: 항상 develop 기반
-git fetch origin
-git checkout origin/develop -b auto/feature/DP-207-scrap-like-search
-```
-
-**[규칙 2] 앞선 PR이 머지된 직후, 다음 PR 브랜치 즉시 rebase**
-```bash
-# PR #24가 develop에 머지된 직후
-git checkout auto/feature/DP-204-content-feed
-git fetch origin
-git rebase origin/develop   # merge 대신 rebase로 히스토리 깔끔하게 유지
-git push origin auto/feature/DP-204-content-feed --force-with-lease
-```
-
-**[규칙 3] 의존 관계 있는 티켓은 순차 작업**
-- 이전 PR이 머지 완료되기 전에는 다음 티켓 브랜치를 쌓지 않는다
-- 병렬 작업이 필요하면 각자 독립적인 파일 영역을 담당하도록 분리
-
-**[규칙 4] Squash Merge 환경에서 충돌 해결 시 rebase 우선**
-```bash
-# merge commit 대신 rebase 사용 (squash merge와 궁합이 좋음)
-git rebase origin/develop
-# 충돌 발생 시: 파일 수정 → git add → git rebase --continue
-```
-
----
-
-### [TRB-002] git commit 서명 서버 오류 (`source: Field required`)
-
-**발생일**: 2026-03-07
-**심각도**: 중간 (해당 세션에서 로컬 커밋 전체 불가)
-
-#### 문제 상황
-```
-error: signing failed: signing operation failed:
-signing server returned status 400:
-{"type":"error","error":{"type":"invalid_request_error","message":"source: Field required"}}
-```
-- `commit.gpgsign=true` 설정 + `/tmp/code-sign` (environment-manager) 사용
-- 이전 세션에서 정상 동작하다가 세션 재시작 후 발생
-- `git commit`, `git merge --continue`, `git cherry-pick` 등 커밋 생성 작업 전체 실패
-
-#### 원인
-- Claude Code 세션 재시작 후 commit signing 서버의 세션 컨텍스트(`source` 필드) 소실
-- 새 세션에서 서명 서버 인증 정보가 갱신되지 않음
-
-#### 해결 방법
-로컬 커밋이 불가능한 경우 **GitHub REST API**로 서버사이드에서 직접 작업:
-- 파일 수정: `PUT /repos/{owner}/{repo}/contents/{path}` (Contents API)
-- 머지 커밋 생성: Git Data API (`/git/blobs`, `/git/trees`, `/git/commits`, `/git/refs`)
-- 단순 머지(충돌 없음): `POST /repos/{owner}/{repo}/merges`
-
-#### 재발 방지
-- 세션 컨텍스트 오류 시 새 대화를 시작하면 서명 서버가 재초기화됨
-- 또는 GitHub API를 통한 서버사이드 작업으로 우회 (위 TRB-001 해결 방법 참고)
-
----
-
-### [TRB-005] SonarCloud Quality Gate `STATUS=NONE` 타임아웃
-
-**발생일**: 2026-03-10
-**심각도**: 중간 (SonarCloud 서버 응답 지연 시 CI 오탐 실패)
-
-#### 문제 상황
-- `./gradlew sonar --no-daemon` 실행 후 별도 polling 스크립트가 10초 × 20회(최대 200초) 대기
-- SonarCloud 서버 분석이 200초 초과 시 `STATUS=NONE` 상태로 `exit 1` → CI 실패
-- QG 결과가 실제로는 PASS임에도 타임아웃으로 인한 오탐 실패 발생
-
-#### 원인
-- scanner는 분석 제출 후 즉시 반환하며, QG 결과는 서버에서 비동기로 산출됨
-- 별도 polling 스크립트의 200초 한도가 서버 지연보다 짧을 수 있음
-
-#### 해결 방법
-`-Dsonar.qualitygate.wait=true` 옵션 사용:
-```yaml
-# ci.yml sonar job
-- name: SonarCloud Scan
-  run: ./gradlew sonar --no-daemon -Dsonar.qualitygate.wait=true
-```
-- scanner 자체가 QG 결과를 직접 폴링해서 기다림 (200초 한도 없음)
-- QG PASS → exit 0, FAIL → exit 1 — 별도 polling step 불필요 → 삭제
-
-#### 재발 방지
-- `ci.yml`에서 별도 `Check SonarCloud Quality Gate` step 사용 금지
-- `-Dsonar.qualitygate.wait=true`가 동일 역할을 처리함
+> **규칙**: 문제를 직면하면 해결 즉시 `TRB.md`에 기록한다. 같은 문제를 두 번 겪지 않는다.
+>
+> 전체 기록: [`TRB.md`](TRB.md)
