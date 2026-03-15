@@ -60,6 +60,7 @@ stackoverflow:
 velog:
   collection:
     offset: ${VELOG_COLLECTION_OFFSET:0}
+    timeframe: ${VELOG_COLLECTION_TIMEFRAME:week}
 
 logging:
   level:
