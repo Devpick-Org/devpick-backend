@@ -60,6 +60,8 @@ public class User extends BaseTimeEntity {
                 .email(email)
                 .passwordHash(encodedPassword)
                 .nickname(nickname)
+                .job(Job.BACKEND)
+                .level(Level.BEGINNER)
                 .build();
     }
 
@@ -78,6 +80,8 @@ public class User extends BaseTimeEntity {
                 .email(email)
                 .nickname(nickname)
                 .isEmailVerified(true)
+                .job(Job.BACKEND)
+                .level(Level.BEGINNER)
                 .build();
     }
 

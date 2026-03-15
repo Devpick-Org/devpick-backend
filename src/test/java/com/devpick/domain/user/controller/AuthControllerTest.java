@@ -27,7 +27,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.UUID;
@@ -43,8 +43,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// Spring Boot 4.x: @WebMvcTest 제거됨, standaloneSetup 사용
-// Jackson 3.x: tools.jackson.databind.ObjectMapper 사용
+// Spring Boot 3.x: standaloneSetup 사용
+// Jackson 2.x: com.fasterxml.jackson.databind.ObjectMapper 사용
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
 

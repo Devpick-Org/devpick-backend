@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Map;
 
@@ -32,8 +32,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// Spring Boot 4.x: @WebMvcTest 제거됨, standaloneSetup 사용
-// Jackson 3.x: tools.jackson.databind.ObjectMapper 사용
+// Spring Boot 3.x: standaloneSetup 사용
+// Jackson 2.x: com.fasterxml.jackson.databind.ObjectMapper 사용
 @ExtendWith(MockitoExtension.class)
 class GlobalExceptionHandlerTest {
 
@@ -67,7 +67,7 @@ class GlobalExceptionHandlerTest {
 
         @GetMapping("/test/resource-not-found")
         public String resourceNotFound() throws NoResourceFoundException {
-            throw new NoResourceFoundException(HttpMethod.GET, "/test/resource-not-found", "resource-not-found");
+            throw new NoResourceFoundException(HttpMethod.GET, "/test/resource-not-found");
         }
     }
 

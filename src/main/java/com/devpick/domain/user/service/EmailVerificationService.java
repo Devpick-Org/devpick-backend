@@ -51,10 +51,10 @@ public class EmailVerificationService {
 
         String code = generateCode();
         redisService.saveCode(email, code);
-        emailVerificationRepository.save(EmailVerification.of(email)); // 발송 이력 기록 (감사 로그 용도, 검증 로직은 Redis에서 처리)
-        sendEmail(email, code);
-
-        log.info("[DP-178] 이메일 인증 코드 발송 완료: email={}", email);
+        emailVerificationRepository.save(EmailVerification.of(email));
+        // 로컬 개발용: 실제 메일 발송 대신 로그로 출력
+        // sendEmail(email, code);
+        log.info("[DEV] 이메일 인증 코드 (로컬 테스트용): email={}, code={}", email, code);
     }
 
     /**

@@ -46,20 +46,21 @@ class EmailVerificationServiceTest {
     // ── sendVerificationCode ──────────────────────────────────────────────────
 
     @Test
-    @DisplayName("코드 발송 성공 - 쿨다운 없을 때 코드가 저장되고 메일이 발송된다")
+    @DisplayName("코드 발송 성공 - 쿨다운 없을 때 코드가 Redis에 저장되고 발송 이력이 기록된다")
     void sendVerificationCode_success() {
         // given
         String email = "test@devpick.kr";
         given(redisService.isOnCooldown(email)).willReturn(false);
         willDoNothing().given(redisService).saveCode(any(), any());
-        willDoNothing().given(mailSender).send(any(SimpleMailMessage.class));
 
         // when
         emailVerificationService.sendVerificationCode(email);
 
         // then
         verify(redisService).saveCode(any(), any());
-        verify(mailSender).send(any(SimpleMailMessage.class));
+        verify(emailVerificationRepository).save(any());
+        // 로컬 개발 환경: sendEmail()은 주석 처리되어 있어 mailSender 호출 없음
+        verify(mailSender, never()).send(any(SimpleMailMessage.class));
     }
 
     @Test

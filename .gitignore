@@ -30,3 +30,6 @@ spring-shell.log
 ### Claude / AI tools ###
 .claude/
 .omc/
+
+### Postman (로컬 테스트용 - 커밋 제외) ###
+postman/

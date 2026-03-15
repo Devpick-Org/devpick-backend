@@ -43,10 +43,11 @@ ON CONFLICT (name) DO NOTHING;
 -- 서버 시작 시 content_sources 테이블에 수집 소스들을 삽입한다.
 -- ADR-006 확인 완료된 소스만 삽입 (is_active=true)
 -- 이미 존재하는 소스는 건너뜀 (ON CONFLICT DO NOTHING)
-INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at) VALUES
--- Stack Overflow: CC BY-SA 4.0, 저자명 + 원문 링크 필수 표시
-(gen_random_uuid(), 'Stack Overflow', 'https://api.stackexchange.com/2.3', 'api', true, NOW()),
--- Velog: GraphQL API 수집 (v2.velog.io/graphql), ADR-006 확인 완료
-(gen_random_uuid(), 'Velog', 'https://v2.velog.io/graphql', 'api', true, NOW())
-ON CONFLICT (name) DO NOTHING;
+INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at)
+SELECT gen_random_uuid(), 'Stack Overflow', 'https://api.stackexchange.com/2.3', 'api', true, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Stack Overflow');
+
+INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at)
+SELECT gen_random_uuid(), 'Velog', 'https://v2.velog.io/graphql', 'api', true, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Velog');
 -- 참고: RSS 기반 수집(우아한형제들 등)은 devpick-ai 레포에서 담당 (DP-202)
