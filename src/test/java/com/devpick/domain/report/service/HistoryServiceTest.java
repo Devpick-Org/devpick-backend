@@ -1,5 +1,6 @@
 package com.devpick.domain.report.service;
 
+import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.report.dto.ActivityPageResponse;
 import com.devpick.domain.report.dto.HistoryPageResponse;
@@ -63,8 +64,8 @@ class HistoryServiceTest {
     // ============================================================
 
     @Test
-    @DisplayName("학습 히스토리 조회 - 정상 반환")
-    void getLearningHistory_success() {
+    @DisplayName("학습 히스토리 조회 - 정상 반환 (content 있는 경우)")
+    void getLearningHistory_success_withContent() {
         Content content = mock(Content.class);
         UUID contentId = UUID.randomUUID();
         given(content.getId()).willReturn(contentId);
@@ -72,14 +73,10 @@ class HistoryServiceTest {
         given(content.getPreview()).willReturn("미리보기");
 
         History history = History.builder()
-                .user(user)
-                .actionType("content_opened")
-                .content(content)
-                .build();
+                .user(user).actionType("content_opened").content(content).build();
         ReflectionTestUtils.setField(history, "id", UUID.randomUUID());
 
         Page<History> page = new PageImpl<>(List.of(history), pageable, 1);
-
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(historyRepository.findLearningHistoryByUserId(eq(userId), any(Pageable.class))).willReturn(page);
 
@@ -95,10 +92,33 @@ class HistoryServiceTest {
     }
 
     @Test
+    @DisplayName("학습 히스토리 조회 - post 있는 항목도 정상 처리 (content null)")
+    void getLearningHistory_historyWithPost_postInfoPopulated() {
+        Post post = mock(Post.class);
+        UUID postId = UUID.randomUUID();
+        given(post.getId()).willReturn(postId);
+        given(post.getTitle()).willReturn("useEffect 왜 두 번 실행되나요?");
+
+        History history = History.builder()
+                .user(user).actionType("question_created").post(post).content(null).build();
+        ReflectionTestUtils.setField(history, "id", UUID.randomUUID());
+
+        Page<History> page = new PageImpl<>(List.of(history), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findLearningHistoryByUserId(eq(userId), any(Pageable.class))).willReturn(page);
+
+        HistoryPageResponse response = historyService.getLearningHistory(userId, pageable);
+
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().get(0).post().id()).isEqualTo(postId);
+        assertThat(response.items().get(0).post().title()).isEqualTo("useEffect 왜 두 번 실행되나요?");
+        assertThat(response.items().get(0).content()).isNull();
+    }
+
+    @Test
     @DisplayName("학습 히스토리 조회 - 히스토리 없으면 빈 items 반환")
     void getLearningHistory_emptyHistory_returnsEmptyItems() {
         Page<History> emptyPage = new PageImpl<>(List.of(), pageable, 0);
-
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(historyRepository.findLearningHistoryByUserId(eq(userId), any(Pageable.class))).willReturn(emptyPage);
 
@@ -109,7 +129,7 @@ class HistoryServiceTest {
     }
 
     @Test
-    @DisplayName("학습 히스토리 조회 - 사용자 없으면 USER_NOT_FOUND 예외 발생")
+    @DisplayName("학습 히스토리 조회 - 사용자 없으면 USER_NOT_FOUND 예외")
     void getLearningHistory_userNotFound_throwsException() {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
 
@@ -120,18 +140,13 @@ class HistoryServiceTest {
     }
 
     @Test
-    @DisplayName("학습 히스토리 조회 - content가 null인 항목(post 기록)도 정상 처리")
-    void getLearningHistory_historyWithPostOnly_contentIsNull() {
+    @DisplayName("학습 히스토리 조회 - content/post 모두 null인 항목 정상 처리")
+    void getLearningHistory_historyWithNoContentAndPost_bothNull() {
         History history = History.builder()
-                .user(user)
-                .actionType("question_created")
-                .post(null)
-                .content(null)
-                .build();
+                .user(user).actionType("weekly_report_viewed").post(null).content(null).build();
         ReflectionTestUtils.setField(history, "id", UUID.randomUUID());
 
         Page<History> page = new PageImpl<>(List.of(history), pageable, 1);
-
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(historyRepository.findLearningHistoryByUserId(eq(userId), any(Pageable.class))).willReturn(page);
 
@@ -156,14 +171,10 @@ class HistoryServiceTest {
         given(content.getPreview()).willReturn("미리보기2");
 
         History likedHistory = History.builder()
-                .user(user)
-                .actionType("content_liked")
-                .content(content)
-                .build();
+                .user(user).actionType("content_liked").content(content).build();
         ReflectionTestUtils.setField(likedHistory, "id", UUID.randomUUID());
 
         Page<History> page = new PageImpl<>(List.of(likedHistory), pageable, 1);
-
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(historyRepository.findAllActivityByUserId(eq(userId), any(Pageable.class))).willReturn(page);
 
@@ -176,10 +187,33 @@ class HistoryServiceTest {
     }
 
     @Test
+    @DisplayName("활동 내역 조회 - post 있는 항목도 정상 처리 (content null)")
+    void getAllActivity_historyWithPost_postInfoPopulated() {
+        Post post = mock(Post.class);
+        UUID postId = UUID.randomUUID();
+        given(post.getId()).willReturn(postId);
+        given(post.getTitle()).willReturn("Spring 질문입니다");
+
+        History history = History.builder()
+                .user(user).actionType("question_created").post(post).content(null).build();
+        ReflectionTestUtils.setField(history, "id", UUID.randomUUID());
+
+        Page<History> page = new PageImpl<>(List.of(history), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findAllActivityByUserId(eq(userId), any(Pageable.class))).willReturn(page);
+
+        ActivityPageResponse response = historyService.getAllActivity(userId, pageable);
+
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().get(0).post().id()).isEqualTo(postId);
+        assertThat(response.items().get(0).post().title()).isEqualTo("Spring 질문입니다");
+        assertThat(response.items().get(0).content()).isNull();
+    }
+
+    @Test
     @DisplayName("활동 내역 조회 - 활동 없으면 빈 items 반환")
     void getAllActivity_emptyActivity_returnsEmptyItems() {
         Page<History> emptyPage = new PageImpl<>(List.of(), pageable, 0);
-
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(historyRepository.findAllActivityByUserId(eq(userId), any(Pageable.class))).willReturn(emptyPage);
 
@@ -190,7 +224,7 @@ class HistoryServiceTest {
     }
 
     @Test
-    @DisplayName("활동 내역 조회 - 사용자 없으면 USER_NOT_FOUND 예외 발생")
+    @DisplayName("활동 내역 조회 - 사용자 없으면 USER_NOT_FOUND 예외")
     void getAllActivity_userNotFound_throwsException() {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
 
@@ -205,7 +239,6 @@ class HistoryServiceTest {
     void getAllActivity_paginationMeta_isCorrect() {
         Pageable secondPage = PageRequest.of(1, 5, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<History> page = new PageImpl<>(List.of(), secondPage, 7);
-
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(historyRepository.findAllActivityByUserId(eq(userId), any(Pageable.class))).willReturn(page);
 
