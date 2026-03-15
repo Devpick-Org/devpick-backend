@@ -52,10 +52,10 @@ public class AuthController {
     private final GitHubAuthService gitHubAuthService;
     private final GoogleAuthService googleAuthService;
 
-    @Operation(summary = "이메일 회원가입", description = "이메일/비밀번호로 신규 계정을 생성합니다. 이메일 인증 완료 후 호출해야 합니다.")
+    @Operation(summary = "이메일 회원가입", description = "이메일/비밀번호로 신규 계정을 생성합니다. 가입 후 이메일 인증을 완료해야 로그인이 가능합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "회원가입 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "입력값 유효성 오류 또는 이메일 미인증"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "입력값 유효성 오류"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이메일 또는 닉네임 중복")
     })
     @PostMapping("/signup")
