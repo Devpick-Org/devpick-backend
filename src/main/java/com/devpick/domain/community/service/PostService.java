@@ -47,7 +47,7 @@ public class PostService {
 
         historyRepository.save(History.builder()
                 .user(user)
-                .actionType("post_created")
+                .actionType("question_created")
                 .post(savedPost)
                 .build());
 

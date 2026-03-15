@@ -93,8 +93,34 @@ class WeeklyReportServiceTest {
     }
 
     @Test
-    @DisplayName("getCurrentWeekReport — 이번 주 리포트 정상 반환")
-    void getCurrentWeekReport_success_returnsReport() {
+    @DisplayName("getCurrentWeekReport — 이번 주 리포트 정상 반환 및 weekly_report_viewed 기록")
+    void getCurrentWeekReport_success_returnsReportAndRecordsHistory() {
+        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
+                .willReturn(Optional.of(report));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+
+        WeeklyReportResponse response = weeklyReportService.getCurrentWeekReport(userId);
+
+        assertThat(response.reportId()).isEqualTo(reportId);
+        verify(historyRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("getCurrentWeekReport — 유저 없으면 히스토리 기록 안 함 (리포트는 정상 반환)")
+    void getCurrentWeekReport_userNotFound_doesNotRecordHistory() {
+        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
+                .willReturn(Optional.of(report));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
+
+        WeeklyReportResponse response = weeklyReportService.getCurrentWeekReport(userId);
+
+        assertThat(response.reportId()).isEqualTo(reportId);
+        verify(historyRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("getCurrentWeekReport — 리포트 없으면 REPORT_NOT_FOUND 예외 (기존 테스트 유지)")
+    void getCurrentWeekReport_notFound_returnsReport() {
         given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
                 .willReturn(Optional.of(report));
 
@@ -119,13 +145,15 @@ class WeeklyReportServiceTest {
     }
 
     @Test
-    @DisplayName("getReportById — 성공 시 리포트 반환")
+    @DisplayName("getReportById — 성공 시 리포트 반환 및 weekly_report_viewed 기록")
     void getReportById_success_returnsReport() {
         given(weeklyReportRepository.findWithActivitiesById(reportId)).willReturn(Optional.of(report));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
         WeeklyReportResponse response = weeklyReportService.getReportById(userId, reportId);
 
         assertThat(response.reportId()).isEqualTo(reportId);
+        verify(historyRepository).save(any());
     }
 
     @Test

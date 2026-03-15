@@ -73,7 +73,10 @@ public enum ErrorCode {
 
     // Report
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "REPORT_001", "주간 리포트를 찾을 수 없습니다."),
-    REPORT_FORBIDDEN(HttpStatus.FORBIDDEN, "REPORT_002", "리포트 조회 권한이 없습니다.");
+    REPORT_FORBIDDEN(HttpStatus.FORBIDDEN, "REPORT_002", "리포트 조회 권한이 없습니다."),
+
+    // History
+    HISTORY_NOT_FOUND(HttpStatus.NOT_FOUND, "HISTORY_001", "히스토리를 찾을 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

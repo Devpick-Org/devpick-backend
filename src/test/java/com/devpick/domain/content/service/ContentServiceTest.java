@@ -200,8 +200,8 @@ class ContentServiceTest {
     }
 
     @Test
-    @DisplayName("addLike — 좋아요 저장 (히스토리 없음)")
-    void addLike_success_savesLikeNoHistory() {
+    @DisplayName("addLike — 좋아요 저장 및 content_liked 히스토리 기록")
+    void addLike_success_savesLikeAndHistory() {
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
         given(likeRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
@@ -209,7 +209,7 @@ class ContentServiceTest {
         contentService.addLike(userId, contentId);
 
         verify(likeRepository).save(any(Like.class));
-        verify(historyRepository, never()).save(any());
+        verify(historyRepository).save(any(History.class));
     }
 
     @Test
