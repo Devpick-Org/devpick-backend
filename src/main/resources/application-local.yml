@@ -57,6 +57,10 @@ stackoverflow:
   api-key: ${STACKOVERFLOW_API_KEY:}
   collect-tags: ${STACKOVERFLOW_COLLECT_TAGS:java;spring-boot;kotlin;python}
 
+velog:
+  collection:
+    offset: ${VELOG_COLLECTION_OFFSET:0}
+
 logging:
   level:
     com.devpick: DEBUG
