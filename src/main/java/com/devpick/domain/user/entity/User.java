@@ -54,7 +54,12 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private List<UserTag> userTags = new ArrayList<>();
 
-    /** 이메일 회원가입 사용자 생성 (DP-177). */
+    /**
+     * 이메일 회원가입 사용자 생성 — 인증 전 (DP-177).
+     * 이메일 인증 후 signup 흐름으로 변경된 이후로 사용되지 않음.
+     * @deprecated createVerifiedEmailUser 사용 권장
+     */
+    @Deprecated
     public static User createEmailUser(String email, String encodedPassword, String nickname) {
         return User.builder()
                 .email(email)
@@ -65,15 +70,25 @@ public class User extends BaseTimeEntity {
                 .build();
     }
 
-    /** 이메일 인증 완료 처리 (DP-178). */
-    public void verifyEmail() {
-        this.isEmailVerified = true;
+    /**
+     * 이메일 인증 완료 후 회원가입 사용자 생성 (DP-178 수정).
+     * 이메일 인증이 상탄(email:verified)에서 확인된 이후 호출.
+     * is_email_verified = true로 생성하여 동시에 로그인 가능하도록 함.
+     */
+    public static User createVerifiedEmailUser(String email, String encodedPassword, String nickname) {
+        return User.builder()
+                .email(email)
+                .passwordHash(encodedPassword)
+                .nickname(nickname)
+                .isEmailVerified(true)
+                .job(Job.BACKEND)
+                .level(Level.BEGINNER)
+                .build();
     }
 
     /**
      * GitHub 소셜 로그인 신규 회원 생성 (DP-183).
      * 소셜 로그인은 비밀번호 없이 생성되며, 이메일 인증은 즉시 완료 처리.
-     * 확장 포인트 (DP-183): 다른 소셜 로그인(Google, Kakao) 추가 시 provider를 파라미터로 받는 공통 메서드로 분리 가능.
      */
     public static User createSocialUser(String email, String nickname) {
         return User.builder()
