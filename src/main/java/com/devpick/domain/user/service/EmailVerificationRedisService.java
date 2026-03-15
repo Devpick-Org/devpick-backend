@@ -10,12 +10,13 @@ import java.time.Duration;
  * 이메일 인증 코드의 Redis 관리 서비스.
  *
  * Redis Key 구조:
- *  - email:verify:{email}        → 인증 코드 (TTL: 5분)
+ *  - email:verify:{email}          → 인증 코드 (TTL: 5분)
  *  - email:verify:attempts:{email} → 시도 횟수 (TTL: 5분)
  *  - email:verify:cooldown:{email} → 재전송 쿨다운 (TTL: 1분)
+ *  - email:verified:{email}        → 인증 완료 플래그 (TTL: 30분)
  *
  * 확장 포인트 (DP-178):
- *  - 인증 성공 여부를 Redis에 단기 캐시해두면 signup 흐름에서 재검증 없이 사용 가능
+ *  - 인증 성공 여부를 Redis에 단기 캐시 → signup 흐름에서 재검증 없이 사용 가능
  */
 @Service
 @RequiredArgsConstructor
@@ -24,9 +25,11 @@ public class EmailVerificationRedisService {
     private static final String CODE_KEY_PREFIX = "email:verify:";
     private static final String ATTEMPTS_KEY_PREFIX = "email:verify:attempts:";
     private static final String COOLDOWN_KEY_PREFIX = "email:verify:cooldown:";
+    private static final String VERIFIED_KEY_PREFIX = "email:verified:";
 
     private static final Duration CODE_TTL = Duration.ofMinutes(5);
     private static final Duration COOLDOWN_TTL = Duration.ofMinutes(1);
+    private static final Duration VERIFIED_TTL = Duration.ofMinutes(30);
     private static final int MAX_ATTEMPTS = 5;
 
     private final StringRedisTemplate redisTemplate;
@@ -76,5 +79,26 @@ public class EmailVerificationRedisService {
             return false;
         }
         return Long.parseLong(attempts) >= MAX_ATTEMPTS;
+    }
+
+    /**
+     * 이메일 인증 완료 플래그 저장 (TTL 30분).
+     * 인증 성공 후 호출 — 이후 signup 시 검증에 사용.
+     */
+    public void saveVerified(String email) {
+        redisTemplate.opsForValue().set(VERIFIED_KEY_PREFIX + email, "1", VERIFIED_TTL);
+    }
+
+    /**
+     * 이메일 인증 완료 여부 확인.
+     * signup 시 호출하여 인증이 완료된 이메일인지 검증.
+     */
+    public boolean isVerified(String email) {
+        return Boolean.TRUE.equals(redisTemplate.hasKey(VERIFIED_KEY_PREFIX + email));
+    }
+
+    /** 인증 완료 플래그 삭제 (signup 완료 후 호출). */
+    public void deleteVerified(String email) {
+        redisTemplate.delete(VERIFIED_KEY_PREFIX + email);
     }
 }

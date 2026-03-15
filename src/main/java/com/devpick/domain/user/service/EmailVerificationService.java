@@ -1,9 +1,7 @@
 package com.devpick.domain.user.service;
 
 import com.devpick.domain.user.entity.EmailVerification;
-import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.EmailVerificationRepository;
-import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -11,16 +9,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 
 /**
  * 이메일 인증 코드 발송 및 검증 서비스.
  *
- * 흐름:
+ * 흐름 (DP-178 수정 — 이메일 인증 → 회원가입 순서):
  *  1. sendVerificationCode() → 6자리 코드 생성 → Redis 저장(TTL 5분) → 메일 발송
- *  2. verifyCode()           → Redis 코드 비교 → 일치 시 users.is_email_verified = true
+ *  2. verifyCode()           → Redis 코드 비교 → 일치 시 Redis에 인증완료 플래그 저장(TTL 30분)
+ *  3. signup()               → Redis 인증완료 플래그 확인 → User 생성 → 플래그 삭제
  *
  * 확장 포인트 (DP-178):
  *  - HTML 이메일 템플릿 적용 시 JavaMailSender → MimeMessage로 교체
@@ -36,7 +34,6 @@ public class EmailVerificationService {
 
     private final JavaMailSender mailSender;
     private final EmailVerificationRedisService redisService;
-    private final UserRepository userRepository;
     private final EmailVerificationRepository emailVerificationRepository;
 
     /**
@@ -59,9 +56,9 @@ public class EmailVerificationService {
     /**
      * 인증 코드 검증.
      * - 5회 초과 시 코드 무효화
-     * - 검증 성공 시 users.is_email_verified = true
+     * - 검증 성공 시 Redis에 인증 완료 플래그 저장 (TTL 30분)
+     * - User 조회/수정 없음 — 아직 가입 전이므로 User가 없음
      */
-    @Transactional
     public void verifyCode(String email, String inputCode) {
         if (redisService.isExceededAttempts(email)) {
             throw new DevpickException(ErrorCode.AUTH_EMAIL_VERIFY_EXCEEDED);
@@ -76,7 +73,6 @@ public class EmailVerificationService {
 
         if (!savedCode.equals(inputCode)) {
             log.warn("[DP-178] 이메일 인증 코드 불일치: email={}, attempts={}", email, attempts);
-            // 5회 도달 시 코드 삭제
             if (attempts >= 5) {
                 redisService.deleteCode(email);
                 throw new DevpickException(ErrorCode.AUTH_EMAIL_VERIFY_EXCEEDED);
@@ -84,17 +80,11 @@ public class EmailVerificationService {
             throw new DevpickException(ErrorCode.AUTH_EMAIL_CODE_INVALID);
         }
 
-        // 인증 성공
+        // 인증 성공 — 코드 삭제 + 인증완료 플래그 저장
         redisService.deleteCode(email);
-        markEmailVerified(email);
+        redisService.saveVerified(email);
 
         log.info("[DP-178] 이메일 인증 성공: email={}", email);
-    }
-
-    private void markEmailVerified(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new DevpickException(ErrorCode.AUTH_USER_NOT_FOUND));
-        user.verifyEmail();
     }
 
     private String generateCode() {

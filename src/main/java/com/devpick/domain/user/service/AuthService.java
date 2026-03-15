@@ -20,15 +20,31 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
+    private final EmailVerificationRedisService emailVerificationRedisService;
 
+    /**
+     * 이메일 회원가입 (DP-177 수정 — 이메일 인증 후 가입 흐름).
+     *
+     * 스텝:
+     *  1. Redis에서 이메일 인증 완료 여부 확인 (email:verified:{email})
+     *  2. 이메일/닉네임 중복 확인
+     *  3. User 생성 (is_email_verified = true)
+     *  4. Redis 인증완료 플래그 삭제
+     */
     @Transactional
     public SignupResponse signup(SignupRequest request) {
+        if (!emailVerificationRedisService.isVerified(request.email())) {
+            throw new DevpickException(ErrorCode.AUTH_EMAIL_NOT_VERIFIED_FOR_SIGNUP);
+        }
+
         validateDuplicateEmail(request.email());
         validateDuplicateNickname(request.nickname());
 
         String encodedPassword = passwordEncoder.encode(request.password());
-        User user = User.createEmailUser(request.email(), encodedPassword, request.nickname());
+        User user = User.createVerifiedEmailUser(request.email(), encodedPassword, request.nickname());
         userRepository.save(user);
+
+        emailVerificationRedisService.deleteVerified(request.email());
 
         return SignupResponse.from(user);
     }
@@ -52,7 +68,7 @@ public class AuthService {
         return tokenService.issueTokenPair(user);
     }
 
-    // ── private ──────────────────────────────────────────────
+    // ── private ────────────────────────────────────────────────────────
 
     private void validateDuplicateEmail(String email) {
         if (userRepository.existsByEmail(email)) {
