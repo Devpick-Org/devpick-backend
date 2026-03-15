@@ -1,0 +1,634 @@
+{
+  "info": {
+    "name": "DevPick API",
+    "_postman_id": "devpick-backend-collection",
+    "description": "DevPick 백엔드 전체 API 컬렉션\n\n**서버**: http://localhost:8080\n\n**인증 방식**: Bearer Token (Access Token)\n- 로그인 후 발급된 accessToken을 {{accessToken}} 변수에 저장\n- Collection 레벨에서 Bearer Token 자동 적용\n\n**Stack Overflow 수집**: StackOverflowCollector → https://api.stackexchange.com/2.3",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string",
+      "description": "로그인 후 자동 저장됨"
+    },
+    {
+      "key": "testEmail",
+      "value": "test@devpick.com",
+      "type": "string"
+    },
+    {
+      "key": "testPassword",
+      "value": "Test1234!@",
+      "type": "string"
+    },
+    {
+      "key": "contentId",
+      "value": "",
+      "type": "string",
+      "description": "피드 조회 후 복사해서 사용"
+    },
+    {
+      "key": "reportId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "description": "회원가입 / 로그인 / 소셜 인증 / 토큰 관리",
+      "item": [
+        {
+          "name": "이메일 인증코드 발송",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/email/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "email", "send"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "입력한 이메일로 6자리 인증 코드 발송 (5분 유효)"
+          }
+        },
+        {
+          "name": "이메일 인증코드 검증",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/email/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "email", "verify"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"code\": \"123456\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "발송된 6자리 코드 검증 (5회 초과 실패 시 차단)"
+          }
+        },
+        {
+          "name": "이메일 회원가입",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "signup"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"nickname\": \"테스트유저\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "이메일 인증 완료 후 호출\n- password: 영문+숫자+특수문자 포함 8~20자"
+          }
+        },
+        {
+          "name": "이메일 로그인 ★ (accessToken 자동 저장)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', res.data.accessToken);",
+                  "    console.log('✅ accessToken 저장 완료');",
+                  "} else {",
+                  "    console.log('❌ accessToken 없음:', JSON.stringify(res));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "로그인 성공 시 accessToken이 컬렉션 변수에 자동 저장됩니다.\nrefreshToken은 HttpOnly Cookie로 내려옵니다."
+          }
+        },
+        {
+          "name": "토큰 재발급",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "HttpOnly Cookie의 refreshToken으로 새 accessToken 재발급\n※ Postman에서 Cookie가 자동으로 전송됩니다"
+          }
+        },
+        {
+          "name": "로그아웃",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "refreshToken Cookie 만료 + DB에서 삭제"
+          }
+        },
+        {
+          "name": "GitHub OAuth URL 조회",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/github",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "github"]
+            },
+            "description": "CSRF 방지 state 포함된 GitHub OAuth 인가 URL 반환"
+          }
+        },
+        {
+          "name": "Google OAuth URL 조회",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "google"]
+            },
+            "description": "CSRF 방지 state 포함된 Google OAuth 인가 URL 반환"
+          }
+        },
+        {
+          "name": "GitHub OAuth 콜백",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/github/callback?code=GITHUB_CODE&state=STATE_VALUE",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "github", "callback"],
+              "query": [
+                { "key": "code", "value": "GITHUB_CODE", "description": "GitHub에서 전달받은 인가 코드" },
+                { "key": "state", "value": "STATE_VALUE", "description": "OAuth URL 조회 시 받은 state" }
+              ]
+            },
+            "description": "브라우저에서 리다이렉트된 code & state를 직접 붙여넣어 테스트"
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 User",
+      "description": "사용자 프로필 관리",
+      "item": [
+        {
+          "name": "내 프로필 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me"]
+            },
+            "description": "로그인한 사용자 프로필 정보 조회"
+          }
+        },
+        {
+          "name": "내 프로필 수정",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nickname\": \"새닉네임\",\n  \"profileImage\": null,\n  \"job\": \"BACKEND\",\n  \"level\": \"JUNIOR\",\n  \"tags\": [\"Java\", \"Spring\", \"Kotlin\"]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "job: FRONTEND | BACKEND | FULLSTACK\nlevel: BEGINNER | JUNIOR | MIDDLE | SENIOR"
+          }
+        },
+        {
+          "name": "회원 탈퇴",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me"]
+            },
+            "description": "⚠️ Soft delete 처리 (복구 불가)\n204 No Content 반환"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📄 Content",
+      "description": "콘텐츠 피드 / 검색 / 스크랩 / 좋아요 (Stack Overflow 포함)",
+      "item": [
+        {
+          "name": "개인화 피드 조회 ★",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.contents && res.data.contents.length > 0) {",
+                  "    const firstId = res.data.contents[0].contentId;",
+                  "    pm.collectionVariables.set('contentId', firstId);",
+                  "    console.log('✅ contentId 저장:', firstId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contents?page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["contents"],
+              "query": [
+                { "key": "page", "value": "0", "description": "페이지 번호 (0부터 시작)" },
+                { "key": "size", "value": "20", "description": "페이지 크기" }
+              ]
+            },
+            "description": "사용자 태그·레벨 기반 개인화 피드\n조회 성공 시 첫 번째 contentId가 자동 저장됩니다."
+          }
+        },
+        {
+          "name": "콘텐츠 검색 - 키워드",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contents/search?query=Spring Boot&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["contents", "search"],
+              "query": [
+                { "key": "query", "value": "Spring Boot", "description": "검색 키워드" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "콘텐츠 검색 - 태그 필터",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contents/search?tags=Java&tags=Spring&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["contents", "search"],
+              "query": [
+                { "key": "tags", "value": "Java", "description": "태그 필터 (복수 가능)" },
+                { "key": "tags", "value": "Spring" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "콘텐츠 상세 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contents/{{contentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["contents", "{{contentId}}"]
+            },
+            "description": "조회 시 학습 히스토리(content_opened) 자동 기록"
+          }
+        },
+        {
+          "name": "스크랩 추가",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contents/{{contentId}}/scrap",
+              "host": ["{{baseUrl}}"],
+              "path": ["contents", "{{contentId}}", "scrap"]
+            },
+            "description": "201 Created 반환\n중복 시 409 Conflict"
+          }
+        },
+        {
+          "name": "스크랩 취소",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contents/{{contentId}}/scrap",
+              "host": ["{{baseUrl}}"],
+              "path": ["contents", "{{contentId}}", "scrap"]
+            },
+            "description": "204 No Content 반환"
+          }
+        },
+        {
+          "name": "좋아요 추가",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contents/{{contentId}}/like",
+              "host": ["{{baseUrl}}"],
+              "path": ["contents", "{{contentId}}", "like"]
+            },
+            "description": "201 Created 반환\n중복 시 409 Conflict"
+          }
+        },
+        {
+          "name": "좋아요 취소",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contents/{{contentId}}/like",
+              "host": ["{{baseUrl}}"],
+              "path": ["contents", "{{contentId}}", "like"]
+            },
+            "description": "204 No Content 반환"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🤖 AI Summary",
+      "description": "콘텐츠 AI 요약 조회 / 재시도 (Redis → MongoDB → FastAPI 순)",
+      "item": [
+        {
+          "name": "AI 요약 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contents/{{contentId}}/summary?level=JUNIOR",
+              "host": ["{{baseUrl}}"],
+              "path": ["contents", "{{contentId}}", "summary"],
+              "query": [
+                {
+                  "key": "level",
+                  "value": "JUNIOR",
+                  "description": "BEGINNER | JUNIOR | MIDDLE | SENIOR"
+                }
+              ]
+            },
+            "description": "레벨별 AI 요약 조회\n조회 순서: Redis 캐시 → MongoDB → FastAPI 서버 (http://localhost:8000)"
+          }
+        },
+        {
+          "name": "AI 요약 재시도 (캐시 삭제 후 재생성)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contents/{{contentId}}/summary/retry?level=JUNIOR",
+              "host": ["{{baseUrl}}"],
+              "path": ["contents", "{{contentId}}", "summary", "retry"],
+              "query": [
+                {
+                  "key": "level",
+                  "value": "JUNIOR",
+                  "description": "BEGINNER | JUNIOR | MIDDLE | SENIOR"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Report",
+      "description": "주간 리포트 조회 / 공유",
+      "item": [
+        {
+          "name": "이번 주 리포트 조회",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.reportId) {",
+                  "    pm.collectionVariables.set('reportId', res.data.reportId);",
+                  "    console.log('✅ reportId 저장:', res.data.reportId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/weekly",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "weekly"]
+            },
+            "description": "현재 주(월~일) 주간 리포트 반환\n조회 성공 시 reportId 자동 저장"
+          }
+        },
+        {
+          "name": "특정 주 리포트 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/weekly/{{reportId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "weekly", "{{reportId}}"]
+            }
+          }
+        },
+        {
+          "name": "공유 링크 생성",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/weekly/{{reportId}}/share",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "weekly", "{{reportId}}", "share"]
+            },
+            "description": "201 Created\n이미 생성된 경우 기존 토큰 반환"
+          }
+        },
+        {
+          "name": "공유 링크로 리포트 조회 (비인증)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/weekly/share/SHARE_TOKEN",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "weekly", "share", "SHARE_TOKEN"]
+            },
+            "description": "인증 없이 공유 토큰으로 조회 가능\nSHARE_TOKEN을 공유 링크 생성 응답에서 복사"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🌐 Stack Overflow API (외부 직접 호출)",
+      "description": "StackOverflowCollector 동작 검증용 - 백엔드 없이 외부 API 직접 테스트",
+      "item": [
+        {
+          "name": "질문 목록 조회 - java 태그",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.stackexchange.com/2.3/questions?order=desc&sort=activity&site=stackoverflow&filter=withbody&pagesize=5&tagged=java",
+              "protocol": "https",
+              "host": ["api", "stackexchange", "com"],
+              "path": ["2.3", "questions"],
+              "query": [
+                { "key": "order", "value": "desc" },
+                { "key": "sort", "value": "activity" },
+                { "key": "site", "value": "stackoverflow" },
+                { "key": "filter", "value": "withbody", "description": "body_markdown 포함" },
+                { "key": "pagesize", "value": "5" },
+                { "key": "tagged", "value": "java" }
+              ]
+            },
+            "description": "StackOverflowCollector.buildUri() 와 동일한 파라미터\nAPI 키 없으면 일일 300회 쿼터"
+          }
+        },
+        {
+          "name": "질문 목록 조회 - spring-boot 태그",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.stackexchange.com/2.3/questions?order=desc&sort=activity&site=stackoverflow&filter=withbody&pagesize=5&tagged=spring-boot",
+              "protocol": "https",
+              "host": ["api", "stackexchange", "com"],
+              "path": ["2.3", "questions"],
+              "query": [
+                { "key": "order", "value": "desc" },
+                { "key": "sort", "value": "activity" },
+                { "key": "site", "value": "stackoverflow" },
+                { "key": "filter", "value": "withbody" },
+                { "key": "pagesize", "value": "5" },
+                { "key": "tagged", "value": "spring-boot" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "질문 목록 조회 - kotlin 태그",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.stackexchange.com/2.3/questions?order=desc&sort=activity&site=stackoverflow&filter=withbody&pagesize=5&tagged=kotlin",
+              "protocol": "https",
+              "host": ["api", "stackexchange", "com"],
+              "path": ["2.3", "questions"],
+              "query": [
+                { "key": "order", "value": "desc" },
+                { "key": "sort", "value": "activity" },
+                { "key": "site", "value": "stackoverflow" },
+                { "key": "filter", "value": "withbody" },
+                { "key": "pagesize", "value": "5" },
+                { "key": "tagged", "value": "kotlin" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "쿼터 잔량 확인",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.stackexchange.com/2.3/questions?order=desc&sort=activity&site=stackoverflow&pagesize=1",
+              "protocol": "https",
+              "host": ["api", "stackexchange", "com"],
+              "path": ["2.3", "questions"],
+              "query": [
+                { "key": "order", "value": "desc" },
+                { "key": "sort", "value": "activity" },
+                { "key": "site", "value": "stackoverflow" },
+                { "key": "pagesize", "value": "1" }
+              ]
+            },
+            "description": "응답의 quota_remaining 값으로 잔량 확인\nAPI 키 없음: 일 300회 / 있음: 일 10,000회"
+          }
+        }
+      ]
+    }
+  ]
+}
