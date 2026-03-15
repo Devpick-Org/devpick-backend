@@ -41,11 +41,17 @@ class AuthServiceTest {
     @Mock
     private TokenService tokenService;
 
+    @Mock
+    private EmailVerificationRedisService emailVerificationRedisService;
+
+    // ── signup ──────────────────────────────────────────────────────────
+
     @Test
-    @DisplayName("정상 회원가입 - 이메일, 비밀번호, 닉네임으로 가입 시 User가 저장된다")
+    @DisplayName("정상 회원가입 — 이메일 인증 완료 후 회원가입 시 User가 저장되고 is_email_verified=true로 생성된다")
     void signup_success() {
         // given
         SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영");
+        given(emailVerificationRedisService.isVerified(request.email())).willReturn(true);
         given(userRepository.existsByEmail(request.email())).willReturn(false);
         given(userRepository.existsByNickname(request.nickname())).willReturn(false);
         given(passwordEncoder.encode(request.password())).willReturn("encodedPassword");
@@ -58,13 +64,30 @@ class AuthServiceTest {
         assertThat(response.email()).isEqualTo(request.email());
         assertThat(response.nickname()).isEqualTo(request.nickname());
         verify(userRepository).save(any(User.class));
+        verify(emailVerificationRedisService).deleteVerified(request.email());
     }
 
     @Test
-    @DisplayName("이메일 중복 - 이미 사용 중인 이메일로 가입 시 AUTH_DUPLICATE_EMAIL 예외가 발생한다")
+    @DisplayName("이메일 인증 전 회원가입 시도 — Redis 인증완료 플래그 없으면 AUTH_EMAIL_NOT_VERIFIED_FOR_SIGNUP 예외가 발생한다")
+    void signup_emailNotVerified_throwsException() {
+        // given
+        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영");
+        given(emailVerificationRedisService.isVerified(request.email())).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> authService.signup(request))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_EMAIL_NOT_VERIFIED_FOR_SIGNUP));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("이메일 중복 — 이미 사용 중인 이메일로 가입 시 AUTH_DUPLICATE_EMAIL 예외가 발생한다")
     void signup_duplicateEmail_throwsException() {
         // given
         SignupRequest request = new SignupRequest("duplicate@devpick.kr", "password123!", "하영");
+        given(emailVerificationRedisService.isVerified(request.email())).willReturn(true);
         given(userRepository.existsByEmail(request.email())).willReturn(true);
 
         // when & then
@@ -76,10 +99,11 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("닉네임 중복 - 이미 사용 중인 닉네임으로 가입 시 AUTH_DUPLICATE_NICKNAME 예외가 발생한다")
+    @DisplayName("닉네임 중복 — 이미 사용 중인 닉네임으로 가입 시 AUTH_DUPLICATE_NICKNAME 예외가 발생한다")
     void signup_duplicateNickname_throwsException() {
         // given
         SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "중복닉네임");
+        given(emailVerificationRedisService.isVerified(request.email())).willReturn(true);
         given(userRepository.existsByEmail(request.email())).willReturn(false);
         given(userRepository.existsByNickname(request.nickname())).willReturn(true);
 
@@ -91,14 +115,14 @@ class AuthServiceTest {
         verify(userRepository, never()).save(any(User.class));
     }
 
+    // ── login ──────────────────────────────────────────────────────────
+
     @Test
-    @DisplayName("정상 로그인 - 이메일/비밀번호 일치 시 TokenService에 위임하여 LoginResponse를 반환한다")
+    @DisplayName("정상 로그인 — 이메일/비밀번호 일치 시 TokenService에 위임하여 LoginResponse를 반환한다")
     void login_success() {
         // given
         LoginRequest request = new LoginRequest("test@devpick.kr", "password123!");
-        User user = User.createEmailUser("test@devpick.kr", "encodedPassword", "하영");
-        user.verifyEmail();
-        // 이메일/패스워드 로그인은 항상 기존 유저 → isNewUser=false
+        User user = User.createVerifiedEmailUser("test@devpick.kr", "encodedPassword", "하영");
         LoginResponse mockResponse = new LoginResponse(
                 "mockAccessToken", UUID.randomUUID(), user.getEmail(), user.getNickname(), false, "mockRefreshToken");
 
@@ -118,7 +142,7 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("이메일 없음 - 존재하지 않는 이메일로 로그인 시 AUTH_USER_NOT_FOUND 예외가 발생한다")
+    @DisplayName("이메일 없음 — 존재하지 않는 이메일로 로그인 시 AUTH_USER_NOT_FOUND 예외가 발생한다")
     void login_emailNotFound_throwsException() {
         // given
         LoginRequest request = new LoginRequest("notfound@devpick.kr", "password123!");
@@ -132,12 +156,11 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("이메일 미인증 - 인증되지 않은 사용자로 로그인 시 AUTH_EMAIL_NOT_VERIFIED 예외가 발생한다")
+    @DisplayName("이메일 미인증 — 인증되지 않은 사용자로 로그인 시 AUTH_EMAIL_NOT_VERIFIED 예외가 발생한다")
     void login_emailNotVerified_throwsException() {
         // given
         LoginRequest request = new LoginRequest("test@devpick.kr", "password123!");
         User user = User.createEmailUser("test@devpick.kr", "encodedPassword", "하영");
-        // verifyEmail() 호출하지 않음 → isEmailVerified = false
 
         given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
 
@@ -149,12 +172,11 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("비밀번호 불일치 - 잘못된 비밀번호로 로그인 시 AUTH_INVALID_PASSWORD 예외가 발생한다")
+    @DisplayName("비밀번호 불일치 — 잘못된 비밀번호로 로그인 시 AUTH_INVALID_PASSWORD 예외가 발생한다")
     void login_wrongPassword_throwsException() {
         // given
         LoginRequest request = new LoginRequest("test@devpick.kr", "wrongPassword!");
-        User user = User.createEmailUser("test@devpick.kr", "encodedPassword", "하영");
-        user.verifyEmail();
+        User user = User.createVerifiedEmailUser("test@devpick.kr", "encodedPassword", "하영");
 
         given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
         given(passwordEncoder.matches(request.password(), user.getPasswordHash())).willReturn(false);
