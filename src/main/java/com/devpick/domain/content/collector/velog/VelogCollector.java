@@ -17,9 +17,10 @@ import java.util.List;
 
 /**
  * Velog GraphQL API 수집기.
- * 엔드포인트: POST https://v2.velog.io/graphql (ADR-006 확인 완료)
+ * 엔드포인트: POST https://v3.velog.io/graphql
  *
- * <p>trendingPosts 쿼리로 인기 게시물을 페이지 단위로 수집한다.
+ * <p>trendingPosts 쿼리로 인기 게시물을 수집한다.
+ * timeframe 은 반드시 명시해야 데이터가 반환된다.
  * ADR-006 정책: SUMMARY_ONLY — preview(short_description)만 저장,
  * isOriginalVisible = false.
  */
@@ -28,13 +29,16 @@ import java.util.List;
 public class VelogCollector extends ContentCollector {
 
     private static final String SOURCE_NAME = "Velog";
-    private static final String GRAPHQL_ENDPOINT = "https://v2.velog.io/graphql";
+    private static final String GRAPHQL_ENDPOINT = "https://v3.velog.io/graphql";
     private static final int PAGE_LIMIT = 20;
 
     private final WebClient webClient;
 
     @Value("${velog.collection.offset:0}")
     private int collectionOffset;
+
+    @Value("${velog.collection.timeframe:week}")
+    private String timeframe;
 
     public VelogCollector(WebClient webClient,
                           ContentRepository contentRepository,
@@ -55,7 +59,7 @@ public class VelogCollector extends ContentCollector {
 
     List<CollectedContent> fetchPosts() {
         try {
-            VelogGraphQlRequest request = VelogGraphQlRequest.trendingPosts(collectionOffset, PAGE_LIMIT);
+            VelogGraphQlRequest request = VelogGraphQlRequest.trendingPosts(collectionOffset, PAGE_LIMIT, timeframe);
 
             VelogGraphQlResponse response = webClient.post()
                     .uri(GRAPHQL_ENDPOINT)
@@ -99,9 +103,9 @@ public class VelogCollector extends ContentCollector {
                 author,
                 canonicalUrl,
                 post.shortDescription(),
-                null,                   // ADR-006: SUMMARY_ONLY — originalContent 저장 안 함
-                false,                  // isOriginalVisible = false
-                null,                   // Velog 별도 라이선스 없음
+                null,
+                false,
+                null,
                 publishedAt,
                 post.tags() != null ? post.tags() : List.of()
         );
