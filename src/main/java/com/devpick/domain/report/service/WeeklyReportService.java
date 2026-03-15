@@ -2,6 +2,7 @@ package com.devpick.domain.report.service;
 
 import com.devpick.domain.report.dto.ShareLinkResponse;
 import com.devpick.domain.report.dto.WeeklyReportResponse;
+import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.entity.ReportActivity;
 import com.devpick.domain.report.entity.WeeklyReport;
 import com.devpick.domain.report.repository.HistoryRepository;
@@ -40,23 +41,26 @@ public class WeeklyReportService {
     private final ObjectMapper objectMapper;
 
     // DP-256: 이번 주 리포트 조회
-    @Transactional(readOnly = true)
+    @Transactional
     public WeeklyReportResponse getCurrentWeekReport(UUID userId) {
         LocalDate weekStart = getWeekStart(LocalDate.now());
         WeeklyReport report = weeklyReportRepository
                 .findWithActivitiesByUser_IdAndWeekStart(userId, weekStart)
                 .orElseThrow(() -> new DevpickException(ErrorCode.REPORT_NOT_FOUND));
+
+        recordWeeklyReportViewed(userId);
         return WeeklyReportResponse.of(report);
     }
 
     // DP-256: 특정 reportId로 리포트 조회
-    @Transactional(readOnly = true)
+    @Transactional
     public WeeklyReportResponse getReportById(UUID userId, UUID reportId) {
         WeeklyReport report = weeklyReportRepository.findWithActivitiesById(reportId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.REPORT_NOT_FOUND));
         if (!report.getUser().getId().equals(userId)) {
             throw new DevpickException(ErrorCode.REPORT_FORBIDDEN);
         }
+        recordWeeklyReportViewed(userId);
         return WeeklyReportResponse.of(report);
     }
 
@@ -175,5 +179,15 @@ public class WeeklyReportService {
 
     private LocalDate getWeekStart(LocalDate date) {
         return date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+    }
+
+    // DP-246: 주간 리포트 조회 시 학습 히스토리 기록
+    private void recordWeeklyReportViewed(UUID userId) {
+        userRepository.findByIdAndIsActiveTrue(userId).ifPresent(user ->
+                historyRepository.save(History.builder()
+                        .user(user)
+                        .actionType("weekly_report_viewed")
+                        .build())
+        );
     }
 }

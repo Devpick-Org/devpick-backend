@@ -126,6 +126,13 @@ public class ContentService {
                 .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
 
         likeRepository.save(Like.builder().user(user).content(content).build());
+
+        // DP-249: content_liked는 history에 기록 (좋아요 취소 시에도 기록 유지)
+        historyRepository.save(History.builder()
+                .user(user)
+                .actionType("content_liked")
+                .content(content)
+                .build());
     }
 
     @Transactional
