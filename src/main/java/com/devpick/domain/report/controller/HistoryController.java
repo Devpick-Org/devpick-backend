@@ -3,6 +3,8 @@ package com.devpick.domain.report.controller;
 import com.devpick.domain.report.dto.ActivityPageResponse;
 import com.devpick.domain.report.dto.HistoryPageResponse;
 import com.devpick.domain.report.service.HistoryService;
+import com.devpick.global.common.exception.DevpickException;
+import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -25,12 +27,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class HistoryController {
 
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final HistoryService historyService;
 
     @Operation(summary = "내 학습 히스토리 조회",
                description = "content_liked를 제외한 학습 행동 기록을 최신순으로 반환합니다. (DP-248)")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 페이지 파라미터"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자 없음")
     })
@@ -40,6 +45,7 @@ public class HistoryController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
+        validatePageParams(page, size);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ApiResponse.ok(historyService.getLearningHistory(userId, pageable));
     }
@@ -48,6 +54,7 @@ public class HistoryController {
                description = "좋아요(content_liked)를 포함한 모든 활동 내역을 최신순으로 반환합니다. (DP-249)")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 페이지 파라미터"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자 없음")
     })
@@ -57,7 +64,14 @@ public class HistoryController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
+        validatePageParams(page, size);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ApiResponse.ok(historyService.getAllActivity(userId, pageable));
+    }
+
+    private void validatePageParams(int page, int size) {
+        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
+            throw new DevpickException(ErrorCode.INVALID_INPUT);
+        }
     }
 }
