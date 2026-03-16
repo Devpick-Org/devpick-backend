@@ -1,6 +1,7 @@
 package com.devpick.domain.user.service;
 
 import com.devpick.domain.user.dto.LoginResponse;
+import com.devpick.domain.user.dto.SocialLoginResponse;
 import com.devpick.domain.user.entity.RefreshToken;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.RefreshTokenRepository;
@@ -28,20 +29,11 @@ public class TokenService {
     private final RefreshTokenRepository refreshTokenRepository;
 
     /**
-     * 로그인/소셜 로그인 공통 토큰 발급.
-     * AuthService, SocialAuthService에서 중복되던 발급 로직을 위임받아 처리한다.
+     * 일반(이메일) 로그인 토큰 발급.
+     * AuthService에서 호출한다.
      */
     @Transactional
     public LoginResponse issueTokenPair(User user) {
-        return issueTokenPair(user, false);
-    }
-
-    /**
-     * 소셜 로그인 토큰 발급 — isNewUser 플래그 지원 (DP-284).
-     * 신규 가입 여부에 따라 LoginResponse.ofNewUser() / LoginResponse.of() 를 선택한다.
-     */
-    @Transactional
-    public LoginResponse issueTokenPair(User user, boolean isNewUser) {
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId());
         String refreshToken = jwtTokenProvider.generateRefreshToken();
 
@@ -52,9 +44,26 @@ public class TokenService {
                 .expiresAt(jwtTokenProvider.getRefreshTokenExpiresAt())
                 .build());
 
-        return isNewUser
-                ? LoginResponse.ofNewUser(accessToken, refreshToken, user)
-                : LoginResponse.of(accessToken, refreshToken, user);
+        return LoginResponse.of(accessToken, refreshToken, user);
+    }
+
+    /**
+     * 소셜 로그인 토큰 발급 — isNewUser 플래그 포함 (DP-284).
+     * SocialAuthService에서 호출한다.
+     */
+    @Transactional
+    public SocialLoginResponse issueTokenPairForSocial(User user, boolean isNewUser) {
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId());
+        String refreshToken = jwtTokenProvider.generateRefreshToken();
+
+        refreshTokenRepository.deleteByUser(user);
+        refreshTokenRepository.save(RefreshToken.builder()
+                .user(user)
+                .token(refreshToken)
+                .expiresAt(jwtTokenProvider.getRefreshTokenExpiresAt())
+                .build());
+
+        return SocialLoginResponse.of(accessToken, refreshToken, user, isNewUser);
     }
 
     /**
