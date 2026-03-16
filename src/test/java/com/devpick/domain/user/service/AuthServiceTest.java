@@ -234,7 +234,7 @@ class AuthServiceTest {
         User deletedUser = User.createVerifiedEmailUser("deleted@devpick.kr", "encodedPassword", "탈퇴자");
         deletedUser.softDelete();
         LoginResponse mockResponse = new LoginResponse(
-                "accessToken", UUID.randomUUID(), "deleted@devpick.kr", "탈퇴자", false, "refreshToken");
+                "accessToken", UUID.randomUUID(), "deleted@devpick.kr", "탈퇴자", "refreshToken");
         given(userRepository.findByEmail(request.email())).willReturn(Optional.of(deletedUser));
         given(passwordEncoder.matches(request.password(), deletedUser.getPasswordHash())).willReturn(true);
         given(tokenService.issueTokenPair(deletedUser)).willReturn(mockResponse);
