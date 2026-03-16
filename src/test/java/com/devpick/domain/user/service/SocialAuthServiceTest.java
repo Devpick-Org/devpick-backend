@@ -212,6 +212,124 @@ class SocialAuthServiceTest {
                 .isEqualTo(ErrorCode.AUTH_SOCIAL_GOOGLE_EMAIL_REQUIRED);
     }
 
+    // ── login - 탈퇴 계정 처리 (소셜 계정 기존 존재) ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("소셜 로그인 — 기존 소셜 계정의 유저가 탈퇴 후 7일 이내이면 자동 복구 후 로그인된다")
+    void login_existingAccountRecoverable_reactivatesAndLogsIn() {
+        // given
+        GitHubUserInfo userInfo = new GitHubUserInfo("12345", "hayoung", "hayoung@test.com", "하영", null);
+        User deletedUser = User.createVerifiedEmailUser("hayoung@test.com", "encoded", "하영");
+        deletedUser.softDelete();
+        SocialAccount socialAccount = SocialAccount.builder()
+                .user(deletedUser).provider("github").providerId("12345").build();
+        SocialLoginResponse expected = new SocialLoginResponse(
+                "access-token", UUID.randomUUID(), "hayoung@test.com", "하영", false, "refresh-token");
+
+        given(gitHubClient.exchangeToken("code")).willReturn("github-token");
+        given(gitHubClient.fetchUserInfo("github-token")).willReturn(userInfo);
+        given(socialAccountRepository.findByProviderAndProviderId("github", "12345"))
+                .willReturn(Optional.of(socialAccount));
+        given(tokenService.issueTokenPairForSocial(deletedUser, false)).willReturn(expected);
+
+        // when
+        SocialLoginResponse response = socialAuthService.login("github", "code", "valid-state");
+
+        // then
+        assertThat(deletedUser.getIsActive()).isTrue();
+        assertThat(deletedUser.getDeletedAt()).isNull();
+        assertThat(response.isNewUser()).isFalse();
+    }
+
+    @Test
+    @DisplayName("소셜 로그인 — 기존 소셜 계정의 유저가 탈퇴 후 7일 경과이면 익명화 후 신규 계정으로 로그인된다")
+    void login_existingAccountExpired_anonymizesAndCreatesNewUser() throws Exception {
+        // given
+        GitHubUserInfo userInfo = new GitHubUserInfo("12345", "hayoung", "hayoung@test.com", "하영", null);
+        User expiredUser = User.createVerifiedEmailUser("hayoung@test.com", "encoded", "하영");
+        expiredUser.softDelete();
+        java.lang.reflect.Field field = User.class.getDeclaredField("deletedAt");
+        field.setAccessible(true);
+        field.set(expiredUser, java.time.LocalDateTime.now().minusDays(8));
+        SocialAccount socialAccount = SocialAccount.builder()
+                .user(expiredUser).provider("github").providerId("12345").build();
+        User newUser = User.createSocialUser("hayoung@test.com", "하영2");
+        SocialLoginResponse expected = new SocialLoginResponse(
+                "access-token", UUID.randomUUID(), "hayoung@test.com", "하영2", true, "refresh-token");
+
+        given(gitHubClient.exchangeToken("code")).willReturn("github-token");
+        given(gitHubClient.fetchUserInfo("github-token")).willReturn(userInfo);
+        given(socialAccountRepository.findByProviderAndProviderId("github", "12345"))
+                .willReturn(Optional.of(socialAccount));
+        given(userRepository.findByEmail("hayoung@test.com")).willReturn(Optional.empty());
+        given(nicknameGenerator.generate(userInfo)).willReturn("하영2");
+        given(userRepository.save(any(User.class))).willReturn(newUser);
+        given(tokenService.issueTokenPairForSocial(any(User.class), any(Boolean.class))).willReturn(expected);
+
+        // when
+        SocialLoginResponse response = socialAuthService.login("github", "code", "valid-state");
+
+        // then
+        assertThat(expiredUser.getEmail()).startsWith("deleted_");
+        assertThat(response.isNewUser()).isTrue();
+        verify(socialAccountRepository).delete(socialAccount);
+    }
+
+    // ── login - 탈퇴 계정 처리 (소셜 계정 신규, 이메일 기존 존재) ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("소셜 신규 가입 — 이메일 탈퇴 계정이 7일 이내면 AUTH_ACCOUNT_RECOVERABLE 예외가 발생한다")
+    void registerNewSocialUser_recoverableEmailExists_throwsRecoverable() {
+        // given
+        GitHubUserInfo userInfo = new GitHubUserInfo("99999", "hayoung", "hayoung@test.com", "하영", null);
+        User recoverableUser = User.createVerifiedEmailUser("hayoung@test.com", "encoded", "하영");
+        recoverableUser.softDelete();
+
+        given(gitHubClient.exchangeToken("code")).willReturn("github-token");
+        given(gitHubClient.fetchUserInfo("github-token")).willReturn(userInfo);
+        given(socialAccountRepository.findByProviderAndProviderId("github", "99999"))
+                .willReturn(Optional.empty());
+        given(userRepository.findByEmail("hayoung@test.com")).willReturn(Optional.of(recoverableUser));
+
+        // when & then
+        assertThatThrownBy(() -> socialAuthService.login("github", "code", "valid-state"))
+                .isInstanceOf(DevpickException.class)
+                .extracting(e -> ((DevpickException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AUTH_ACCOUNT_RECOVERABLE);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("소셜 신규 가입 — 이메일 탈퇴 계정이 7일 경과이면 익명화 후 신규 가입된다")
+    void registerNewSocialUser_expiredEmailExists_anonymizesAndCreatesNew() throws Exception {
+        // given
+        GitHubUserInfo userInfo = new GitHubUserInfo("99998", "hayoung", "hayoung@test.com", "하영", null);
+        User expiredUser = User.createVerifiedEmailUser("hayoung@test.com", "encoded", "하영");
+        expiredUser.softDelete();
+        java.lang.reflect.Field field = User.class.getDeclaredField("deletedAt");
+        field.setAccessible(true);
+        field.set(expiredUser, java.time.LocalDateTime.now().minusDays(8));
+        User newUser = User.createSocialUser("hayoung@test.com", "하영2");
+        SocialLoginResponse expected = new SocialLoginResponse(
+                "access-token", UUID.randomUUID(), "hayoung@test.com", "하영2", true, "refresh-token");
+
+        given(gitHubClient.exchangeToken("code")).willReturn("github-token");
+        given(gitHubClient.fetchUserInfo("github-token")).willReturn(userInfo);
+        given(socialAccountRepository.findByProviderAndProviderId("github", "99998"))
+                .willReturn(Optional.empty());
+        given(userRepository.findByEmail("hayoung@test.com")).willReturn(Optional.of(expiredUser));
+        given(nicknameGenerator.generate(userInfo)).willReturn("하영2");
+        given(userRepository.save(any(User.class))).willReturn(newUser);
+        given(tokenService.issueTokenPairForSocial(any(User.class), any(Boolean.class))).willReturn(expected);
+
+        // when
+        SocialLoginResponse response = socialAuthService.login("github", "code", "valid-state");
+
+        // then
+        assertThat(expiredUser.getEmail()).startsWith("deleted_");
+        assertThat(response.isNewUser()).isTrue();
+    }
+
     // ── state 검증 ──────────────────────────────────────────────
 
     @Test
