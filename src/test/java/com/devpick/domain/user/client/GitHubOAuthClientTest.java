@@ -253,6 +253,31 @@ class GitHubOAuthClientTest {
     }
 
     @Test
+    @DisplayName("fetchUserInfo - email이 null이고 /user/emails 응답이 빈 리스트이면 email=null 반환")
+    void fetchUserInfo_emailNull_fallbackEmptyList_returnsNullEmail() {
+        GitHubUserInfo nullEmailUserInfo = new GitHubUserInfo("12345", "hayoung", null, "하영", null);
+
+        WebClient.RequestHeadersUriSpec getSpec2 = mock(WebClient.RequestHeadersUriSpec.class);
+        WebClient.RequestHeadersSpec getHeadersSpec2 = mock(WebClient.RequestHeadersSpec.class);
+        WebClient.ResponseSpec responseSpec2 = mock(WebClient.ResponseSpec.class);
+
+        when(webClient.get()).thenReturn(getSpec).thenReturn(getSpec2);
+        when(getSpec.uri(anyString())).thenReturn(getHeadersSpec);
+        when(getHeadersSpec.header(anyString(), anyString())).thenReturn(getHeadersSpec);
+        when(getHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(GitHubUserInfo.class)).thenReturn(Mono.just(nullEmailUserInfo));
+
+        when(getSpec2.uri(anyString())).thenReturn(getHeadersSpec2);
+        when(getHeadersSpec2.header(anyString(), anyString())).thenReturn(getHeadersSpec2);
+        when(getHeadersSpec2.retrieve()).thenReturn(responseSpec2);
+        when(responseSpec2.bodyToFlux(GitHubEmailEntry.class)).thenReturn(Flux.empty());
+
+        GitHubUserInfo result = (GitHubUserInfo) gitHubOAuthClient.fetchUserInfo("access-token");
+
+        assertThat(result.email()).isNull();
+    }
+
+    @Test
     @DisplayName("fetchUserInfo - email이 null이고 /user/emails 호출 실패 시 email=null 반환 (validateEmail에서 처리)")
     void fetchUserInfo_emailNull_fallbackWebClientException_returnsNullEmail() {
         GitHubUserInfo nullEmailUserInfo = new GitHubUserInfo("12345", "hayoung", null, "하영", null);
