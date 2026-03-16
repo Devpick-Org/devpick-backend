@@ -6,6 +6,7 @@ import com.devpick.domain.user.dto.EmailVerifyRequest;
 import com.devpick.domain.user.dto.LoginRequest;
 import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.OAuthAuthorizationResponse;
+import com.devpick.domain.user.dto.RecoverRequest;
 import com.devpick.domain.user.dto.SocialLoginResponse;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
@@ -105,6 +106,21 @@ public class AuthController {
         String[] tokens = tokenService.reissueTokens(refreshToken);
         setRefreshTokenCookie(response, tokens[1]);
         return ApiResponse.ok(new TokenResponse(tokens[0]));
+    }
+
+    @Operation(summary = "탈퇴 계정 복구", description = "탈퇴 후 7일 이내 이메일/비밀번호로 계정을 복구합니다. 복구 성공 시 즉시 로그인됩니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "복구 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "비밀번호 불일치"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "410", description = "복구 기간(7일) 만료")
+    })
+    @PostMapping("/recover")
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<LoginResponse> recover(@RequestBody @Valid RecoverRequest request,
+                                              HttpServletResponse response) {
+        LoginResponse loginResponse = authService.recover(request);
+        setRefreshTokenCookie(response, loginResponse.refreshTokenValue());
+        return ApiResponse.ok(loginResponse);
     }
 
     @Operation(summary = "이메일 인증 코드 발송", description = "입력한 이메일로 6자리 인증 코드를 발송합니다. 5분 내 유효합니다.")

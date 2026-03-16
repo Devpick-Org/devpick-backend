@@ -68,15 +68,41 @@ public class SocialAuthService {
         Optional<SocialAccount> existingAccount =
                 socialAccountRepository.findByProviderAndProviderId(provider, userInfo.getProviderId());
 
-        boolean isNewUser = existingAccount.isEmpty();
-        User user = existingAccount
-                .map(SocialAccount::getUser)
-                .orElseGet(() -> registerNewSocialUser(provider, userInfo));
+        User user;
+        boolean isNewUser;
+
+        if (existingAccount.isPresent()) {
+            user = existingAccount.get().getUser();
+            isNewUser = false;
+            if (!user.getIsActive()) {
+                if (user.isRecoverable()) {
+                    user.reactivate();
+                } else {
+                    user.anonymize();
+                    socialAccountRepository.delete(existingAccount.get());
+                    user = registerNewSocialUser(provider, userInfo);
+                    isNewUser = true;
+                }
+            }
+        } else {
+            user = registerNewSocialUser(provider, userInfo);
+            isNewUser = true;
+        }
 
         return tokenService.issueTokenPairForSocial(user, isNewUser);
     }
 
     private User registerNewSocialUser(String provider, OAuthUserInfo userInfo) {
+        // 같은 이메일의 탈퇴 계정이 있으면 처리 (이메일 가입 후 소셜 로그인 시도 등)
+        userRepository.findByEmail(userInfo.getEmail()).ifPresent(existing -> {
+            if (!existing.getIsActive()) {
+                if (existing.isRecoverable()) {
+                    throw new DevpickException(ErrorCode.AUTH_ACCOUNT_RECOVERABLE);
+                }
+                existing.anonymize();
+            }
+        });
+
         String nickname = nicknameGenerator.generate(userInfo);
         User newUser = User.createSocialUser(userInfo.getEmail(), nickname);
         userRepository.save(newUser);

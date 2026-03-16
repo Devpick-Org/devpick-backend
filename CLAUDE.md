@@ -61,7 +61,7 @@ PR 생성 전 **아래 항목을 코드에서 직접 눈으로 확인**한다:
 
 ### CI/CD 자동 머지 — 필수 통과 조건
 
-`auto/feature/DP-*` 브랜치는 아래 **두 GitHub Actions job이 모두 초록색**이어야 자동 머지됨:
+`auto/feature/DP-*` 및 `auto/fix/DP-*` 브랜치는 아래 **두 GitHub Actions job이 모두 초록색**이어야 자동 머지됨:
 
 | Job | 파일 | 블로킹 조건 |
 |-----|------|------------|
@@ -167,7 +167,8 @@ git checkout -b feature/DP-177-이메일-회원가입-API
 | `main` | 배포용. 직접 push 절대 금지 |
 | `develop` | 개발 통합. PR 머지 대상 |
 | `feature/DP-{번호}-{기능명}` | 기능 개발 (사람이 직접 작업) |
-| `auto/feature/DP-{번호}-{기능명}` | Claude Code 자동화 작업. CI 통과 시 develop에 자동 머지 |
+| `auto/feature/DP-{번호}-{기능명}` | Claude Code 신규 기능 자동화. CI 통과 시 develop에 자동 머지 |
+| `auto/fix/DP-{번호}-{설명}` | Claude Code 버그 수정 자동화. CI 통과 시 develop에 자동 머지 |
 | `hotfix/DP-{번호}-{설명}` | 긴급 버그 수정 |
 
 ### 커밋 메시지
@@ -512,7 +513,8 @@ class AuthControllerTest {
 
 | 브랜치 | 생성 주체 | 머지 방식 |
 |--------|-----------|-----------|
-| `auto/feature/DP-{번호}-{기능명}` | Claude Code | CI 통과 시 자동 squash 머지 |
+| `auto/feature/DP-{번호}-{기능명}` | Claude Code (신규 기능) | CI 통과 시 자동 squash 머지 |
+| `auto/fix/DP-{번호}-{설명}` | Claude Code (버그 수정) | CI 통과 시 자동 squash 머지 |
 | `feature/DP-{번호}-{기능명}` | 개발자 직접 | PR 확인 후 수동 머지 |
 | `hotfix/DP-{번호}-{설명}` | 개발자 직접 | PR 확인 후 수동 머지 |
 
@@ -525,7 +527,7 @@ class AuthControllerTest {
 자동으로 하는 것:
 - Jira MCP로 티켓 제목 · 설명 · 인수조건(AC) 읽기
 - 티켓 상태 자동 전환: To Do → In Progress → Done
-- `auto/feature/DP-{번호}-{기능명}` 브랜치 생성
+- `auto/feature/DP-{번호}-{기능명}` (신규 기능) 또는 `auto/fix/DP-{번호}-{설명}` (버그 수정) 브랜치 생성
 - AC 항목을 테스트 케이스로 변환해 JUnit 5 테스트 작성
 - PR 생성 (Jira 링크 자동 삽입)
 - PR diff 기반 코드 자동 리뷰

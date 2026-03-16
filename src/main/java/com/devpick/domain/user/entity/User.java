@@ -119,4 +119,25 @@ public class User extends BaseTimeEntity {
         this.isActive = false;
         this.deletedAt = LocalDateTime.now();
     }
+
+    /** 탈퇴 후 7일 이내 계정 복구. */
+    public void reactivate() {
+        this.isActive = true;
+        this.deletedAt = null;
+    }
+
+    /** 탈퇴 후 7일 경과 시 이메일/닉네임 익명화 — UNIQUE 컬럼 해제. */
+    public void anonymize() {
+        this.email = "deleted_" + java.util.UUID.randomUUID() + "@devpick.kr";
+        this.nickname = "탈퇴유저_" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        this.profileImage = null;
+        this.passwordHash = null;
+    }
+
+    /** 복구 가능 여부 (탈퇴 후 7일 이내). */
+    public boolean isRecoverable() {
+        return Boolean.FALSE.equals(this.isActive)
+                && this.deletedAt != null
+                && this.deletedAt.plusDays(7).isAfter(LocalDateTime.now());
+    }
 }
