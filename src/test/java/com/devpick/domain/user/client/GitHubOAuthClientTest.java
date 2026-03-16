@@ -1,5 +1,6 @@
 package com.devpick.domain.user.client;
 
+import com.devpick.domain.user.dto.GitHubEmailEntry;
 import com.devpick.domain.user.dto.GitHubTokenResponse;
 import com.devpick.domain.user.dto.GitHubUserInfo;
 import com.devpick.global.common.exception.DevpickException;
@@ -11,9 +12,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.lang.reflect.Field;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -193,6 +196,86 @@ class GitHubOAuthClientTest {
                 .isInstanceOf(DevpickException.class)
                 .extracting(e -> ((DevpickException) e).getErrorCode())
                 .isEqualTo(ErrorCode.AUTH_SOCIAL_GITHUB_FAILED);
+    }
+
+    @Test
+    @DisplayName("fetchUserInfo - email이 null이면 /user/emails API로 primary+verified 이메일을 조회한다")
+    void fetchUserInfo_emailNull_fallbackToEmails_success() {
+        GitHubUserInfo nullEmailUserInfo = new GitHubUserInfo("12345", "hayoung", null, "하영", null);
+        GitHubEmailEntry primaryEmail = new GitHubEmailEntry("hayoung@private.com", true, true, "private");
+        GitHubEmailEntry otherEmail = new GitHubEmailEntry("other@test.com", true, false, "public");
+
+        WebClient.RequestHeadersUriSpec getSpec2 = mock(WebClient.RequestHeadersUriSpec.class);
+        WebClient.RequestHeadersSpec getHeadersSpec2 = mock(WebClient.RequestHeadersSpec.class);
+        WebClient.ResponseSpec responseSpec2 = mock(WebClient.ResponseSpec.class);
+
+        when(webClient.get()).thenReturn(getSpec).thenReturn(getSpec2);
+        when(getSpec.uri(anyString())).thenReturn(getHeadersSpec);
+        when(getHeadersSpec.header(anyString(), anyString())).thenReturn(getHeadersSpec);
+        when(getHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(GitHubUserInfo.class)).thenReturn(Mono.just(nullEmailUserInfo));
+
+        when(getSpec2.uri(anyString())).thenReturn(getHeadersSpec2);
+        when(getHeadersSpec2.header(anyString(), anyString())).thenReturn(getHeadersSpec2);
+        when(getHeadersSpec2.retrieve()).thenReturn(responseSpec2);
+        when(responseSpec2.bodyToFlux(GitHubEmailEntry.class)).thenReturn(Flux.fromIterable(List.of(otherEmail, primaryEmail)));
+
+        GitHubUserInfo result = (GitHubUserInfo) gitHubOAuthClient.fetchUserInfo("access-token");
+
+        assertThat(result.email()).isEqualTo("hayoung@private.com");
+        assertThat(result.id()).isEqualTo("12345");
+    }
+
+    @Test
+    @DisplayName("fetchUserInfo - email이 null이고 /user/emails에 primary+verified 없으면 email=null 반환")
+    void fetchUserInfo_emailNull_fallbackNoValidEmail_returnsNullEmail() {
+        GitHubUserInfo nullEmailUserInfo = new GitHubUserInfo("12345", "hayoung", null, "하영", null);
+        GitHubEmailEntry unverified = new GitHubEmailEntry("hayoung@unverified.com", false, true, "private");
+
+        WebClient.RequestHeadersUriSpec getSpec2 = mock(WebClient.RequestHeadersUriSpec.class);
+        WebClient.RequestHeadersSpec getHeadersSpec2 = mock(WebClient.RequestHeadersSpec.class);
+        WebClient.ResponseSpec responseSpec2 = mock(WebClient.ResponseSpec.class);
+
+        when(webClient.get()).thenReturn(getSpec).thenReturn(getSpec2);
+        when(getSpec.uri(anyString())).thenReturn(getHeadersSpec);
+        when(getHeadersSpec.header(anyString(), anyString())).thenReturn(getHeadersSpec);
+        when(getHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(GitHubUserInfo.class)).thenReturn(Mono.just(nullEmailUserInfo));
+
+        when(getSpec2.uri(anyString())).thenReturn(getHeadersSpec2);
+        when(getHeadersSpec2.header(anyString(), anyString())).thenReturn(getHeadersSpec2);
+        when(getHeadersSpec2.retrieve()).thenReturn(responseSpec2);
+        when(responseSpec2.bodyToFlux(GitHubEmailEntry.class)).thenReturn(Flux.just(unverified));
+
+        GitHubUserInfo result = (GitHubUserInfo) gitHubOAuthClient.fetchUserInfo("access-token");
+
+        assertThat(result.email()).isNull();
+    }
+
+    @Test
+    @DisplayName("fetchUserInfo - email이 null이고 /user/emails 호출 실패 시 email=null 반환 (validateEmail에서 처리)")
+    void fetchUserInfo_emailNull_fallbackWebClientException_returnsNullEmail() {
+        GitHubUserInfo nullEmailUserInfo = new GitHubUserInfo("12345", "hayoung", null, "하영", null);
+
+        WebClient.RequestHeadersUriSpec getSpec2 = mock(WebClient.RequestHeadersUriSpec.class);
+        WebClient.RequestHeadersSpec getHeadersSpec2 = mock(WebClient.RequestHeadersSpec.class);
+        WebClient.ResponseSpec responseSpec2 = mock(WebClient.ResponseSpec.class);
+
+        when(webClient.get()).thenReturn(getSpec).thenReturn(getSpec2);
+        when(getSpec.uri(anyString())).thenReturn(getHeadersSpec);
+        when(getHeadersSpec.header(anyString(), anyString())).thenReturn(getHeadersSpec);
+        when(getHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(GitHubUserInfo.class)).thenReturn(Mono.just(nullEmailUserInfo));
+
+        when(getSpec2.uri(anyString())).thenReturn(getHeadersSpec2);
+        when(getHeadersSpec2.header(anyString(), anyString())).thenReturn(getHeadersSpec2);
+        when(getHeadersSpec2.retrieve()).thenReturn(responseSpec2);
+        when(responseSpec2.bodyToFlux(GitHubEmailEntry.class))
+                .thenThrow(WebClientResponseException.create(403, "Forbidden", null, null, null));
+
+        GitHubUserInfo result = (GitHubUserInfo) gitHubOAuthClient.fetchUserInfo("access-token");
+
+        assertThat(result.email()).isNull();
     }
 
     // ── stub helpers ──────────────────────────────────────────────

@@ -1,5 +1,6 @@
 package com.devpick.domain.user.client;
 
+import com.devpick.domain.user.dto.GitHubEmailEntry;
 import com.devpick.domain.user.dto.GitHubTokenResponse;
 import com.devpick.domain.user.dto.GitHubUserInfo;
 import com.devpick.domain.user.dto.OAuthUserInfo;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -103,7 +105,7 @@ public class GitHubOAuthClient implements OAuthProviderClient {
 
     /**
      * GitHub Access Token → GitHub 사용자 정보 조회 (DP-183).
-     * 코버리언트 반환 타입: OAuthProviderClient 인터페이스 상속을 유지하면서 GitHubUserInfo를 직접 반환.
+     * 이메일 비공개 설정 사용자는 /user 응답에서 email이 null → /user/emails fallback 호출.
      */
     @Override
     public GitHubUserInfo fetchUserInfo(String accessToken) {
@@ -118,11 +120,46 @@ public class GitHubOAuthClient implements OAuthProviderClient {
             if (userInfo == null) {
                 throw new DevpickException(ErrorCode.AUTH_SOCIAL_GITHUB_FAILED);
             }
+
+            // 이메일 비공개 설정 시 email == null → /user/emails API로 primary+verified 이메일 조회
+            if (userInfo.email() == null) {
+                String primaryEmail = fetchPrimaryEmail(accessToken);
+                return new GitHubUserInfo(userInfo.id(), userInfo.login(), primaryEmail, userInfo.name(), userInfo.avatarUrl());
+            }
+
             return userInfo;
         } catch (DevpickException e) {
             throw e;
         } catch (WebClientResponseException e) {
             throw new DevpickException(ErrorCode.AUTH_SOCIAL_GITHUB_FAILED);
+        }
+    }
+
+    /**
+     * GitHub /user/emails API 호출 → primary + verified 이메일 반환.
+     * 조회 실패 시 null 반환 (호출부에서 validateEmail이 에러 처리).
+     */
+    private String fetchPrimaryEmail(String accessToken) {
+        try {
+            List<GitHubEmailEntry> emails = webClient.get()
+                    .uri(userUrl + "/emails")
+                    .header(HttpHeaders.AUTHORIZATION, "token " + accessToken)
+                    .retrieve()
+                    .bodyToFlux(GitHubEmailEntry.class)
+                    .collectList()
+                    .block();
+
+            if (emails == null || emails.isEmpty()) {
+                return null;
+            }
+
+            return emails.stream()
+                    .filter(e -> e.primary() && e.verified())
+                    .map(GitHubEmailEntry::email)
+                    .findFirst()
+                    .orElse(null);
+        } catch (WebClientResponseException e) {
+            return null;
         }
     }
 
