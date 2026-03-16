@@ -1,10 +1,12 @@
 package com.devpick.domain.user.controller;
 
+
 import com.devpick.domain.user.dto.EmailSendRequest;
 import com.devpick.domain.user.dto.EmailVerifyRequest;
 import com.devpick.domain.user.dto.LoginRequest;
 import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.OAuthAuthorizationResponse;
+import com.devpick.domain.user.dto.SocialLoginResponse;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.dto.TokenResponse;
@@ -157,11 +159,11 @@ public class AuthController {
     })
     @GetMapping("/github/callback")
     @ResponseStatus(HttpStatus.OK)
-    public ApiResponse<LoginResponse> githubCallback(
+    public ApiResponse<SocialLoginResponse> githubCallback(
             @Parameter(description = "GitHub OAuth 인가 코드", required = true) @RequestParam String code,
             @Parameter(description = "CSRF 방지 state 파라미터", required = true) @RequestParam String state,
             HttpServletResponse response) {
-        LoginResponse loginResponse = socialAuthService.login("github", code, state);
+        SocialLoginResponse loginResponse = socialAuthService.login("github", code, state);
         setRefreshTokenCookie(response, loginResponse.refreshTokenValue());
         return ApiResponse.ok(loginResponse);
     }
@@ -174,11 +176,11 @@ public class AuthController {
     })
     @GetMapping("/google/callback")
     @ResponseStatus(HttpStatus.OK)
-    public ApiResponse<LoginResponse> googleCallback(
+    public ApiResponse<SocialLoginResponse> googleCallback(
             @Parameter(description = "Google OAuth 인가 코드", required = true) @RequestParam String code,
             @Parameter(description = "CSRF 방지 state 파라미터", required = true) @RequestParam String state,
             HttpServletResponse response) {
-        LoginResponse loginResponse = socialAuthService.login("google", code, state);
+        SocialLoginResponse loginResponse = socialAuthService.login("google", code, state);
         setRefreshTokenCookie(response, loginResponse.refreshTokenValue());
         return ApiResponse.ok(loginResponse);
     }

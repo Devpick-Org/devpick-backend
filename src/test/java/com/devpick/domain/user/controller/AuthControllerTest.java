@@ -3,6 +3,7 @@ package com.devpick.domain.user.controller;
 import com.devpick.domain.user.dto.LoginRequest;
 import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.OAuthAuthorizationResponse;
+import com.devpick.domain.user.dto.SocialLoginResponse;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.dto.TokenResponse;
@@ -112,7 +113,7 @@ class AuthControllerTest {
     void login_success() throws Exception {
         LoginRequest request = new LoginRequest("test@devpick.kr", "password123!");
         LoginResponse response = new LoginResponse(
-                "access-token", UUID.randomUUID(), "test@devpick.kr", "하영", false, "refresh-token");
+                "access-token", UUID.randomUUID(), "test@devpick.kr", "하영", "refresh-token");
         given(authService.login(any(LoginRequest.class))).willReturn(response);
 
         mockMvc.perform(post("/auth/login")
@@ -311,7 +312,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("GET /auth/github/callback - 유효한 인가 코드와 state로 200, accessToken(바디), refreshToken(Cookie)을 반환한다")
     void githubCallback_success() throws Exception {
-        LoginResponse response = new LoginResponse(
+        SocialLoginResponse response = new SocialLoginResponse(
                 "access-token", UUID.randomUUID(), "hayoung@test.com", "하영", false, "refresh-token");
         given(socialAuthService.login(anyString(), anyString(), anyString())).willReturn(response);
 
@@ -370,7 +371,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("GET /auth/google/callback - 유효한 인가 코드와 state로 200, accessToken(바디), refreshToken(Cookie)을 반환한다")
     void googleCallback_success() throws Exception {
-        LoginResponse response = new LoginResponse(
+        SocialLoginResponse response = new SocialLoginResponse(
                 "access-token", UUID.randomUUID(), "hayoung@gmail.com", "하영", false, "refresh-token");
         given(socialAuthService.login(anyString(), anyString(), anyString())).willReturn(response);
 

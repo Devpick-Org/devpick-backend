@@ -2,7 +2,7 @@ package com.devpick.domain.user.service;
 
 import com.devpick.domain.user.client.OAuthProviderClient;
 import com.devpick.domain.user.dto.GitHubUserInfo;
-import com.devpick.domain.user.dto.LoginResponse;
+import com.devpick.domain.user.dto.SocialLoginResponse;
 import com.devpick.domain.user.dto.OAuthAuthorizationResponse;
 import com.devpick.domain.user.dto.GoogleUserInfo;
 import com.devpick.domain.user.entity.SocialAccount;
@@ -103,16 +103,16 @@ class SocialAuthServiceTest {
         User existingUser = User.createSocialUser("hayoung@test.com", "하영");
         SocialAccount socialAccount = SocialAccount.builder()
                 .user(existingUser).provider("github").providerId("12345").build();
-        LoginResponse expected = new LoginResponse(
+        SocialLoginResponse expected = new SocialLoginResponse(
                 "access-token", UUID.randomUUID(), "hayoung@test.com", "하영", false, "refresh-token");
 
         given(gitHubClient.exchangeToken("auth-code")).willReturn("github-access-token");
         given(gitHubClient.fetchUserInfo("github-access-token")).willReturn(userInfo);
         given(socialAccountRepository.findByProviderAndProviderId("github", "12345"))
                 .willReturn(Optional.of(socialAccount));
-        given(tokenService.issueTokenPair(existingUser, false)).willReturn(expected);
+        given(tokenService.issueTokenPairForSocial(existingUser, false)).willReturn(expected);
 
-        LoginResponse response = socialAuthService.login("github", "auth-code", "valid-state");
+        SocialLoginResponse response = socialAuthService.login("github", "auth-code", "valid-state");
 
         assertThat(response.isNewUser()).isFalse();
         verify(userRepository, never()).save(any());
@@ -125,7 +125,7 @@ class SocialAuthServiceTest {
     void login_github_newSocialAccount_createsUserAndReturnsIsNewUserTrue() {
         GitHubUserInfo userInfo = new GitHubUserInfo("99999", "newhayoung", "new@test.com", "New 하영", null);
         User newUser = User.createSocialUser("new@test.com", "New 하영");
-        LoginResponse expected = new LoginResponse(
+        SocialLoginResponse expected = new SocialLoginResponse(
                 "access-token", UUID.randomUUID(), "new@test.com", "New 하영", true, "refresh-token");
 
         given(gitHubClient.exchangeToken("new-code")).willReturn("github-token");
@@ -134,9 +134,9 @@ class SocialAuthServiceTest {
                 .willReturn(Optional.empty());
         given(nicknameGenerator.generate(userInfo)).willReturn("New 하영");
         given(userRepository.save(any(User.class))).willReturn(newUser);
-        given(tokenService.issueTokenPair(any(User.class), any(Boolean.class))).willReturn(expected);
+        given(tokenService.issueTokenPairForSocial(any(User.class), any(Boolean.class))).willReturn(expected);
 
-        LoginResponse response = socialAuthService.login("github", "new-code", "valid-state");
+        SocialLoginResponse response = socialAuthService.login("github", "new-code", "valid-state");
 
         assertThat(response.isNewUser()).isTrue();
         verify(userRepository).save(any(User.class));
@@ -184,16 +184,16 @@ class SocialAuthServiceTest {
         User existingUser = User.createSocialUser("hayoung@gmail.com", "하영");
         SocialAccount socialAccount = SocialAccount.builder()
                 .user(existingUser).provider("google").providerId("google-123").build();
-        LoginResponse expected = new LoginResponse(
+        SocialLoginResponse expected = new SocialLoginResponse(
                 "access-token", UUID.randomUUID(), "hayoung@gmail.com", "하영", false, "refresh-token");
 
         given(googleClient.exchangeToken("google-code")).willReturn("google-access-token");
         given(googleClient.fetchUserInfo("google-access-token")).willReturn(userInfo);
         given(socialAccountRepository.findByProviderAndProviderId("google", "google-123"))
                 .willReturn(Optional.of(socialAccount));
-        given(tokenService.issueTokenPair(existingUser, false)).willReturn(expected);
+        given(tokenService.issueTokenPairForSocial(existingUser, false)).willReturn(expected);
 
-        LoginResponse response = socialAuthService.login("google", "google-code", "valid-state");
+        SocialLoginResponse response = socialAuthService.login("google", "google-code", "valid-state");
 
         assertThat(response.isNewUser()).isFalse();
     }
