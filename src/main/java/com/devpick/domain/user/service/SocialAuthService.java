@@ -1,7 +1,7 @@
 package com.devpick.domain.user.service;
 
 import com.devpick.domain.user.client.OAuthProviderClient;
-import com.devpick.domain.user.dto.LoginResponse;
+import com.devpick.domain.user.dto.SocialLoginResponse;
 import com.devpick.domain.user.dto.OAuthAuthorizationResponse;
 import com.devpick.domain.user.dto.OAuthUserInfo;
 import com.devpick.domain.user.entity.SocialAccount;
@@ -56,7 +56,7 @@ public class SocialAuthService {
      * 소셜 로그인 처리.
      */
     @Transactional
-    public LoginResponse login(String provider, String code, String state) {
+    public SocialLoginResponse login(String provider, String code, String state) {
         oAuthStateService.validateAndDeleteState(state);
 
         OAuthProviderClient client = findClient(provider);
@@ -73,7 +73,7 @@ public class SocialAuthService {
                 .map(SocialAccount::getUser)
                 .orElseGet(() -> registerNewSocialUser(provider, userInfo));
 
-        return tokenService.issueTokenPair(user, isNewUser);
+        return tokenService.issueTokenPairForSocial(user, isNewUser);
     }
 
     private User registerNewSocialUser(String provider, OAuthUserInfo userInfo) {

@@ -124,7 +124,7 @@ class AuthServiceTest {
         LoginRequest request = new LoginRequest("test@devpick.kr", "password123!");
         User user = User.createVerifiedEmailUser("test@devpick.kr", "encodedPassword", "하영");
         LoginResponse mockResponse = new LoginResponse(
-                "mockAccessToken", UUID.randomUUID(), user.getEmail(), user.getNickname(), false, "mockRefreshToken");
+                "mockAccessToken", UUID.randomUUID(), user.getEmail(), user.getNickname(), "mockRefreshToken");
 
         given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
         given(passwordEncoder.matches(request.password(), user.getPasswordHash())).willReturn(true);
@@ -137,7 +137,6 @@ class AuthServiceTest {
         assertThat(response.accessToken()).isEqualTo("mockAccessToken");
         assertThat(response.refreshTokenValue()).isEqualTo("mockRefreshToken");
         assertThat(response.email()).isEqualTo(request.email());
-        assertThat(response.isNewUser()).isFalse();
         verify(tokenService).issueTokenPair(user);
     }
 
