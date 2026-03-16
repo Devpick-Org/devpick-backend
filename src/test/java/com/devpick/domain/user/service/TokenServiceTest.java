@@ -1,6 +1,7 @@
 package com.devpick.domain.user.service;
 
 import com.devpick.domain.user.dto.LoginResponse;
+import com.devpick.domain.user.dto.SocialLoginResponse;
 import com.devpick.domain.user.entity.RefreshToken;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.RefreshTokenRepository;
@@ -123,6 +124,46 @@ class TokenServiceTest {
         tokenService.logout(userId);
 
         verify(refreshTokenRepository).deleteByUserId(userId);
+    }
+
+    // ── issueTokenPairForSocial ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("소셜 토큰 발급 (신규 유저) - isNewUser=true로 Access + Refresh Token 쌍이 발급되고 DB에 저장된다")
+    void issueTokenPairForSocial_newUser_success() throws Exception {
+        User user = createUser();
+        given(jwtTokenProvider.generateAccessToken(user.getId())).willReturn("access-token");
+        given(jwtTokenProvider.generateRefreshToken()).willReturn("refresh-token");
+        given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
+        given(refreshTokenRepository.save(any(RefreshToken.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        SocialLoginResponse response = tokenService.issueTokenPairForSocial(user, true);
+
+        assertThat(response.accessToken()).isEqualTo("access-token");
+        assertThat(response.refreshTokenValue()).isEqualTo("refresh-token");
+        assertThat(response.isNewUser()).isTrue();
+        verify(refreshTokenRepository).deleteByUser(user);
+        verify(refreshTokenRepository).save(any(RefreshToken.class));
+    }
+
+    @Test
+    @DisplayName("소셜 토큰 발급 (기존 유저) - isNewUser=false로 Access + Refresh Token 쌍이 발급된다")
+    void issueTokenPairForSocial_existingUser_success() throws Exception {
+        User user = createUser();
+        given(jwtTokenProvider.generateAccessToken(user.getId())).willReturn("access-token");
+        given(jwtTokenProvider.generateRefreshToken()).willReturn("refresh-token");
+        given(jwtTokenProvider.getRefreshTokenExpiresAt()).willReturn(LocalDateTime.now().plusDays(7));
+        given(refreshTokenRepository.save(any(RefreshToken.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        SocialLoginResponse response = tokenService.issueTokenPairForSocial(user, false);
+
+        assertThat(response.accessToken()).isEqualTo("access-token");
+        assertThat(response.isNewUser()).isFalse();
+        assertThat(response.userId()).isEqualTo(user.getId());
+        verify(refreshTokenRepository).deleteByUser(user);
+        verify(refreshTokenRepository).save(any(RefreshToken.class));
     }
 
     // ── 헬퍼 ──────────────────────────────────────────────
