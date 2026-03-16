@@ -4,11 +4,9 @@ import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
 import com.devpick.domain.user.entity.Tag;
 import com.devpick.domain.user.entity.User;
-import com.devpick.domain.user.entity.UserTag;
 import com.devpick.domain.user.repository.RefreshTokenRepository;
 import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.domain.user.repository.UserRepository;
-import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +22,6 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final TagRepository tagRepository;
-    private final UserTagRepository userTagRepository;
     private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional(readOnly = true)
@@ -45,11 +42,8 @@ public class UserService {
         user.updateProfile(request.nickname(), request.profileImage(), request.job(), request.level());
 
         if (request.tags() != null) {
-            userTagRepository.deleteByUserId(userId);
             List<Tag> tags = tagRepository.findByNameIn(request.tags());
-            tags.forEach(tag -> userTagRepository.save(
-                    UserTag.builder().user(user).tag(tag).build()
-            ));
+            user.updateTags(tags);
         }
 
         return UserProfileResponse.from(user);

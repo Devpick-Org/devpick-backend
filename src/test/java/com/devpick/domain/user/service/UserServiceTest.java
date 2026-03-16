@@ -6,11 +6,9 @@ import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.domain.user.entity.Tag;
 import com.devpick.domain.user.entity.User;
-import com.devpick.domain.user.entity.UserTag;
 import com.devpick.domain.user.repository.RefreshTokenRepository;
 import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.domain.user.repository.UserRepository;
-import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,8 +25,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -42,8 +40,6 @@ class UserServiceTest {
     private UserRepository userRepository;
     @Mock
     private TagRepository tagRepository;
-    @Mock
-    private UserTagRepository userTagRepository;
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
 
@@ -109,17 +105,31 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("updateProfile — 태그 변경 시 기존 태그 삭제 후 새 태그 저장")
-    void updateProfile_tags_deleteAndSave() {
+    @DisplayName("updateProfile — 태그 변경 시 응답에 새 태그가 포함된다")
+    void updateProfile_tags_returnsUpdatedTags() {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         Tag reactTag = Tag.builder().name("React").build();
         given(tagRepository.findByNameIn(List.of("React"))).willReturn(List.of(reactTag));
         UserProfileUpdateRequest request = new UserProfileUpdateRequest(null, null, null, null, List.of("React"));
 
-        userService.updateProfile(userId, request);
+        UserProfileResponse response = userService.updateProfile(userId, request);
 
-        verify(userTagRepository).deleteByUserId(userId);
-        verify(userTagRepository).save(any(UserTag.class));
+        assertThat(response.tags()).containsExactly("React");
+    }
+
+    @Test
+    @DisplayName("updateProfile — 태그 재설정 시 중복 없이 교체된다")
+    void updateProfile_tags_replacedWithoutDuplicate() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        Tag reactTag = Tag.builder().name("React").build();
+        Tag tsTag = Tag.builder().name("TypeScript").build();
+        given(tagRepository.findByNameIn(List.of("React", "TypeScript"))).willReturn(List.of(reactTag, tsTag));
+        UserProfileUpdateRequest request = new UserProfileUpdateRequest(null, null, null, null, List.of("React", "TypeScript"));
+
+        UserProfileResponse response = userService.updateProfile(userId, request);
+
+        assertThat(response.tags()).containsExactlyInAnyOrder("React", "TypeScript");
+        assertThat(response.tags()).doesNotHaveDuplicates();
     }
 
     @Test

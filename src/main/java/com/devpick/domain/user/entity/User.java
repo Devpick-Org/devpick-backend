@@ -108,6 +108,12 @@ public class User extends BaseTimeEntity {
         if (level != null) this.level = level;
     }
 
+    /** 태그 전체 교체 — orphanRemoval로 기존 레코드 삭제 후 신규 추가 (DP-187 버그 수정). */
+    public void updateTags(List<Tag> newTags) {
+        this.userTags.clear();
+        newTags.forEach(tag -> this.userTags.add(UserTag.builder().user(this).tag(tag).build()));
+    }
+
     /** 회원 탈퇴 소프트 삭제 (DP-189). */
     public void softDelete() {
         this.isActive = false;
