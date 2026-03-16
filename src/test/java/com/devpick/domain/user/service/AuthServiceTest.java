@@ -2,6 +2,7 @@ package com.devpick.domain.user.service;
 
 import com.devpick.domain.user.dto.LoginRequest;
 import com.devpick.domain.user.dto.LoginResponse;
+import com.devpick.domain.user.dto.RecoverRequest;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.entity.User;
@@ -52,8 +53,8 @@ class AuthServiceTest {
         // given
         SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영");
         given(emailVerificationRedisService.isVerified(request.email())).willReturn(true);
-        given(userRepository.existsByEmail(request.email())).willReturn(false);
-        given(userRepository.existsByNickname(request.nickname())).willReturn(false);
+        given(userRepository.findByEmail(request.email())).willReturn(java.util.Optional.empty());
+        given(userRepository.existsByNicknameAndIsActiveTrue(request.nickname())).willReturn(false);
         given(passwordEncoder.encode(request.password())).willReturn("encodedPassword");
         given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
@@ -83,12 +84,13 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("이메일 중복 — 이미 사용 중인 이메일로 가입 시 AUTH_DUPLICATE_EMAIL 예외가 발생한다")
+    @DisplayName("이메일 중복 — 활성 계정과 같은 이메일로 가입 시 AUTH_DUPLICATE_EMAIL 예외가 발생한다")
     void signup_duplicateEmail_throwsException() {
         // given
         SignupRequest request = new SignupRequest("duplicate@devpick.kr", "password123!", "하영");
+        User activeUser = User.createVerifiedEmailUser("duplicate@devpick.kr", "encoded", "기존닉");
         given(emailVerificationRedisService.isVerified(request.email())).willReturn(true);
-        given(userRepository.existsByEmail(request.email())).willReturn(true);
+        given(userRepository.findByEmail(request.email())).willReturn(java.util.Optional.of(activeUser));
 
         // when & then
         assertThatThrownBy(() -> authService.signup(request))
@@ -99,13 +101,31 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("닉네임 중복 — 이미 사용 중인 닉네임으로 가입 시 AUTH_DUPLICATE_NICKNAME 예외가 발생한다")
+    @DisplayName("탈퇴 후 7일 이내 가입 시도 — AUTH_ACCOUNT_RECOVERABLE 예외가 발생한다")
+    void signup_recoverableDeletedEmail_throwsRecoverable() {
+        // given
+        SignupRequest request = new SignupRequest("deleted@devpick.kr", "password123!", "새닉");
+        User deletedUser = User.createVerifiedEmailUser("deleted@devpick.kr", "encoded", "구닉");
+        deletedUser.softDelete(); // deletedAt = now, isRecoverable() = true
+        given(emailVerificationRedisService.isVerified(request.email())).willReturn(true);
+        given(userRepository.findByEmail(request.email())).willReturn(java.util.Optional.of(deletedUser));
+
+        // when & then
+        assertThatThrownBy(() -> authService.signup(request))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_ACCOUNT_RECOVERABLE));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("닉네임 중복 — 활성 계정과 같은 닉네임으로 가입 시 AUTH_DUPLICATE_NICKNAME 예외가 발생한다")
     void signup_duplicateNickname_throwsException() {
         // given
         SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "중복닉네임");
         given(emailVerificationRedisService.isVerified(request.email())).willReturn(true);
-        given(userRepository.existsByEmail(request.email())).willReturn(false);
-        given(userRepository.existsByNickname(request.nickname())).willReturn(true);
+        given(userRepository.findByEmail(request.email())).willReturn(java.util.Optional.empty());
+        given(userRepository.existsByNicknameAndIsActiveTrue(request.nickname())).willReturn(true);
 
         // when & then
         assertThatThrownBy(() -> authService.signup(request))
@@ -185,5 +205,66 @@ class AuthServiceTest {
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.AUTH_INVALID_PASSWORD));
+    }
+
+    @Test
+    @DisplayName("탈퇴 후 7일 이내 로그인 — AUTH_ACCOUNT_RECOVERABLE 예외가 발생한다")
+    void login_recoverableDeletedUser_throwsRecoverable() {
+        // given
+        LoginRequest request = new LoginRequest("deleted@devpick.kr", "password123!");
+        User deletedUser = User.createVerifiedEmailUser("deleted@devpick.kr", "encodedPassword", "탈퇴자");
+        deletedUser.softDelete();
+        given(userRepository.findByEmail(request.email())).willReturn(Optional.of(deletedUser));
+        given(passwordEncoder.matches(request.password(), deletedUser.getPasswordHash())).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_ACCOUNT_RECOVERABLE));
+    }
+
+    // ── recover ──────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("계정 복구 성공 — 7일 이내 올바른 비밀번호로 복구 시 isActive=true 및 토큰이 발급된다")
+    void recover_success() {
+        // given
+        RecoverRequest request = new RecoverRequest("deleted@devpick.kr", "password123!");
+        User deletedUser = User.createVerifiedEmailUser("deleted@devpick.kr", "encodedPassword", "탈퇴자");
+        deletedUser.softDelete();
+        LoginResponse mockResponse = new LoginResponse(
+                "accessToken", UUID.randomUUID(), "deleted@devpick.kr", "탈퇴자", false, "refreshToken");
+        given(userRepository.findByEmail(request.email())).willReturn(Optional.of(deletedUser));
+        given(passwordEncoder.matches(request.password(), deletedUser.getPasswordHash())).willReturn(true);
+        given(tokenService.issueTokenPair(deletedUser)).willReturn(mockResponse);
+
+        // when
+        LoginResponse response = authService.recover(request);
+
+        // then
+        assertThat(deletedUser.getIsActive()).isTrue();
+        assertThat(deletedUser.getDeletedAt()).isNull();
+        assertThat(response.accessToken()).isEqualTo("accessToken");
+    }
+
+    @Test
+    @DisplayName("복구 기간 만료 — 7일 경과 후 복구 시도 시 AUTH_ACCOUNT_DELETED 예외가 발생한다")
+    void recover_expiredAccount_throwsDeleted() throws Exception {
+        // given
+        RecoverRequest request = new RecoverRequest("deleted@devpick.kr", "password123!");
+        User deletedUser = User.createVerifiedEmailUser("deleted@devpick.kr", "encodedPassword", "탈퇴자");
+        deletedUser.softDelete();
+        // 8일 전으로 deletedAt 설정 (복구 기간 만료)
+        java.lang.reflect.Field field = User.class.getDeclaredField("deletedAt");
+        field.setAccessible(true);
+        field.set(deletedUser, java.time.LocalDateTime.now().minusDays(8));
+        given(userRepository.findByEmail(request.email())).willReturn(Optional.of(deletedUser));
+
+        // when & then
+        assertThatThrownBy(() -> authService.recover(request))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_ACCOUNT_DELETED));
     }
 }

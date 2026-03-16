@@ -26,7 +26,7 @@ public class GlobalExceptionHandler {
         log.warn("DevpickException: code={}, message={}", errorCode.getCode(), e.getMessage());
         return ResponseEntity
                 .status(errorCode.getHttpStatus())
-                .body(ApiResponse.fail(errorCode.getCode(), e.getMessage()));
+                .body(ApiResponse.fail(errorCode.getCode(), e.getMessage(), e.getDetail()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
