@@ -28,7 +28,8 @@ spring:
     password: ${MAIL_PASSWORD:}
     properties:
       mail.smtp.auth: true
-      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS_ENABLE:true}
+      mail.smtp.ssl.enable: ${MAIL_SSL_ENABLE:false}
 
 resend:
   api-key: ${RESEND_API_KEY}
