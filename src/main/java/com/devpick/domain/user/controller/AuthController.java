@@ -8,6 +8,7 @@ import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.OAuthAuthorizationResponse;
 import com.devpick.domain.user.dto.RecoverRequest;
 import com.devpick.domain.user.dto.SocialLoginResponse;
+import com.devpick.domain.user.dto.SocialRecoverRequest;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.dto.TokenResponse;
@@ -119,6 +120,20 @@ public class AuthController {
     public ApiResponse<LoginResponse> recover(@RequestBody @Valid RecoverRequest request,
                                               HttpServletResponse response) {
         LoginResponse loginResponse = authService.recover(request);
+        setRefreshTokenCookie(response, loginResponse.refreshTokenValue());
+        return ApiResponse.ok(loginResponse);
+    }
+
+    @Operation(summary = "소셜 탈퇴 계정 복구", description = "소셜 로그인 콜백에서 받은 recoveryToken으로 탈퇴 계정을 복구합니다. 복구 성공 시 즉시 로그인됩니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "복구 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "410", description = "복구 토큰 만료 또는 복구 기간(7일) 초과")
+    })
+    @PostMapping("/social/recover")
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<SocialLoginResponse> socialRecover(@RequestBody @Valid SocialRecoverRequest request,
+                                                          HttpServletResponse response) {
+        SocialLoginResponse loginResponse = socialAuthService.recoverWithToken(request.recoveryToken());
         setRefreshTokenCookie(response, loginResponse.refreshTokenValue());
         return ApiResponse.ok(loginResponse);
     }

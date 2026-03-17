@@ -11,11 +11,15 @@ import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 소셜 로그인 통합 서비스 (DP-183, DP-184, DP-284).
@@ -36,12 +40,16 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SocialAuthService {
 
+    private static final String RECOVER_KEY_PREFIX = "social:recover:";
+    private static final Duration RECOVER_TTL = Duration.ofMinutes(10);
+
     private final List<OAuthProviderClient> oAuthProviderClients;
     private final OAuthStateService oAuthStateService;
     private final NicknameGenerator nicknameGenerator;
     private final UserRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final TokenService tokenService;
+    private final StringRedisTemplate redisTemplate;
 
     /**
      * OAuth 인가 URL 발급.
@@ -76,7 +84,11 @@ public class SocialAuthService {
             isNewUser = false;
             if (!user.getIsActive()) {
                 if (user.isRecoverable()) {
-                    user.reactivate();
+                    String recoveryToken = UUID.randomUUID().toString();
+                    redisTemplate.opsForValue().set(RECOVER_KEY_PREFIX + recoveryToken,
+                            user.getId().toString(), RECOVER_TTL);
+                    throw new DevpickException(ErrorCode.AUTH_ACCOUNT_RECOVERABLE,
+                            Map.of("deletedAt", user.getDeletedAt(), "recoveryToken", recoveryToken));
                 } else {
                     user.anonymize();
                     socialAccountRepository.delete(existingAccount.get());
@@ -90,6 +102,30 @@ public class SocialAuthService {
         }
 
         return tokenService.issueTokenPairForSocial(user, isNewUser);
+    }
+
+    /**
+     * 소셜 로그인 탈퇴 계정 복구.
+     * 콜백에서 발급된 임시 recoveryToken(Redis, TTL 10분)으로 계정을 복구하고 JWT를 발급한다.
+     */
+    @Transactional
+    public SocialLoginResponse recoverWithToken(String recoveryToken) {
+        String key = RECOVER_KEY_PREFIX + recoveryToken;
+        String userId = redisTemplate.opsForValue().get(key);
+        if (userId == null) {
+            throw new DevpickException(ErrorCode.AUTH_ACCOUNT_DELETED);
+        }
+        redisTemplate.delete(key);
+
+        User user = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new DevpickException(ErrorCode.AUTH_USER_NOT_FOUND));
+
+        if (!user.isRecoverable()) {
+            throw new DevpickException(ErrorCode.AUTH_ACCOUNT_DELETED);
+        }
+
+        user.reactivate();
+        return tokenService.issueTokenPairForSocial(user, false);
     }
 
     private User registerNewSocialUser(String provider, OAuthUserInfo userInfo) {
