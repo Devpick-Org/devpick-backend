@@ -84,7 +84,6 @@ jobs:
           MONGO_PASSWORD: devpick
           JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
           RESEND_API_KEY: test-api-key
-          RESEND_API_KEY: test-api-key
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
