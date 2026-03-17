@@ -25,9 +25,6 @@ spring:
 resend:
   api-key: ${RESEND_API_KEY}
 
-resend:
-  api-key: ${RESEND_API_KEY}
-
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiry: ${JWT_ACCESS_TOKEN_EXPIRY:3600000}
