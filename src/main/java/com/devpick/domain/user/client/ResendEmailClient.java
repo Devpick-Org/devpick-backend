@@ -13,8 +13,9 @@ import java.util.Map;
 @Component
 public class ResendEmailClient {
 
-    private static final String RESEND_API_URL = "https://api.resend.com/emails";
-    private static final String FROM_ADDRESS = "onboarding@resend.dev";
+    private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+    private static final String FROM_EMAIL = "parkhyun9859@gmail.com";
+    private static final String FROM_NAME = "DevPick";
 
     private final WebClient webClient;
     private final String apiKey;
@@ -27,21 +28,21 @@ public class ResendEmailClient {
 
     public void send(String to, String subject, String text) {
         Map<String, Object> body = Map.of(
-                "from", FROM_ADDRESS,
-                "to", List.of(to),
+                "sender", Map.of("name", FROM_NAME, "email", FROM_EMAIL),
+                "to", List.of(Map.of("email", to)),
                 "subject", subject,
-                "text", text
+                "textContent", text
         );
 
         webClient.post()
-                .uri(RESEND_API_URL)
-                .header("Authorization", "Bearer " + apiKey)
+                .uri(BREVO_API_URL)
+                .header("api-key", apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
                 .retrieve()
                 .toBodilessEntity()
                 .block();
 
-        log.info("[Resend] 이메일 발송 완료: to={}", to);
+        log.info("[Brevo] 이메일 발송 완료: to={}", to);
     }
 }
