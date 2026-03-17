@@ -336,6 +336,46 @@ class SocialAuthServiceTest {
         assertThat(response.isNewUser()).isTrue();
     }
 
+    // ── recoverWithToken ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("recoverWithToken — 유효한 토큰이면 계정을 복구하고 JWT를 발급한다")
+    void recoverWithToken_validToken_reactivatesAndReturnsToken() throws Exception {
+        // given
+        String recoveryToken = "valid-token";
+        User deletedUser = User.createVerifiedEmailUser("hayoung@test.com", "encoded", "하영");
+        java.lang.reflect.Field idField = com.devpick.global.entity.BaseTimeEntity.class.getDeclaredField("id");
+        idField.setAccessible(true);
+        UUID userId = UUID.randomUUID();
+        idField.set(deletedUser, userId);
+        deletedUser.softDelete();
+        SocialLoginResponse expected = new SocialLoginResponse(
+                "access-token", userId, "hayoung@test.com", "하영", false, "refresh-token");
+
+        given(redisTemplate.opsForValue().get("social:recover:" + recoveryToken)).willReturn(userId.toString());
+        given(userRepository.findById(userId)).willReturn(Optional.of(deletedUser));
+        given(tokenService.issueTokenPairForSocial(deletedUser, false)).willReturn(expected);
+
+        // when
+        SocialLoginResponse response = socialAuthService.recoverWithToken(recoveryToken);
+
+        // then
+        assertThat(deletedUser.getIsActive()).isTrue();
+        assertThat(response.accessToken()).isEqualTo("access-token");
+        verify(redisTemplate).delete("social:recover:" + recoveryToken);
+    }
+
+    @Test
+    @DisplayName("recoverWithToken — Redis에 토큰이 없으면 AUTH_ACCOUNT_DELETED 예외가 발생한다")
+    void recoverWithToken_tokenNotFound_throwsDeleted() {
+        given(redisTemplate.opsForValue().get(any())).willReturn(null);
+
+        assertThatThrownBy(() -> socialAuthService.recoverWithToken("expired-token"))
+                .isInstanceOf(DevpickException.class)
+                .extracting(e -> ((DevpickException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AUTH_ACCOUNT_DELETED);
+    }
+
     // ── state 검증 ──────────────────────────────────────────────
 
     @Test

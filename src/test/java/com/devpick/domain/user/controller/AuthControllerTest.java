@@ -400,6 +400,71 @@ class AuthControllerTest {
     }
 
     @Test
+    @DisplayName("POST /auth/recover - 이메일 탈퇴 계정 복구 성공 시 200과 토큰을 반환한다")
+    void recover_success() throws Exception {
+        com.devpick.domain.user.dto.RecoverRequest request =
+                new com.devpick.domain.user.dto.RecoverRequest("test@devpick.kr", "Pass1234!");
+        LoginResponse response = new LoginResponse(
+                "access-token", UUID.randomUUID(), "test@devpick.kr", "하영", "refresh-token");
+        given(authService.recover(any())).willReturn(response);
+
+        mockMvc.perform(post("/auth/recover")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").value("access-token"));
+    }
+
+    @Test
+    @DisplayName("POST /auth/recover - 복구 기간 만료 시 410을 반환한다")
+    void recover_expired_returns410() throws Exception {
+        com.devpick.domain.user.dto.RecoverRequest request =
+                new com.devpick.domain.user.dto.RecoverRequest("test@devpick.kr", "Pass1234!");
+        given(authService.recover(any()))
+                .willThrow(new DevpickException(ErrorCode.AUTH_ACCOUNT_DELETED));
+
+        mockMvc.perform(post("/auth/recover")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /auth/social/recover - 소셜 탈퇴 계정 복구 성공 시 200과 토큰을 반환한다")
+    void socialRecover_success() throws Exception {
+        com.devpick.domain.user.dto.SocialRecoverRequest request =
+                new com.devpick.domain.user.dto.SocialRecoverRequest("valid-recovery-token");
+        SocialLoginResponse response = new SocialLoginResponse(
+                "access-token", UUID.randomUUID(), "test@devpick.kr", "하영", false, "refresh-token");
+        given(socialAuthService.recoverWithToken("valid-recovery-token")).willReturn(response);
+
+        mockMvc.perform(post("/auth/social/recover")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").value("access-token"))
+                .andExpect(cookie().httpOnly(AuthController.REFRESH_TOKEN_COOKIE, true));
+    }
+
+    @Test
+    @DisplayName("POST /auth/social/recover - 토큰 만료 또는 복구 기간 초과 시 410을 반환한다")
+    void socialRecover_expired_returns410() throws Exception {
+        com.devpick.domain.user.dto.SocialRecoverRequest request =
+                new com.devpick.domain.user.dto.SocialRecoverRequest("expired-token");
+        given(socialAuthService.recoverWithToken("expired-token"))
+                .willThrow(new DevpickException(ErrorCode.AUTH_ACCOUNT_DELETED));
+
+        mockMvc.perform(post("/auth/social/recover")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
     @DisplayName("GET /auth/google/callback - Google API 실패 시 502를 반환한다")
     void googleCallback_googleApiFailed_returns502() throws Exception {
         given(socialAuthService.login(anyString(), anyString(), anyString()))
