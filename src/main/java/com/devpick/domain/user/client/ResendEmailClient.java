@@ -14,7 +14,7 @@ import java.util.Map;
 public class ResendEmailClient {
 
     private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
-    private static final String FROM_EMAIL = "noreply@devpick.kr";
+    private static final String FROM_EMAIL = "parkhyun9859@gmail.com";
     private static final String FROM_NAME = "DevPick";
 
     private final WebClient webClient;
