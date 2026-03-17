@@ -810,7 +810,7 @@
       "put": {
         "tags": ["User"],
         "summary": "내 프로필 수정",
-        "description": "모든 필드는 선택사항입니다. null이면 해당 필드는 변경되지 않습니다.",
+        "description": "모든 필드는 선택사항입니다. null이면 해당 필드는 변경되지 않습니다.\n\n**tags**: 전체 교체 방식. 기존 태그는 삭제되고 요청한 태그로 대체됩니다. 존재하지 않는 태그명은 자동으로 생성됩니다.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
