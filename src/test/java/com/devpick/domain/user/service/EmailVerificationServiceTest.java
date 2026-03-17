@@ -1,5 +1,6 @@
 package com.devpick.domain.user.service;
 
+import com.devpick.domain.user.client.ResendEmailClient;
 import com.devpick.domain.user.entity.EmailVerification;
 import com.devpick.domain.user.repository.EmailVerificationRepository;
 import com.devpick.global.common.exception.DevpickException;
@@ -10,12 +11,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.Mockito.never;
@@ -28,7 +28,7 @@ class EmailVerificationServiceTest {
     private EmailVerificationService emailVerificationService;
 
     @Mock
-    private JavaMailSender mailSender;
+    private ResendEmailClient resendEmailClient;
 
     @Mock
     private EmailVerificationRedisService redisService;
@@ -45,14 +45,14 @@ class EmailVerificationServiceTest {
         String email = "test@devpick.kr";
         given(redisService.isOnCooldown(email)).willReturn(false);
         willDoNothing().given(redisService).saveCode(any(), any());
-        willDoNothing().given(mailSender).send(any(SimpleMailMessage.class));
+        willDoNothing().given(resendEmailClient).send(anyString(), anyString(), anyString());
 
         // when
         emailVerificationService.sendVerificationCode(email);
 
         // then
         verify(redisService).saveCode(any(), any());
-        verify(mailSender).send(any(SimpleMailMessage.class));
+        verify(resendEmailClient).send(anyString(), anyString(), anyString());
         verify(emailVerificationRepository).save(any(EmailVerification.class));
     }
 
@@ -68,7 +68,7 @@ class EmailVerificationServiceTest {
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.AUTH_EMAIL_SEND_TOO_OFTEN));
-        verify(mailSender, never()).send(any(SimpleMailMessage.class));
+        verify(resendEmailClient, never()).send(anyString(), anyString(), anyString());
     }
 
     // ── verifyCode ────────────────────────────────────────────────────────────────

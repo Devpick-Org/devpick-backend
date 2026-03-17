@@ -2,12 +2,11 @@ package com.devpick.domain.user.service;
 
 import com.devpick.domain.user.entity.EmailVerification;
 import com.devpick.domain.user.repository.EmailVerificationRepository;
+import com.devpick.domain.user.client.ResendEmailClient;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -32,7 +31,7 @@ public class EmailVerificationService {
     private static final int CODE_LENGTH = 6;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-    private final JavaMailSender mailSender;
+    private final ResendEmailClient resendEmailClient;
     private final EmailVerificationRedisService redisService;
     private final EmailVerificationRepository emailVerificationRepository;
 
@@ -93,17 +92,17 @@ public class EmailVerificationService {
     }
 
     private void sendEmail(String email, String code) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(email);
-        message.setSubject("[DevPick] 이메일 인증 코드");
-        message.setText("""
+        resendEmailClient.send(
+                email,
+                "[DevPick] 이메일 인증 코드",
+                """
                 DevPick 이메일 인증 코드입니다.
-                
+
                 인증 코드: %s
-                
+
                 유효 시간: 5분
                 본인이 요청하지 않은 경우 이 메일을 무시하세요.
-                """.formatted(code));
-        mailSender.send(message);
+                """.formatted(code)
+        );
     }
 }
