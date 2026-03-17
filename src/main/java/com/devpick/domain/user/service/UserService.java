@@ -4,9 +4,11 @@ import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
 import com.devpick.domain.user.entity.Tag;
 import com.devpick.domain.user.entity.User;
+import com.devpick.domain.user.entity.UserTag;
 import com.devpick.domain.user.repository.RefreshTokenRepository;
 import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.domain.user.repository.UserRepository;
+import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final TagRepository tagRepository;
+    private final UserTagRepository userTagRepository;
     private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional(readOnly = true)
@@ -42,8 +45,12 @@ public class UserService {
         user.updateProfile(request.nickname(), request.profileImage(), request.job(), request.level());
 
         if (request.tags() != null) {
-            List<Tag> tags = tagRepository.findByNameIn(request.tags());
-            user.updateTags(tags);
+            List<Tag> tags = findOrCreateTags(request.tags());
+            // orphanRemoval flush 순서 문제 방지 — 명시적 DELETE 후 INSERT
+            userTagRepository.deleteByUserId(userId);
+            userTagRepository.flush();
+            user.getUserTags().clear();
+            tags.forEach(tag -> user.getUserTags().add(UserTag.builder().user(user).tag(tag).build()));
         }
 
         return UserProfileResponse.from(user);
@@ -54,6 +61,14 @@ public class UserService {
         User user = findActiveUser(userId);
         user.softDelete();
         refreshTokenRepository.deleteByUser(user);
+    }
+
+    /** 태그명으로 Tag 조회, 없으면 신규 생성 후 반환. */
+    private List<Tag> findOrCreateTags(List<String> names) {
+        return names.stream()
+                .map(name -> tagRepository.findByName(name)
+                        .orElseGet(() -> tagRepository.save(Tag.builder().name(name).build())))
+                .toList();
     }
 
     private User findActiveUser(UUID userId) {

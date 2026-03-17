@@ -9,6 +9,7 @@ import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.RefreshTokenRepository;
 import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.domain.user.repository.UserRepository;
+import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +41,8 @@ class UserServiceTest {
     private UserRepository userRepository;
     @Mock
     private TagRepository tagRepository;
+    @Mock
+    private UserTagRepository userTagRepository;
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
 
@@ -109,7 +112,7 @@ class UserServiceTest {
     void updateProfile_tags_returnsUpdatedTags() {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         Tag reactTag = Tag.builder().name("React").build();
-        given(tagRepository.findByNameIn(List.of("React"))).willReturn(List.of(reactTag));
+        given(tagRepository.findByName("React")).willReturn(Optional.of(reactTag));
         UserProfileUpdateRequest request = new UserProfileUpdateRequest(null, null, null, null, List.of("React"));
 
         UserProfileResponse response = userService.updateProfile(userId, request);
@@ -123,7 +126,8 @@ class UserServiceTest {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         Tag reactTag = Tag.builder().name("React").build();
         Tag tsTag = Tag.builder().name("TypeScript").build();
-        given(tagRepository.findByNameIn(List.of("React", "TypeScript"))).willReturn(List.of(reactTag, tsTag));
+        given(tagRepository.findByName("React")).willReturn(Optional.of(reactTag));
+        given(tagRepository.findByName("TypeScript")).willReturn(Optional.of(tsTag));
         UserProfileUpdateRequest request = new UserProfileUpdateRequest(null, null, null, null, List.of("React", "TypeScript"));
 
         UserProfileResponse response = userService.updateProfile(userId, request);

@@ -19,6 +19,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +46,8 @@ class SocialAuthServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private SocialAccountRepository socialAccountRepository;
     @Mock private TokenService tokenService;
+    @Mock private StringRedisTemplate redisTemplate;
+    @Mock private ValueOperations<String, String> valueOperations;
 
     private SocialAuthService socialAuthService;
 
@@ -51,10 +55,11 @@ class SocialAuthServiceTest {
     void setUp() {
         given(gitHubClient.getProviderName()).willReturn("github");
         given(googleClient.getProviderName()).willReturn("google");
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
         socialAuthService = new SocialAuthService(
                 List.of(gitHubClient, googleClient),
                 oAuthStateService, nicknameGenerator,
-                userRepository, socialAccountRepository, tokenService);
+                userRepository, socialAccountRepository, tokenService, redisTemplate);
     }
 
     // ── generateAuthorizationUrl ──────────────────────────────────────────────
@@ -215,30 +220,31 @@ class SocialAuthServiceTest {
     // ── login - 탈퇴 계정 처리 (소셜 계정 기존 존재) ──────────────────────────────────────────────
 
     @Test
-    @DisplayName("소셜 로그인 — 기존 소셜 계정의 유저가 탈퇴 후 7일 이내이면 자동 복구 후 로그인된다")
-    void login_existingAccountRecoverable_reactivatesAndLogsIn() {
+    @DisplayName("소셜 로그인 — 기존 소셜 계정의 유저가 탈퇴 후 7일 이내이면 AUTH_ACCOUNT_RECOVERABLE 예외와 recoveryToken을 반환한다")
+    void login_existingAccountRecoverable_throwsRecoverableWithToken() throws Exception {
         // given
         GitHubUserInfo userInfo = new GitHubUserInfo("12345", "hayoung", "hayoung@test.com", "하영", null);
         User deletedUser = User.createVerifiedEmailUser("hayoung@test.com", "encoded", "하영");
+        // @UuidGenerator는 persist 시점에 생성되므로 테스트에서 직접 설정
+        java.lang.reflect.Field idField = com.devpick.global.entity.BaseTimeEntity.class.getDeclaredField("id");
+        idField.setAccessible(true);
+        idField.set(deletedUser, UUID.randomUUID());
         deletedUser.softDelete();
         SocialAccount socialAccount = SocialAccount.builder()
                 .user(deletedUser).provider("github").providerId("12345").build();
-        SocialLoginResponse expected = new SocialLoginResponse(
-                "access-token", UUID.randomUUID(), "hayoung@test.com", "하영", false, "refresh-token");
 
         given(gitHubClient.exchangeToken("code")).willReturn("github-token");
         given(gitHubClient.fetchUserInfo("github-token")).willReturn(userInfo);
         given(socialAccountRepository.findByProviderAndProviderId("github", "12345"))
                 .willReturn(Optional.of(socialAccount));
-        given(tokenService.issueTokenPairForSocial(deletedUser, false)).willReturn(expected);
 
-        // when
-        SocialLoginResponse response = socialAuthService.login("github", "code", "valid-state");
+        // when & then
+        assertThatThrownBy(() -> socialAuthService.login("github", "code", "valid-state"))
+                .isInstanceOf(DevpickException.class)
+                .extracting(e -> ((DevpickException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AUTH_ACCOUNT_RECOVERABLE);
 
-        // then
-        assertThat(deletedUser.getIsActive()).isTrue();
-        assertThat(deletedUser.getDeletedAt()).isNull();
-        assertThat(response.isNewUser()).isFalse();
+        assertThat(deletedUser.getIsActive()).isFalse();
     }
 
     @Test
@@ -328,6 +334,46 @@ class SocialAuthServiceTest {
         // then
         assertThat(expiredUser.getEmail()).startsWith("deleted_");
         assertThat(response.isNewUser()).isTrue();
+    }
+
+    // ── recoverWithToken ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("recoverWithToken — 유효한 토큰이면 계정을 복구하고 JWT를 발급한다")
+    void recoverWithToken_validToken_reactivatesAndReturnsToken() throws Exception {
+        // given
+        String recoveryToken = "valid-token";
+        User deletedUser = User.createVerifiedEmailUser("hayoung@test.com", "encoded", "하영");
+        java.lang.reflect.Field idField = com.devpick.global.entity.BaseTimeEntity.class.getDeclaredField("id");
+        idField.setAccessible(true);
+        UUID userId = UUID.randomUUID();
+        idField.set(deletedUser, userId);
+        deletedUser.softDelete();
+        SocialLoginResponse expected = new SocialLoginResponse(
+                "access-token", userId, "hayoung@test.com", "하영", false, "refresh-token");
+
+        given(redisTemplate.opsForValue().get("social:recover:" + recoveryToken)).willReturn(userId.toString());
+        given(userRepository.findById(userId)).willReturn(Optional.of(deletedUser));
+        given(tokenService.issueTokenPairForSocial(deletedUser, false)).willReturn(expected);
+
+        // when
+        SocialLoginResponse response = socialAuthService.recoverWithToken(recoveryToken);
+
+        // then
+        assertThat(deletedUser.getIsActive()).isTrue();
+        assertThat(response.accessToken()).isEqualTo("access-token");
+        verify(redisTemplate).delete("social:recover:" + recoveryToken);
+    }
+
+    @Test
+    @DisplayName("recoverWithToken — Redis에 토큰이 없으면 AUTH_ACCOUNT_DELETED 예외가 발생한다")
+    void recoverWithToken_tokenNotFound_throwsDeleted() {
+        given(redisTemplate.opsForValue().get(any())).willReturn(null);
+
+        assertThatThrownBy(() -> socialAuthService.recoverWithToken("expired-token"))
+                .isInstanceOf(DevpickException.class)
+                .extracting(e -> ((DevpickException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AUTH_ACCOUNT_DELETED);
     }
 
     // ── state 검증 ──────────────────────────────────────────────

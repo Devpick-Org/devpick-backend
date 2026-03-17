@@ -428,6 +428,13 @@
           "password": { "type": "string", "example": "Pass1234!" }
         }
       },
+      "SocialRecoverRequest": {
+        "type": "object",
+        "required": ["recoveryToken"],
+        "properties": {
+          "recoveryToken": { "type": "string", "description": "소셜 로그인 콜백 AUTH_024 응답의 error.detail.recoveryToken 값", "example": "550e8400-e29b-41d4-a716-446655440000" }
+        }
+      },
       "ErrorResponse": {
         "type": "object",
         "properties": {
@@ -527,6 +534,37 @@
           "401": { "description": "비밀번호 불일치 (AUTH_006)" },
           "404": { "description": "계정 없음 또는 7일 경과 후 재가입 (AUTH_005)" },
           "410": { "description": "복구 기간(7일) 만료 (AUTH_025)" }
+        }
+      }
+    },
+    "/auth/social/recover": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "소셜 탈퇴 계정 복구",
+        "description": "소셜 로그인 콜백에서 AUTH_024(탈퇴 처리 중인 계정) 응답을 받은 경우, 응답의 `recoveryToken`으로 이 API를 호출하여 계정을 복구합니다. 복구 성공 시 즉시 로그인됩니다.\n\n**recoveryToken 유효시간: 10분**",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SocialRecoverRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "복구 성공 — 즉시 로그인",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "properties": { "data": { "$ref": "#/components/schemas/SocialLoginResponse" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "410": { "description": "recoveryToken 만료(10분) 또는 복구 기간(7일) 초과 (AUTH_025)" }
         }
       }
     },
@@ -772,7 +810,7 @@
       "put": {
         "tags": ["User"],
         "summary": "내 프로필 수정",
-        "description": "모든 필드는 선택사항입니다. null이면 해당 필드는 변경되지 않습니다.",
+        "description": "모든 필드는 선택사항입니다. null이면 해당 필드는 변경되지 않습니다.\n\n**tags**: 전체 교체 방식. 기존 태그는 삭제되고 요청한 태그로 대체됩니다. 존재하지 않는 태그명은 자동으로 생성됩니다.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
