@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 
 /**
  * AI 레포(FastAPI)가 POST /internal/contents 로 전송하는 정규화된 콘텐츠 DTO.
@@ -13,13 +14,15 @@ import java.time.format.DateTimeParseException;
 public record NormalizedContentDto(
         @JsonProperty("source_name") String sourceName,
         String title,
+        String author,
         @JsonProperty("canonical_url") String canonicalUrl,
         @JsonProperty("published_at") String publishedAt,
         String preview,
         @JsonProperty("body_candidate") String bodyCandidate,
-        @JsonProperty("body_source") String bodySource,
-        @JsonProperty("content_kind") String contentKind,
-        @JsonProperty("entry_external_id") String entryExternalId
+        @JsonProperty("is_original_visible") boolean isOriginalVisible,
+        @JsonProperty("thumbnail_url") String thumbnailUrl,
+        @JsonProperty("license_type") String licenseType,
+        List<String> tags
 ) {
 
     /**

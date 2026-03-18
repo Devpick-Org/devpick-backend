@@ -62,21 +62,15 @@ public class InternalContentService {
         return Content.builder()
                 .source(source)
                 .title(dto.title() != null ? dto.title() : "")
+                .author(dto.author())
                 .canonicalUrl(dto.canonicalUrl())
                 .preview(dto.preview())
+                .thumbnailUrl(dto.thumbnailUrl())
+                .licenseType(dto.licenseType())
                 .originalContent(dto.bodyCandidate())
-                .isOriginalVisible(isOriginalVisible(dto.contentKind()))
+                .isOriginalVisible(dto.isOriginalVisible())
                 .publishedAt(dto.parsedPublishedAt())
                 .isAvailable(true)
                 .build();
-    }
-
-    /**
-     * content_kind 값 기준으로 원문 표시 여부 결정.
-     * full_body: 본문 있음 → true
-     * preview_only 또는 미정의 값: false
-     */
-    private boolean isOriginalVisible(String contentKind) {
-        return "full_body".equals(contentKind);
     }
 }

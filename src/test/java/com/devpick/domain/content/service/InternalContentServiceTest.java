@@ -53,13 +53,15 @@ class InternalContentServiceTest {
         return new NormalizedContentDto(
                 sourceName,
                 "테스트 제목",
+                null,
                 canonicalUrl,
                 "2026-03-10T09:00:00Z",
                 "미리보기 텍스트",
                 "본문 전체",
-                "rss",
-                "full_body",
-                "ext-001"
+                true,
+                null,
+                null,
+                List.of()
         );
     }
 
@@ -142,8 +144,8 @@ class InternalContentServiceTest {
     }
 
     @Test
-    @DisplayName("content_kind full_body → isOriginalVisible true")
-    void ingest_fullBodyKind_isOriginalVisibleTrue() {
+    @DisplayName("isOriginalVisible true 수신 → Content.isOriginalVisible true 저장")
+    void ingest_isOriginalVisibleTrue_savedAsTrue() {
         NormalizedContentDto dto = buildDto("techblog", "https://example.com/post/full");
 
         given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
@@ -164,13 +166,15 @@ class InternalContentServiceTest {
         NormalizedContentDto dto = new NormalizedContentDto(
                 "techblog",
                 null,
+                null,
                 "https://example.com/post/notitle",
                 "2026-03-10T09:00:00Z",
                 "미리보기",
                 "본문",
-                "rss",
-                "full_body",
-                null
+                true,
+                null,
+                null,
+                List.of()
         );
 
         given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
@@ -187,18 +191,20 @@ class InternalContentServiceTest {
     }
 
     @Test
-    @DisplayName("content_kind preview_only → isOriginalVisible false")
-    void ingest_previewOnlyKind_isOriginalVisibleFalse() {
+    @DisplayName("isOriginalVisible false 수신 → Content.isOriginalVisible false 저장")
+    void ingest_isOriginalVisibleFalse_savedAsFalse() {
         NormalizedContentDto dto = new NormalizedContentDto(
                 "techblog",
                 "제목",
+                null,
                 "https://example.com/post/preview",
                 "2026-03-10T09:00:00Z",
                 "미리보기",
                 null,
-                "rss",
-                "preview_only",
-                null
+                false,
+                null,
+                null,
+                List.of()
         );
 
         given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -11,8 +12,8 @@ class NormalizedContentDtoTest {
 
     private NormalizedContentDto buildDto(String publishedAt) {
         return new NormalizedContentDto(
-                "techblog", "제목", "https://example.com/1",
-                publishedAt, "미리보기", "본문", "rss", "full_body", null
+                "techblog", "제목", null, "https://example.com/1",
+                publishedAt, "미리보기", "본문", false, null, null, List.of()
         );
     }
 
