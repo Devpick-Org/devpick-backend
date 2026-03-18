@@ -16,6 +16,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -68,6 +69,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/resource-not-found")
         public String resourceNotFound() throws NoResourceFoundException {
             throw new NoResourceFoundException(HttpMethod.GET, "/test/resource-not-found");
+        }
+
+        @GetMapping("/test/refresh")
+        public String refresh(@CookieValue("refreshToken") String refreshToken) {
+            return refreshToken;
         }
     }
 
@@ -181,6 +187,16 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("GLOBAL_400_2"));
+    }
+
+    @Test
+    @DisplayName("refreshToken 쿠키 없이 요청 시 401과 AUTH_003이 반환된다")
+    void handleMissingCookie_returns401() throws Exception {
+        // when & then — refreshToken 쿠키 없이 요청 → MissingRequestCookieException
+        mockMvc.perform(get("/test/refresh"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("AUTH_003"));
     }
 
     @Test
