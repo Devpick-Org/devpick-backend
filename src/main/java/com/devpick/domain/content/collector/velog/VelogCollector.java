@@ -64,6 +64,7 @@ public class VelogCollector extends ContentCollector {
             VelogGraphQlResponse response = webClient.post()
                     .uri(GRAPHQL_ENDPOINT)
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header("Origin", "https://velog.io")
                     .bodyValue(request)
                     .retrieve()
                     .bodyToMono(VelogGraphQlResponse.class)

@@ -259,6 +259,18 @@ class VelogCollectorTest {
 
     @SuppressWarnings("unchecked")
     @Test
+    @DisplayName("fetchPosts — Origin 헤더 'https://velog.io' 포함하여 요청")
+    void fetchPosts_includesOriginHeader() {
+        VelogGraphQlResponse response = new VelogGraphQlResponse(new VelogGraphQlResponse.Data(List.of()));
+        mockWebClientPost(Mono.just(response));
+
+        collector.fetchPosts();
+
+        verify(requestBodySpec).header("Origin", "https://velog.io");
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
     @DisplayName("fetchPosts — timeframe 설정값이 요청에 반영됨 (month)")
     void fetchPosts_timeframeAppliedFromConfig() {
         ReflectionTestUtils.setField(collector, "timeframe", "month");
@@ -299,6 +311,7 @@ class VelogCollectorTest {
         given(webClient.post()).willReturn(requestBodyUriSpec);
         given(requestBodyUriSpec.uri(anyString())).willReturn(requestBodySpec);
         given(requestBodySpec.contentType(any())).willReturn(requestBodySpec);
+        given(requestBodySpec.header(anyString(), anyString())).willReturn(requestBodySpec);
         given(requestBodySpec.bodyValue(any())).willReturn(requestHeadersSpec);
         given(requestHeadersSpec.retrieve()).willReturn(responseSpec);
         given(responseSpec.bodyToMono(VelogGraphQlResponse.class))
