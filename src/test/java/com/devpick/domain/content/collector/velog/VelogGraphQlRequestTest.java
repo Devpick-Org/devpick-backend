@@ -22,22 +22,21 @@ class VelogGraphQlRequestTest {
     }
 
     @Test
-    @DisplayName("trendingPosts — query에 input 래퍼 없이 flat 인자 사용")
-    void trendingPosts_queryUsesFlatArgs() {
+    @DisplayName("trendingPosts — query에 TrendingPostsInput 래퍼 사용 (v3 필수)")
+    void trendingPosts_queryUsesInputWrapper() {
         VelogGraphQlRequest request = VelogGraphQlRequest.trendingPosts(0, 20, "week");
-        assertThat(request.query()).contains("$limit");
-        assertThat(request.query()).contains("$offset");
-        assertThat(request.query()).contains("$timeframe");
-        assertThat(request.query()).doesNotContain("TrendingPostsInput");
+        assertThat(request.query()).contains("TrendingPostsInput");
+        assertThat(request.query()).contains("$input");
+        assertThat(request.query()).contains("input: $input");
     }
 
     @Test
-    @DisplayName("trendingPosts — variables에 limit, offset, timeframe 올바르게 설정")
+    @DisplayName("trendingPosts — variables.input에 limit, offset, timeframe 올바르게 설정")
     void trendingPosts_variables() {
         VelogGraphQlRequest request = VelogGraphQlRequest.trendingPosts(10, 20, "month");
-        assertThat(request.variables().limit()).isEqualTo(20);
-        assertThat(request.variables().offset()).isEqualTo(10);
-        assertThat(request.variables().timeframe()).isEqualTo("month");
+        assertThat(request.variables().input().limit()).isEqualTo(20);
+        assertThat(request.variables().input().offset()).isEqualTo(10);
+        assertThat(request.variables().input().timeframe()).isEqualTo("month");
     }
 
     @Test
@@ -45,7 +44,7 @@ class VelogGraphQlRequestTest {
     void trendingPosts_timeframeVariants() {
         for (String timeframe : new String[]{"day", "week", "month", "year"}) {
             VelogGraphQlRequest request = VelogGraphQlRequest.trendingPosts(0, 20, timeframe);
-            assertThat(request.variables().timeframe()).isEqualTo(timeframe);
+            assertThat(request.variables().input().timeframe()).isEqualTo(timeframe);
         }
     }
 }
