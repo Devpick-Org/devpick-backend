@@ -321,6 +321,51 @@ class WeeklyReportServiceTest {
     }
 
     @Test
+    @DisplayName("generateOrGetReport — 이미 존재하는 리포트면 기존 리포트 반환")
+    void generateOrGetReport_alreadyExists_returnsExisting() {
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
+        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
+                .willReturn(Optional.of(report));
+
+        WeeklyReportResponse response = weeklyReportService.generateOrGetReport(userId, weekStart);
+
+        assertThat(response.reportId()).isEqualTo(reportId);
+        verify(weeklyReportRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("generateOrGetReport — 리포트 없고 유저 없으면 USER_NOT_FOUND 예외")
+    void generateOrGetReport_reportNotExists_userNotFound_throwsException() {
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(false);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> weeklyReportService.generateOrGetReport(userId, weekStart))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("generateOrGetReport — 리포트 없고 유저 있으면 신규 리포트 생성 후 반환")
+    void generateOrGetReport_reportNotExists_createsAndReturns() throws Exception {
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(false);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(eq(userId), any(), any(), any()))
+                .willReturn(2L);
+        given(historyRepository.findTopTagsByUserAndPeriod(eq(userId), any(), any()))
+                .willReturn(List.of());
+        given(historyRepository.findDailyActivityCountsByUserAndPeriod(eq(userId), any(), any()))
+                .willReturn(List.of());
+        given(objectMapper.writeValueAsString(any())).willReturn("[]");
+        given(weeklyReportRepository.save(any(WeeklyReport.class))).willReturn(report);
+
+        WeeklyReportResponse response = weeklyReportService.generateOrGetReport(userId, weekStart);
+
+        assertThat(response.reportId()).isEqualTo(reportId);
+        verify(weeklyReportRepository).save(any(WeeklyReport.class));
+    }
+
+    @Test
     @DisplayName("generateWeeklyReports — 이미 생성된 유저는 스킵")
     void generateWeeklyReports_alreadyExists_skips() {
         given(userRepository.findAllByIsActiveTrueAndDeletedAtIsNull()).willReturn(List.of(user));
