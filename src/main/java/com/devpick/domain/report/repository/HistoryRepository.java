@@ -26,6 +26,18 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 
+    // 섹션 2 바 차트: 요일별 활동 수 (ISODOW: 1=월 ~ 7=일)
+    @Query(value = "SELECT EXTRACT(ISODOW FROM h.created_at) AS dow, COUNT(*) AS cnt " +
+                   "FROM history h " +
+                   "WHERE h.user_id = :userId AND h.created_at BETWEEN :from AND :to " +
+                   "GROUP BY EXTRACT(ISODOW FROM h.created_at) " +
+                   "ORDER BY dow",
+           nativeQuery = true)
+    List<Object[]> findDailyActivityCountsByUserAndPeriod(
+            @Param("userId") UUID userId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
     // DP-248: 학습 히스토리 조회 (content_liked 제외, 페이지네이션)
     @Query(value = "SELECT h FROM History h " +
                    "LEFT JOIN FETCH h.content " +

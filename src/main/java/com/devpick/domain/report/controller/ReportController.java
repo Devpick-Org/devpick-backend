@@ -1,5 +1,6 @@
 package com.devpick.domain.report.controller;
 
+import com.devpick.domain.report.dto.ReportSummaryResponse;
 import com.devpick.domain.report.dto.ShareLinkResponse;
 import com.devpick.domain.report.dto.WeeklyReportResponse;
 import com.devpick.domain.report.service.WeeklyReportService;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Report", description = "주간 리포트 조회/공유")
@@ -27,6 +29,17 @@ import java.util.UUID;
 public class ReportController {
 
     private final WeeklyReportService weeklyReportService;
+
+    @Operation(summary = "리포트 목록 조회", description = "내 주간 리포트 목록을 최신순으로 반환합니다. (드롭다운용)")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    @GetMapping("/weekly/list")
+    public ApiResponse<List<ReportSummaryResponse>> getReportList(
+            @AuthenticationPrincipal UUID userId) {
+        return ApiResponse.ok(weeklyReportService.getReportList(userId));
+    }
 
     @Operation(summary = "이번 주 리포트 조회", description = "현재 주(월~일)의 주간 리포트를 반환합니다.")
     @ApiResponses({

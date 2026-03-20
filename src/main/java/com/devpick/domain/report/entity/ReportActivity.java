@@ -35,4 +35,10 @@ public class ReportActivity extends BaseCreatedEntity {
 
     @Column(name = "prev_week_comparison", columnDefinition = "jsonb")
     private String prevWeekComparison;
+
+    @Column(name = "daily_activities", columnDefinition = "jsonb")
+    private String dailyActivities;
+
+    @Column(name = "tag_activities", columnDefinition = "jsonb")
+    private String tagActivities;
 }
