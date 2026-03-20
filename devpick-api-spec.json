@@ -403,7 +403,58 @@
           "weekEnd": { "type": "string", "format": "date" },
           "status": { "type": "string" },
           "isShared": { "type": "boolean" },
-          "activities": { "type": "array", "items": { "$ref": "#/components/schemas/ReportActivityResponse" } }
+          "activities": { "type": "array", "items": { "$ref": "#/components/schemas/ReportActivityResponse" } },
+          "chartData": { "$ref": "#/components/schemas/ChartDataResponse" },
+          "aiInsight": { "$ref": "#/components/schemas/ReportInsightResponse", "nullable": true, "description": "AI 인사이트 (FastAPI 연동 전까지 null)" }
+        }
+      },
+      "ChartDataResponse": {
+        "type": "object",
+        "description": "섹션 2 차트 데이터",
+        "properties": {
+          "dailyActivities": {
+            "type": "array",
+            "description": "요일별 활동량 바 차트 (MON~SUN, 없는 요일은 count=0)",
+            "items": { "$ref": "#/components/schemas/DailyActivity" }
+          },
+          "tagActivities": {
+            "type": "array",
+            "description": "태그별 활동 레이더 차트",
+            "items": { "$ref": "#/components/schemas/TagActivity" }
+          }
+        }
+      },
+      "DailyActivity": {
+        "type": "object",
+        "properties": {
+          "dayOfWeek": { "type": "string", "enum": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] },
+          "count": { "type": "integer" }
+        }
+      },
+      "TagActivity": {
+        "type": "object",
+        "properties": {
+          "tagName": { "type": "string" },
+          "count": { "type": "integer" }
+        }
+      },
+      "ReportInsightResponse": {
+        "type": "object",
+        "description": "섹션 3 AI 인사이트 (FastAPI 연동 후 활성화)",
+        "properties": {
+          "wellDone": { "type": "string", "description": "이번 주 잘한 것" },
+          "lacking": { "type": "string", "description": "부족했던 부분" },
+          "nextWeek": { "type": "string", "description": "다음 주 추천 방향" }
+        }
+      },
+      "ReportSummaryResponse": {
+        "type": "object",
+        "description": "리포트 목록 드롭다운용 최소 필드",
+        "properties": {
+          "reportId": { "type": "string", "format": "uuid" },
+          "weekStart": { "type": "string", "format": "date" },
+          "weekEnd": { "type": "string", "format": "date" },
+          "status": { "type": "string" }
         }
       },
       "ShareLinkResponse": {
@@ -1470,6 +1521,30 @@
                   "allOf": [
                     { "$ref": "#/components/schemas/ApiResponse" },
                     { "properties": { "data": { "$ref": "#/components/schemas/ActivityPageResponse" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/reports/weekly/list": {
+      "get": {
+        "tags": ["Report"],
+        "summary": "리포트 목록 조회",
+        "description": "내 주간 리포트 목록을 최신순으로 반환합니다. 드롭다운 선택에 사용합니다.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "목록 조회 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/ReportSummaryResponse" } } } }
                   ]
                 }
               }

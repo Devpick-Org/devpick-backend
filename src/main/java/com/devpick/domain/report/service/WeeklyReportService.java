@@ -1,17 +1,23 @@
 package com.devpick.domain.report.service;
 
+import com.devpick.domain.report.document.ReportInsightDocument;
+import com.devpick.domain.report.dto.ChartDataResponse;
+import com.devpick.domain.report.dto.ReportInsightResponse;
+import com.devpick.domain.report.dto.ReportSummaryResponse;
 import com.devpick.domain.report.dto.ShareLinkResponse;
 import com.devpick.domain.report.dto.WeeklyReportResponse;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.entity.ReportActivity;
 import com.devpick.domain.report.entity.WeeklyReport;
 import com.devpick.domain.report.repository.HistoryRepository;
+import com.devpick.domain.report.repository.ReportInsightRepository;
 import com.devpick.domain.report.repository.WeeklyReportRepository;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,10 +41,21 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class WeeklyReportService {
 
+    private static final String[] DAY_NAMES = {"", "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
+
     private final WeeklyReportRepository weeklyReportRepository;
     private final HistoryRepository historyRepository;
     private final UserRepository userRepository;
+    private final ReportInsightRepository reportInsightRepository;
     private final ObjectMapper objectMapper;
+
+    // DP-256: 리포트 목록 조회 (드롭다운용 최소 필드)
+    @Transactional(readOnly = true)
+    public List<ReportSummaryResponse> getReportList(UUID userId) {
+        return weeklyReportRepository.findByUserIdOrderByWeekStartDesc(userId).stream()
+                .map(ReportSummaryResponse::of)
+                .toList();
+    }
 
     // DP-256: 이번 주 리포트 조회
     @Transactional
@@ -49,7 +66,7 @@ public class WeeklyReportService {
                 .orElseThrow(() -> new DevpickException(ErrorCode.REPORT_NOT_FOUND));
 
         recordWeeklyReportViewed(userId);
-        return WeeklyReportResponse.of(report);
+        return toResponse(report);
     }
 
     // DP-256: 특정 reportId로 리포트 조회
@@ -61,7 +78,7 @@ public class WeeklyReportService {
             throw new DevpickException(ErrorCode.REPORT_FORBIDDEN);
         }
         recordWeeklyReportViewed(userId);
-        return WeeklyReportResponse.of(report);
+        return toResponse(report);
     }
 
     // DP-258: 공유 링크 생성
@@ -83,7 +100,7 @@ public class WeeklyReportService {
     public WeeklyReportResponse getReportByShareToken(String token) {
         WeeklyReport report = weeklyReportRepository.findWithActivitiesByShareToken(token)
                 .orElseThrow(() -> new DevpickException(ErrorCode.REPORT_NOT_FOUND));
-        return WeeklyReportResponse.of(report);
+        return toResponse(report);
     }
 
     // DP-255: 매주 월요일 00:05에 전 주 리포트 자동 생성
@@ -115,16 +132,16 @@ public class WeeklyReportService {
     @Transactional
     public WeeklyReportResponse generateOrGetReport(UUID userId, LocalDate weekStart) {
         if (weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)) {
-            return WeeklyReportResponse.of(
-                    weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart)
-                            .orElseThrow(() -> new DevpickException(ErrorCode.REPORT_NOT_FOUND))
-            );
+            WeeklyReport report = weeklyReportRepository
+                    .findWithActivitiesByUser_IdAndWeekStart(userId, weekStart)
+                    .orElseThrow(() -> new DevpickException(ErrorCode.REPORT_NOT_FOUND));
+            return toResponse(report);
         }
         User user = userRepository.findByIdAndIsActiveTrue(userId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
         LocalDate weekEnd = weekStart.plusDays(6);
         WeeklyReport report = generateReportForUser(user, weekStart, weekEnd);
-        return WeeklyReportResponse.of(report);
+        return toResponse(report);
     }
 
     private WeeklyReport generateReportForUser(User user, LocalDate weekStart, LocalDate weekEnd) {
@@ -138,7 +155,10 @@ public class WeeklyReportService {
         long scrapsCount = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
                 user.getId(), "content_saved", from, to);
 
-        String topTagsJson = buildTopTagsJson(user.getId(), from, to);
+        List<Object[]> tagRows = historyRepository.findTopTagsByUserAndPeriod(user.getId(), from, to);
+        String topTagsJson = serializeTopTags(tagRows, 3);
+        String tagActivitiesJson = serializeTagActivities(tagRows);
+        String dailyActivitiesJson = buildDailyActivitiesJson(user.getId(), from, to);
 
         WeeklyReport report = WeeklyReport.builder()
                 .user(user)
@@ -153,28 +173,102 @@ public class WeeklyReportService {
                 .questionsCreated((int) questionsCreated)
                 .scrapsCount((int) scrapsCount)
                 .topTags(topTagsJson)
+                .dailyActivities(dailyActivitiesJson)
+                .tagActivities(tagActivitiesJson)
                 .build();
 
         report.getActivities().add(activity);
         return weeklyReportRepository.save(report);
     }
 
-    private String buildTopTagsJson(UUID userId, LocalDateTime from, LocalDateTime to) {
-        List<Object[]> tagRows = historyRepository.findTopTagsByUserAndPeriod(userId, from, to);
+    // topTags용: {"tag": name, "count": count} 형식, limit 3
+    private String serializeTopTags(List<Object[]> tagRows, int limit) {
         List<Map<String, Object>> tagList = new ArrayList<>();
-        int limit = Math.min(tagRows.size(), 5);
-        for (int i = 0; i < limit; i++) {
+        int count = Math.min(tagRows.size(), limit);
+        for (int i = 0; i < count; i++) {
             Object[] row = tagRows.get(i);
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("tag", row[0]);
             entry.put("count", row[1]);
             tagList.add(entry);
         }
+        return toJson(tagList);
+    }
+
+    // 레이더 차트용: {"tagName": name, "count": count} 형식, 전체 태그
+    private String serializeTagActivities(List<Object[]> tagRows) {
+        List<Map<String, Object>> tagList = new ArrayList<>();
+        for (Object[] row : tagRows) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("tagName", row[0]);
+            entry.put("count", row[1]);
+            tagList.add(entry);
+        }
+        return toJson(tagList);
+    }
+
+    // 바 차트용: 요일별 활동 수 (월~일, 없는 요일은 0)
+    private String buildDailyActivitiesJson(UUID userId, LocalDateTime from, LocalDateTime to) {
+        List<Object[]> rows = historyRepository.findDailyActivityCountsByUserAndPeriod(userId, from, to);
+        Map<Integer, Long> countsByDow = new LinkedHashMap<>();
+        for (Object[] row : rows) {
+            int dow = ((Number) row[0]).intValue();
+            long cnt = ((Number) row[1]).longValue();
+            countsByDow.put(dow, cnt);
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (int i = 1; i <= 7; i++) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("dayOfWeek", DAY_NAMES[i]);
+            entry.put("count", countsByDow.getOrDefault(i, 0L));
+            result.add(entry);
+        }
+        return toJson(result);
+    }
+
+    private String toJson(Object value) {
         try {
-            return objectMapper.writeValueAsString(tagList);
+            return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {
             return "[]";
         }
+    }
+
+    private WeeklyReportResponse toResponse(WeeklyReport report) {
+        ChartDataResponse chartData = buildChartDataResponse(report);
+        ReportInsightResponse aiInsight = loadInsight(report.getId());
+        return WeeklyReportResponse.of(report, chartData, aiInsight);
+    }
+
+    private ChartDataResponse buildChartDataResponse(WeeklyReport report) {
+        if (report.getActivities().isEmpty()) {
+            return new ChartDataResponse(List.of(), List.of());
+        }
+        ReportActivity activity = report.getActivities().get(0);
+        List<ChartDataResponse.DailyActivity> daily = parseJson(
+                activity.getDailyActivities(),
+                new TypeReference<List<ChartDataResponse.DailyActivity>>() {});
+        List<ChartDataResponse.TagActivity> tags = parseJson(
+                activity.getTagActivities(),
+                new TypeReference<List<ChartDataResponse.TagActivity>>() {});
+        return new ChartDataResponse(daily, tags);
+    }
+
+    private <T> List<T> parseJson(String json, TypeReference<List<T>> typeRef) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, typeRef);
+        } catch (JsonProcessingException e) {
+            return List.of();
+        }
+    }
+
+    private ReportInsightResponse loadInsight(UUID reportId) {
+        return reportInsightRepository.findByReportId(reportId.toString())
+                .map(doc -> new ReportInsightResponse(doc.getWellDone(), doc.getLacking(), doc.getNextWeek()))
+                .orElse(null);
     }
 
     private LocalDate getWeekStart(LocalDate date) {

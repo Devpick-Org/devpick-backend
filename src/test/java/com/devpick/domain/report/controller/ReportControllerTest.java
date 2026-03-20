@@ -1,6 +1,9 @@
 package com.devpick.domain.report.controller;
 
+import com.devpick.domain.report.dto.ChartDataResponse;
 import com.devpick.domain.report.dto.ReportActivityResponse;
+import com.devpick.domain.report.dto.ReportInsightResponse;
+import com.devpick.domain.report.dto.ReportSummaryResponse;
 import com.devpick.domain.report.dto.ShareLinkResponse;
 import com.devpick.domain.report.dto.WeeklyReportResponse;
 import com.devpick.domain.report.service.WeeklyReportService;
@@ -70,19 +73,45 @@ class ReportControllerTest {
 
         ReportActivityResponse activity = new ReportActivityResponse(5, 2, 3,
                 "[{\"tag\":\"Java\",\"count\":3}]", null);
+
+        ChartDataResponse chartData = new ChartDataResponse(
+                List.of(new ChartDataResponse.DailyActivity("MON", 5)),
+                List.of(new ChartDataResponse.TagActivity("Java", 5))
+        );
+
         reportResponse = new WeeklyReportResponse(
                 reportId,
                 LocalDate.now().with(java.time.DayOfWeek.MONDAY),
                 LocalDate.now().with(java.time.DayOfWeek.MONDAY).plusDays(6),
                 "generated",
                 false,
-                List.of(activity)
+                List.of(activity),
+                chartData,
+                null
         );
     }
 
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    @DisplayName("GET /reports/weekly/list - 리포트 목록 조회 성공 시 200 반환")
+    void getReportList_success_returns200() throws Exception {
+        ReportSummaryResponse summary = new ReportSummaryResponse(
+                reportId,
+                LocalDate.now().with(java.time.DayOfWeek.MONDAY),
+                LocalDate.now().with(java.time.DayOfWeek.MONDAY).plusDays(6),
+                "generated"
+        );
+        given(weeklyReportService.getReportList(userId)).willReturn(List.of(summary));
+
+        mockMvc.perform(get("/reports/weekly/list"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].reportId").value(reportId.toString()))
+                .andExpect(jsonPath("$.data[0].status").value("generated"));
     }
 
     @Test
@@ -95,7 +124,33 @@ class ReportControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.reportId").value(reportId.toString()))
                 .andExpect(jsonPath("$.data.status").value("generated"))
-                .andExpect(jsonPath("$.data.activities[0].contentsRead").value(5));
+                .andExpect(jsonPath("$.data.activities[0].contentsRead").value(5))
+                .andExpect(jsonPath("$.data.chartData.dailyActivities[0].dayOfWeek").value("MON"))
+                .andExpect(jsonPath("$.data.chartData.tagActivities[0].tagName").value("Java"))
+                .andExpect(jsonPath("$.data.aiInsight").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("GET /reports/weekly - AI 인사이트 포함 시 응답에 포함")
+    void getCurrentWeekReport_withInsight_returns200() throws Exception {
+        ReportInsightResponse insight = new ReportInsightResponse(
+                "React 글을 집중적으로 읽었어요",
+                "백엔드 학습이 부족했어요",
+                "Spring Boot 기초부터 시작해보세요"
+        );
+        WeeklyReportResponse responseWithInsight = new WeeklyReportResponse(
+                reportId,
+                LocalDate.now().with(java.time.DayOfWeek.MONDAY),
+                LocalDate.now().with(java.time.DayOfWeek.MONDAY).plusDays(6),
+                "generated", false, reportResponse.activities(), reportResponse.chartData(), insight
+        );
+        given(weeklyReportService.getCurrentWeekReport(userId)).willReturn(responseWithInsight);
+
+        mockMvc.perform(get("/reports/weekly"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.aiInsight.wellDone").value("React 글을 집중적으로 읽었어요"))
+                .andExpect(jsonPath("$.data.aiInsight.lacking").value("백엔드 학습이 부족했어요"))
+                .andExpect(jsonPath("$.data.aiInsight.nextWeek").value("Spring Boot 기초부터 시작해보세요"));
     }
 
     @Test
@@ -117,7 +172,8 @@ class ReportControllerTest {
         mockMvc.perform(get("/reports/weekly/{reportId}", reportId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.reportId").value(reportId.toString()));
+                .andExpect(jsonPath("$.data.reportId").value(reportId.toString()))
+                .andExpect(jsonPath("$.data.chartData").exists());
     }
 
     @Test
@@ -153,7 +209,8 @@ class ReportControllerTest {
         mockMvc.perform(get("/reports/weekly/share/{token}", token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.reportId").value(reportId.toString()));
+                .andExpect(jsonPath("$.data.reportId").value(reportId.toString()))
+                .andExpect(jsonPath("$.data.chartData").exists());
     }
 
     @Test
