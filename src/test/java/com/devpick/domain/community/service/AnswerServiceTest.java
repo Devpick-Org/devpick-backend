@@ -7,6 +7,7 @@ import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.Job;
@@ -51,6 +52,8 @@ class AnswerServiceTest {
     private UserRepository userRepository;
     @Mock
     private HistoryRepository historyRepository;
+    @Mock
+    private com.devpick.domain.point.service.PointService pointService;
 
     private UUID userId;
     private UUID postId;

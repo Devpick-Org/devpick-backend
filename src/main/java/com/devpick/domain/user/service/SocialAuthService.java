@@ -1,5 +1,7 @@
 package com.devpick.domain.user.service;
 
+import com.devpick.domain.point.entity.PointAction;
+import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.user.client.OAuthProviderClient;
 import com.devpick.domain.user.dto.SocialLoginResponse;
 import com.devpick.domain.user.dto.OAuthAuthorizationResponse;
@@ -50,6 +52,7 @@ public class SocialAuthService {
     private final SocialAccountRepository socialAccountRepository;
     private final TokenService tokenService;
     private final StringRedisTemplate redisTemplate;
+    private final PointService pointService;
 
     /**
      * OAuth 인가 URL 발급.
@@ -101,6 +104,7 @@ public class SocialAuthService {
             isNewUser = true;
         }
 
+        pointService.earn(user, PointAction.DAILY_LOGIN);
         return tokenService.issueTokenPairForSocial(user, isNewUser);
     }
 

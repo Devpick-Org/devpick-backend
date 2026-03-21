@@ -11,6 +11,8 @@ import com.devpick.domain.content.repository.LikeRepository;
 import com.devpick.domain.content.repository.ScrapRepository;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
+import com.devpick.domain.point.entity.PointAction;
+import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.domain.user.repository.UserTagRepository;
@@ -35,6 +37,7 @@ public class ContentService {
     private final HistoryRepository historyRepository;
     private final UserRepository userRepository;
     private final UserTagRepository userTagRepository;
+    private final PointService pointService;
 
     @Transactional(readOnly = true)
     public ContentListResponse getFeed(UUID userId, Pageable pageable) {
@@ -104,6 +107,7 @@ public class ContentService {
                 .actionType("scrapped")
                 .content(content)
                 .build());
+        pointService.earn(user, PointAction.CONTENT_SCRAP, contentId);
     }
 
     @Transactional
@@ -133,6 +137,7 @@ public class ContentService {
                 .actionType("content_liked")
                 .content(content)
                 .build());
+        pointService.earn(user, PointAction.CONTENT_LIKE, contentId);
     }
 
     @Transactional

@@ -7,6 +7,8 @@ import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.point.entity.PointAction;
+import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.User;
@@ -27,6 +29,7 @@ public class AnswerService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final HistoryRepository historyRepository;
+    private final PointService pointService;
 
     @Transactional
     public AnswerResponse createAnswer(UUID userId, UUID postId, AnswerCreateRequest request) {
@@ -49,6 +52,7 @@ public class AnswerService {
                 .post(post)
                 .answer(savedAnswer)
                 .build());
+        pointService.earn(user, PointAction.ANSWER_WRITE);
         return AnswerResponse.of(savedAnswer);
     }
 
@@ -104,6 +108,7 @@ public class AnswerService {
         }
 
         answer.adopt();
+        pointService.earn(answer.getUser(), PointAction.ANSWER_ADOPTED);
         return AnswerResponse.of(answer);
     }
 }

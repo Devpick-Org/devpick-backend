@@ -61,6 +61,8 @@ class ContentServiceTest {
     private UserRepository userRepository;
     @Mock
     private UserTagRepository userTagRepository;
+    @Mock
+    private com.devpick.domain.point.service.PointService pointService;
 
     private UUID userId;
     private UUID contentId;

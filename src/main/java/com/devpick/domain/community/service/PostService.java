@@ -8,6 +8,8 @@ import com.devpick.domain.community.dto.PostUpdateRequest;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.point.entity.PointAction;
+import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.User;
@@ -31,6 +33,7 @@ public class PostService {
     private final AnswerRepository answerRepository;
     private final UserRepository userRepository;
     private final HistoryRepository historyRepository;
+    private final PointService pointService;
 
     @Transactional
     public PostDetailResponse createPost(UUID userId, PostCreateRequest request) {
@@ -50,6 +53,7 @@ public class PostService {
                 .actionType("question_created")
                 .post(savedPost)
                 .build());
+        pointService.earn(user, PointAction.QUESTION_WRITE);
 
         return PostDetailResponse.of(savedPost, 0L);
     }
