@@ -44,6 +44,8 @@ class AuthServiceTest {
 
     @Mock
     private EmailVerificationRedisService emailVerificationRedisService;
+    @Mock
+    private com.devpick.domain.point.service.PointService pointService;
 
     // ── signup ──────────────────────────────────────────────────────────
 

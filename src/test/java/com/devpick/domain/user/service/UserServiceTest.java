@@ -45,6 +45,8 @@ class UserServiceTest {
     private UserTagRepository userTagRepository;
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
+    @Mock
+    private com.devpick.domain.point.service.BadgeService badgeService;
 
     private UUID userId;
     private User user;

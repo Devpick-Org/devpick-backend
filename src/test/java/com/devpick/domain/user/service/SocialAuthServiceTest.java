@@ -8,6 +8,7 @@ import com.devpick.domain.user.dto.GoogleUserInfo;
 import com.devpick.domain.user.entity.SocialAccount;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.SocialAccountRepository;
+import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -48,6 +49,7 @@ class SocialAuthServiceTest {
     @Mock private TokenService tokenService;
     @Mock private StringRedisTemplate redisTemplate;
     @Mock private ValueOperations<String, String> valueOperations;
+    @Mock private PointService pointService;
 
     private SocialAuthService socialAuthService;
 
@@ -59,7 +61,7 @@ class SocialAuthServiceTest {
         socialAuthService = new SocialAuthService(
                 List.of(gitHubClient, googleClient),
                 oAuthStateService, nicknameGenerator,
-                userRepository, socialAccountRepository, tokenService, redisTemplate);
+                userRepository, socialAccountRepository, tokenService, redisTemplate, pointService);
     }
 
     // ── generateAuthorizationUrl ──────────────────────────────────────────────

@@ -51,6 +51,8 @@ class PostServiceTest {
     private UserRepository userRepository;
     @Mock
     private HistoryRepository historyRepository;
+    @Mock
+    private com.devpick.domain.point.service.PointService pointService;
 
     private UUID userId;
     private UUID postId;
