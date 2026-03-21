@@ -153,7 +153,7 @@ public class WeeklyReportService {
         long questionsCreated = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
                 user.getId(), "question_created", from, to);
         long scrapsCount = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
-                user.getId(), "content_saved", from, to);
+                user.getId(), "scrapped", from, to);
 
         List<Object[]> tagRows = historyRepository.findTopTagsByUserAndPeriod(user.getId(), from, to);
         String topTagsJson = serializeTopTags(tagRows, 3);
