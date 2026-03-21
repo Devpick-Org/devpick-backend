@@ -7,6 +7,8 @@ import com.devpick.domain.community.entity.Comment;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.CommentRepository;
 import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.report.entity.History;
+import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
@@ -25,6 +27,7 @@ public class CommentService {
     private final AnswerRepository answerRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final HistoryRepository historyRepository;
 
     @Transactional
     public CommentResponse createComment(UUID userId, UUID postId, UUID answerId,
@@ -51,7 +54,13 @@ public class CommentService {
                 .content(request.content())
                 .build();
 
-        return CommentResponse.of(commentRepository.save(comment));
+        Comment savedComment = commentRepository.save(comment);
+        historyRepository.save(History.builder()
+                .user(user)
+                .actionType("comment_created")
+                .answer(answer)
+                .build());
+        return CommentResponse.of(savedComment);
     }
 
     @Transactional
