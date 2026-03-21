@@ -327,7 +327,7 @@ class VelogCollectorTest {
     }
 
     private CollectedContent buildCollectedContent(String url) {
-        return new CollectedContent(
+        return CollectedContent.of(
                 "테스트 게시글 제목", "devuser", url, "짧은 설명",
                 null, false, null, java.time.LocalDateTime.now(), List.of("java")
         );

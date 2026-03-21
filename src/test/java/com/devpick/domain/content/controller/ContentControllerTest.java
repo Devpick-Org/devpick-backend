@@ -77,7 +77,8 @@ class ContentControllerTest {
         ContentSummaryResponse summary = new ContentSummaryResponse(
                 UUID.randomUUID(), "Spring Boot 가이드", "홍근", "Velog",
                 "입문 가이드", null, "https://velog.io/@test/spring",
-                List.of("Spring"), LocalDateTime.now(), false, false);
+                List.of("Spring"), LocalDateTime.now(), false, false,
+                null, null, null);
         ContentListResponse response = new ContentListResponse(List.of(summary), 0, 20, 1L, 1);
         given(contentService.getFeed(eq(userId), any())).willReturn(response);
 
@@ -94,7 +95,8 @@ class ContentControllerTest {
         ContentSummaryResponse summary = new ContentSummaryResponse(
                 UUID.randomUUID(), "React 훅 가이드", "홍근", "Velog",
                 "훅 설명", null, "https://velog.io/@test/react",
-                List.of("React"), LocalDateTime.now(), false, false);
+                List.of("React"), LocalDateTime.now(), false, false,
+                null, null, null);
         ContentListResponse response = new ContentListResponse(List.of(summary), 0, 20, 1L, 1);
         given(contentService.search(eq(userId), any(), any(), any())).willReturn(response);
 
@@ -112,7 +114,8 @@ class ContentControllerTest {
                 contentId, "Spring Boot 가이드", "홍근", "Velog",
                 "입문 가이드", null, "https://velog.io/@test/spring",
                 null, false, null, LocalDateTime.now(),
-                List.of("Spring"), false, false);
+                List.of("Spring"), false, false,
+                null, null, null, null, null, null);
         given(contentService.getDetail(userId, contentId)).willReturn(response);
 
         mockMvc.perform(get("/contents/" + contentId))
@@ -197,7 +200,8 @@ class ContentControllerTest {
         ContentSummaryResponse summary = new ContentSummaryResponse(
                 UUID.randomUUID(), "추천 콘텐츠", "작성자", "Velog",
                 "설명", null, "https://velog.io/@test/rec",
-                List.of("Spring"), LocalDateTime.now(), false, false);
+                List.of("Spring"), LocalDateTime.now(), false, false,
+                null, null, null);
         ContentListResponse response = new ContentListResponse(List.of(summary), 0, 5, 1L, 1);
         given(contentService.getRecommendations(eq(userId), eq(contentId), any())).willReturn(response);
 
