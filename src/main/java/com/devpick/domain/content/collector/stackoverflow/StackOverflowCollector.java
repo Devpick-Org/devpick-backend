@@ -185,13 +185,18 @@ public class StackOverflowCollector extends ContentCollector {
         LocalDateTime publishedAt = LocalDateTime.ofInstant(
                 Instant.ofEpochSecond(q.creationDate()), ZoneId.of("UTC"));
 
-        StackOverflowAnswerDto acceptedAnswer = answers.stream()
+        // bodyMarkdown이 null인 답변은 제외 (filter=withbody 누락 대비)
+        List<StackOverflowAnswer> validAnswers = answers.stream()
+                .filter(a -> a.bodyMarkdown() != null)
+                .toList();
+
+        StackOverflowAnswerDto acceptedAnswer = validAnswers.stream()
                 .filter(StackOverflowAnswer::isAccepted)
                 .findFirst()
                 .map(a -> new StackOverflowAnswerDto(a.bodyMarkdown(), a.score()))
                 .orElse(null);
 
-        List<StackOverflowAnswerDto> topAnswers = answers.stream()
+        List<StackOverflowAnswerDto> topAnswers = validAnswers.stream()
                 .filter(a -> !a.isAccepted())
                 .sorted(Comparator.comparingInt(StackOverflowAnswer::score).reversed())
                 .limit(TOP_ANSWER_LIMIT)
@@ -232,7 +237,7 @@ public class StackOverflowCollector extends ContentCollector {
         if (bodyMarkdown != null) {
             sb.append("## Question\n").append(bodyMarkdown).append("\n\n");
         }
-        if (acceptedAnswer != null) {
+        if (acceptedAnswer != null && acceptedAnswer.body() != null) {
             sb.append("## Accepted Answer\n").append(acceptedAnswer.body()).append("\n\n");
         }
         if (!topAnswers.isEmpty()) {
