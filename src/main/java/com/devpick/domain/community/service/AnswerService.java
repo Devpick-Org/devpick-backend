@@ -7,6 +7,8 @@ import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.report.entity.History;
+import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
@@ -24,6 +26,7 @@ public class AnswerService {
     private final AnswerRepository answerRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final HistoryRepository historyRepository;
 
     @Transactional
     public AnswerResponse createAnswer(UUID userId, UUID postId, AnswerCreateRequest request) {
@@ -39,7 +42,13 @@ public class AnswerService {
                 .content(request.content())
                 .build();
 
-        return AnswerResponse.of(answerRepository.save(answer));
+        Answer savedAnswer = answerRepository.save(answer);
+        historyRepository.save(History.builder()
+                .user(user)
+                .actionType("answer_written")
+                .answer(savedAnswer)
+                .build());
+        return AnswerResponse.of(savedAnswer);
     }
 
     @Transactional

@@ -38,22 +38,44 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 
-    // DP-248: 학습 히스토리 조회 (content_liked 제외, 페이지네이션)
+    // DP-248: 히스토리 조회 - actionType 필터 있을 때
     @Query(value = "SELECT h FROM History h " +
                    "LEFT JOIN FETCH h.content " +
                    "LEFT JOIN FETCH h.post " +
-                   "WHERE h.user.id = :userId AND h.actionType <> 'content_liked' " +
+                   "LEFT JOIN FETCH h.answer " +
+                   "WHERE h.user.id = :userId " +
+                   "AND h.actionType IN :actionTypes " +
+                   "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
+                   "AND (:endDate IS NULL OR h.createdAt <= :endDate) " +
                    "ORDER BY h.createdAt DESC",
            countQuery = "SELECT COUNT(h) FROM History h " +
-                        "WHERE h.user.id = :userId AND h.actionType <> 'content_liked'")
-    Page<History> findLearningHistoryByUserId(@Param("userId") UUID userId, Pageable pageable);
+                        "WHERE h.user.id = :userId " +
+                        "AND h.actionType IN :actionTypes " +
+                        "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
+                        "AND (:endDate IS NULL OR h.createdAt <= :endDate)")
+    Page<History> findHistoryByActionTypesAndDateRange(
+            @Param("userId") UUID userId,
+            @Param("actionTypes") List<String> actionTypes,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
 
-    // DP-249: 전체 활동 내역 조회 (content_liked 포함, 페이지네이션)
+    // DP-248: 히스토리 조회 - actionType 필터 없을 때
     @Query(value = "SELECT h FROM History h " +
                    "LEFT JOIN FETCH h.content " +
                    "LEFT JOIN FETCH h.post " +
+                   "LEFT JOIN FETCH h.answer " +
                    "WHERE h.user.id = :userId " +
+                   "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
+                   "AND (:endDate IS NULL OR h.createdAt <= :endDate) " +
                    "ORDER BY h.createdAt DESC",
-           countQuery = "SELECT COUNT(h) FROM History h WHERE h.user.id = :userId")
-    Page<History> findAllActivityByUserId(@Param("userId") UUID userId, Pageable pageable);
+           countQuery = "SELECT COUNT(h) FROM History h " +
+                        "WHERE h.user.id = :userId " +
+                        "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
+                        "AND (:endDate IS NULL OR h.createdAt <= :endDate)")
+    Page<History> findHistoryByDateRange(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
 }

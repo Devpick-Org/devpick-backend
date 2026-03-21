@@ -5,16 +5,17 @@ import com.devpick.domain.report.entity.History;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-// DP-248: 학습 히스토리 조회 응답 아이템 (content_liked 제외)
 public record HistoryItemResponse(
         UUID id,
         String actionType,
         ContentInfo content,
         PostInfo post,
+        AnswerInfo answer,
         LocalDateTime createdAt
 ) {
     public record ContentInfo(UUID id, String title, String preview) {}
     public record PostInfo(UUID id, String title) {}
+    public record AnswerInfo(UUID id) {}
 
     public static HistoryItemResponse of(History history) {
         ContentInfo contentInfo = history.getContent() != null
@@ -30,11 +31,16 @@ public record HistoryItemResponse(
                         history.getPost().getTitle())
                 : null;
 
+        AnswerInfo answerInfo = history.getAnswer() != null
+                ? new AnswerInfo(history.getAnswer().getId())
+                : null;
+
         return new HistoryItemResponse(
                 history.getId(),
                 history.getActionType(),
                 contentInfo,
                 postInfo,
+                answerInfo,
                 history.getCreatedAt()
         );
     }
