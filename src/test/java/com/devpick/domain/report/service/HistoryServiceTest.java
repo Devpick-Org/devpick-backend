@@ -23,6 +23,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -155,6 +157,46 @@ class HistoryServiceTest {
         assertThat(response.items()).hasSize(1);
         assertThat(response.items().get(0).content()).isNull();
         assertThat(response.items().get(0).post()).isNull();
+    }
+
+    @Test
+    @DisplayName("히스토리 조회 - actionTypes 필터 있으면 findHistoryByActionTypesAndDateRange 호출")
+    void getHistory_withActionTypes_callsFilteredQuery() {
+        Content content = mock(Content.class);
+        given(content.getId()).willReturn(UUID.randomUUID());
+        given(content.getTitle()).willReturn("Spring Boot 입문");
+        given(content.getPreview()).willReturn("미리보기");
+
+        History history = History.builder()
+                .user(user).actionType("content_opened").content(content).build();
+        ReflectionTestUtils.setField(history, "id", UUID.randomUUID());
+
+        List<String> actionTypes = List.of("content_opened", "scrapped");
+        Page<History> page = new PageImpl<>(List.of(history), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findHistoryByActionTypesAndDateRange(
+                eq(userId), eq(actionTypes), isNull(), isNull(), any(Pageable.class))).willReturn(page);
+
+        HistoryPageResponse response = historyService.getHistory(userId, actionTypes, null, null, pageable);
+
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().get(0).actionType()).isEqualTo("content_opened");
+    }
+
+    @Test
+    @DisplayName("히스토리 조회 - startDate/endDate 있으면 UTC LocalDateTime으로 변환하여 조회")
+    void getHistory_withDateRange_convertsToUtcLocalDateTime() {
+        Page<History> page = new PageImpl<>(List.of(), pageable, 0);
+        OffsetDateTime startDate = OffsetDateTime.of(2026, 3, 1, 9, 0, 0, 0, ZoneOffset.ofHours(9));
+        OffsetDateTime endDate = OffsetDateTime.of(2026, 3, 21, 9, 0, 0, 0, ZoneOffset.ofHours(9));
+
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findHistoryByDateRange(
+                eq(userId), any(), any(), any(Pageable.class))).willReturn(page);
+
+        HistoryPageResponse response = historyService.getHistory(userId, null, startDate, endDate, pageable);
+
+        assertThat(response.items()).isEmpty();
     }
 
 }
