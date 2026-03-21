@@ -17,7 +17,11 @@ public record ContentSummaryResponse(
         List<String> tags,
         LocalDateTime publishedAt,
         boolean isScrapped,
-        boolean isLiked
+        boolean isLiked,
+        // Stack Overflow 전용 필드 (비-SO 소스는 null)
+        Integer score,
+        Integer viewCount,
+        Boolean isAnswered
 ) {
     public static ContentSummaryResponse of(Content content, boolean isScrapped, boolean isLiked) {
         List<String> tags = content.getContentTags().stream()
@@ -34,7 +38,10 @@ public record ContentSummaryResponse(
                 tags,
                 content.getPublishedAt(),
                 isScrapped,
-                isLiked
+                isLiked,
+                content.getScore(),
+                content.getViewCount(),
+                content.getIsAnswered()
         );
     }
 }

@@ -427,7 +427,7 @@ class StackOverflowCollectorTest {
     }
 
     private CollectedContent buildCollectedContent(String url) {
-        return new CollectedContent(
+        return CollectedContent.of(
                 "Test Question Title",
                 "TestAuthor",
                 url,

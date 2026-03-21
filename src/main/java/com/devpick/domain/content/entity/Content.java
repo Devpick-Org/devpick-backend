@@ -1,5 +1,6 @@
 package com.devpick.domain.content.entity;
 
+import com.devpick.domain.content.dto.StackOverflowAnswerDto;
 import com.devpick.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -59,6 +60,27 @@ public class Content extends BaseTimeEntity {
 
     @Column(name = "takedown_requested_at")
     private LocalDateTime takedownRequestedAt;
+
+    // Stack Overflow 전용 필드 (비-SO 소스는 null)
+    @Column(name = "score")
+    private Integer score;
+
+    @Column(name = "view_count")
+    private Integer viewCount;
+
+    @Column(name = "is_answered")
+    private Boolean isAnswered;
+
+    @Column(name = "question_content", columnDefinition = "TEXT")
+    private String questionContent;
+
+    @Column(name = "accepted_answer", columnDefinition = "TEXT")
+    @Convert(converter = StackOverflowAnswerConverter.class)
+    private StackOverflowAnswerDto acceptedAnswer;
+
+    @Column(name = "top_answers", columnDefinition = "TEXT")
+    @Convert(converter = StackOverflowAnswerListConverter.class)
+    private List<StackOverflowAnswerDto> topAnswers;
 
     @OneToMany(mappedBy = "content", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

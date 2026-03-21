@@ -123,7 +123,13 @@ public class StackOverflowCollector extends ContentCollector {
                 true,
                 LICENSE_TYPE,
                 publishedAt,
-                q.tags() != null ? q.tags() : List.of()
+                q.tags() != null ? q.tags() : List.of(),
+                q.score(),
+                q.viewCount(),
+                q.isAnswered(),
+                null,    // questionContent — Commit 2에서 구현
+                null,    // acceptedAnswer — Commit 2에서 구현
+                null     // topAnswers — Commit 2에서 구현
         );
     }
 }

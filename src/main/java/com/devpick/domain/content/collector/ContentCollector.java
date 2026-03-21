@@ -88,6 +88,12 @@ public abstract class ContentCollector {
                 .licenseType(item.licenseType())
                 .publishedAt(item.publishedAt())
                 .isAvailable(true)
+                .score(item.score())
+                .viewCount(item.viewCount())
+                .isAnswered(item.isAnswered())
+                .questionContent(item.questionContent())
+                .acceptedAnswer(item.acceptedAnswer())
+                .topAnswers(item.topAnswers())
                 .build();
     }
 }

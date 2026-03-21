@@ -99,7 +99,7 @@ public class VelogCollector extends ContentCollector {
         String canonicalUrl = buildCanonicalUrl(author, post.urlSlug());
         LocalDateTime publishedAt = parseReleasedAt(post.releasedAt());
 
-        return new CollectedContent(
+        return CollectedContent.of(
                 post.title(),
                 author,
                 canonicalUrl,
