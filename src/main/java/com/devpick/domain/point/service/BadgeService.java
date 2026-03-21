@@ -13,6 +13,7 @@ import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -37,9 +38,10 @@ public class BadgeService {
 
     /**
      * 포인트 적립 후 배지 조건을 확인하고 충족된 배지를 잠금 해제한다 (DP-269).
+     * REQUIRES_NEW: 배지 체크 실패 시 포인트 적립 트랜잭션에 영향을 주지 않는다.
      * 이미 획득한 배지는 중복 발급하지 않는다.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void checkAndUnlock(User user) {
         checkFirstScrap(user);
         checkFirstQuestion(user);

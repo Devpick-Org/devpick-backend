@@ -11,6 +11,7 @@ import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PointService {
@@ -57,7 +59,12 @@ public class PointService {
                 .referenceId(referenceId)
                 .build());
         user.addPoints(action.getPoints());
-        badgeService.checkAndUnlock(user);
+        try {
+            badgeService.checkAndUnlock(user);
+        } catch (Exception e) {
+            log.warn("배지 잠금 해제 중 오류 발생 (포인트 적립은 정상 처리됨): userId={}, action={}, error={}",
+                    user.getId(), action, e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)
