@@ -6,6 +6,8 @@ import com.devpick.domain.content.dto.AiSummaryResponse;
 import com.devpick.domain.content.dto.AiSummaryResult;
 import com.devpick.domain.content.repository.AiSummaryRepository;
 import com.devpick.domain.content.repository.ContentRepository;
+import com.devpick.domain.point.entity.PointAction;
+import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.User;
@@ -39,6 +41,7 @@ public class AiSummaryService {
     private final HistoryRepository historyRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final PointService pointService;
 
     @Transactional
     public AiSummaryResponse getSummary(UUID userId, UUID contentId, String level) {
@@ -116,13 +119,14 @@ public class AiSummaryService {
 
     private void recordHistory(UUID userId, UUID contentId) {
         userRepository.findByIdAndIsActiveTrue(userId).ifPresent(user ->
-                contentRepository.findByIdAndIsAvailableTrue(contentId).ifPresent(content ->
-                        historyRepository.save(History.builder()
-                                .user(user)
-                                .actionType("ai_summary_viewed")
-                                .content(content)
-                                .build())
-                )
+                contentRepository.findByIdAndIsAvailableTrue(contentId).ifPresent(content -> {
+                    historyRepository.save(History.builder()
+                            .user(user)
+                            .actionType("ai_summary_viewed")
+                            .content(content)
+                            .build());
+                    pointService.earn(user, PointAction.AI_SUMMARY_VIEW);
+                })
         );
     }
 

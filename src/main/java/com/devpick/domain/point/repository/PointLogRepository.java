@@ -28,6 +28,10 @@ public interface PointLogRepository extends JpaRepository<PointLog, UUID> {
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 
+    boolean existsByUser_IdAndAction(UUID userId, PointAction action);
+
+    long countByUser_IdAndAction(UUID userId, PointAction action);
+
     @Query("SELECT pl FROM PointLog pl " +
             "WHERE pl.user.id = :userId AND pl.action = 'DAILY_LOGIN' " +
             "ORDER BY pl.earnedAt DESC")

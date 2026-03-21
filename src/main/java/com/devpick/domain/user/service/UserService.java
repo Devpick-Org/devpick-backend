@@ -1,5 +1,6 @@
 package com.devpick.domain.user.service;
 
+import com.devpick.domain.point.service.BadgeService;
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
 import com.devpick.domain.user.entity.Tag;
@@ -26,11 +27,12 @@ public class UserService {
     private final TagRepository tagRepository;
     private final UserTagRepository userTagRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final BadgeService badgeService;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(UUID userId) {
         User user = findActiveUser(userId);
-        return UserProfileResponse.of(user, null);
+        return UserProfileResponse.of(user, badgeService.getRepresentativeBadge(user.getId()).orElse(null));
     }
 
     @Transactional
@@ -53,7 +55,7 @@ public class UserService {
             tags.forEach(tag -> user.getUserTags().add(UserTag.builder().user(user).tag(tag).build()));
         }
 
-        return UserProfileResponse.of(user, null);
+        return UserProfileResponse.of(user, badgeService.getRepresentativeBadge(user.getId()).orElse(null));
     }
 
     @Transactional
