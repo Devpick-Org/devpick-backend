@@ -37,7 +37,7 @@ public class PostController {
 
     private final PostService postService;
 
-    @Operation(summary = "게시글 작성", description = "새 질문/게시글을 작성합니다. 학습 히스토리(post_created)가 기록됩니다.")
+    @Operation(summary = "게시글 작성", description = "새 질문/게시글을 작성합니다. 학습 히스토리(question_created)가 기록됩니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "작성 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효성 검사 실패"),
