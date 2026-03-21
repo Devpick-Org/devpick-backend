@@ -1,5 +1,6 @@
 package com.devpick.domain.user.dto;
 
+import com.devpick.domain.point.dto.RepresentativeBadgeDto;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.domain.user.entity.User;
@@ -16,9 +17,11 @@ public record UserProfileResponse(
         Job job,
         Level level,
         List<String> tags,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        int totalPoints,
+        RepresentativeBadgeDto representativeBadge
 ) {
-    public static UserProfileResponse from(User user) {
+    public static UserProfileResponse of(User user, RepresentativeBadgeDto representativeBadge) {
         List<String> tagNames = user.getUserTags().stream()
                 .map(ut -> ut.getTag().getName())
                 .toList();
@@ -30,7 +33,9 @@ public record UserProfileResponse(
                 user.getJob(),
                 user.getLevel(),
                 tagNames,
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                user.getTotalPoints(),
+                representativeBadge
         );
     }
 }

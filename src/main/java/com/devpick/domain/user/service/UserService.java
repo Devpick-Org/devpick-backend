@@ -30,7 +30,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(UUID userId) {
         User user = findActiveUser(userId);
-        return UserProfileResponse.from(user);
+        return UserProfileResponse.of(user, null);
     }
 
     @Transactional
@@ -53,7 +53,7 @@ public class UserService {
             tags.forEach(tag -> user.getUserTags().add(UserTag.builder().user(user).tag(tag).build()));
         }
 
-        return UserProfileResponse.from(user);
+        return UserProfileResponse.of(user, null);
     }
 
     @Transactional

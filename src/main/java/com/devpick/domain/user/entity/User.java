@@ -39,6 +39,10 @@ public class User extends BaseTimeEntity {
     @Column(length = 20, nullable = false)
     private Level level;
 
+    @Column(name = "total_points", nullable = false)
+    @Builder.Default
+    private int totalPoints = 0;
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
@@ -98,6 +102,11 @@ public class User extends BaseTimeEntity {
                 .job(Job.BACKEND)
                 .level(Level.BEGINNER)
                 .build();
+    }
+
+    /** 포인트 적립 (DP-269). */
+    public void addPoints(int points) {
+        this.totalPoints += points;
     }
 
     /** 프로필 수정 (DP-187). */

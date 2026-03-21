@@ -78,7 +78,13 @@ public enum ErrorCode {
     REPORT_FORBIDDEN(HttpStatus.FORBIDDEN, "REPORT_002", "리포트 조회 권한이 없습니다."),
 
     // History
-    HISTORY_NOT_FOUND(HttpStatus.NOT_FOUND, "HISTORY_001", "히스토리를 찾을 수 없습니다.");
+    HISTORY_NOT_FOUND(HttpStatus.NOT_FOUND, "HISTORY_001", "히스토리를 찾을 수 없습니다."),
+
+    // Point
+    POINT_NOT_FOUND(HttpStatus.NOT_FOUND, "POINT_001", "포인트 정보를 찾을 수 없습니다."),
+
+    // Badge
+    BADGE_NOT_FOUND(HttpStatus.NOT_FOUND, "BADGE_001", "배지 정보를 찾을 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
