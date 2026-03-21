@@ -58,6 +58,7 @@ public class CommentService {
         historyRepository.save(History.builder()
                 .user(user)
                 .actionType("comment_created")
+                .post(answer.getPost())
                 .answer(answer)
                 .build());
         return CommentResponse.of(savedComment);

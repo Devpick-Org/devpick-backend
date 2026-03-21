@@ -46,6 +46,7 @@ public class AnswerService {
         historyRepository.save(History.builder()
                 .user(user)
                 .actionType("answer_written")
+                .post(post)
                 .answer(savedAnswer)
                 .build());
         return AnswerResponse.of(savedAnswer);

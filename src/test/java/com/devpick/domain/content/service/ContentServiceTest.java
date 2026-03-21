@@ -41,6 +41,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class ContentServiceTest {
@@ -161,7 +162,9 @@ class ContentServiceTest {
         contentService.addScrap(userId, contentId);
 
         verify(scrapRepository).save(any(Scrap.class));
-        verify(historyRepository).save(any(History.class));
+        ArgumentCaptor<History> captor = ArgumentCaptor.forClass(History.class);
+        verify(historyRepository).save(captor.capture());
+        assertThat(captor.getValue().getActionType()).isEqualTo("scrapped");
     }
 
     @Test

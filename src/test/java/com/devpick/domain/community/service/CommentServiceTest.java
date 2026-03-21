@@ -8,6 +8,7 @@ import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.CommentRepository;
 import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
@@ -26,6 +27,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 import java.util.UUID;
+
+import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -114,6 +117,10 @@ class CommentServiceTest {
         assertThat(response.content()).isEqualTo("Test Comment");
         assertThat(response.nickname()).isEqualTo("tester");
         verify(commentRepository).save(any(Comment.class));
+        ArgumentCaptor<History> captor = ArgumentCaptor.forClass(History.class);
+        verify(historyRepository).save(captor.capture());
+        assertThat(captor.getValue().getActionType()).isEqualTo("comment_created");
+        assertThat(captor.getValue().getPost()).isEqualTo(post);
     }
 
     @Test

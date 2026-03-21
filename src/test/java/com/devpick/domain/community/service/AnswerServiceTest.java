@@ -7,6 +7,7 @@ import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
@@ -26,6 +27,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
+import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -99,6 +102,10 @@ class AnswerServiceTest {
         assertThat(response.content()).isEqualTo("Test Answer");
         assertThat(response.isAdopted()).isFalse();
         verify(answerRepository).save(any(Answer.class));
+        ArgumentCaptor<History> captor = ArgumentCaptor.forClass(History.class);
+        verify(historyRepository).save(captor.capture());
+        assertThat(captor.getValue().getActionType()).isEqualTo("answer_written");
+        assertThat(captor.getValue().getPost()).isEqualTo(post);
     }
 
     @Test
