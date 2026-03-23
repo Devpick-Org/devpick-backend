@@ -62,12 +62,24 @@ class TokenServiceTest {
     // ── reissueTokens ──────────────────────────────────────────────
 
     @Test
+    @DisplayName("토큰 재발급 실패 - JWT 서명이 유효하지 않으면 AUTH_INVALID_REFRESH_TOKEN 예외가 발생한다")
+    void reissueTokens_invalidJwt_throwsException() {
+        given(jwtTokenProvider.isTokenValid("tampered-token")).willReturn(false);
+
+        assertThatThrownBy(() -> tokenService.reissueTokens("tampered-token"))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_INVALID_REFRESH_TOKEN));
+    }
+
+    @Test
     @DisplayName("토큰 재발급 - 유효한 Refresh Token으로 새 토큰 쌍이 발급된다")
     void reissueTokens_success() throws Exception {
         User user = createUser();
         RefreshToken stored = createRefreshToken(user, "old-refresh-token",
                 LocalDateTime.now().plusDays(7));
 
+        given(jwtTokenProvider.isTokenValid("old-refresh-token")).willReturn(true);
         given(refreshTokenRepository.findByToken("old-refresh-token"))
                 .willReturn(Optional.of(stored));
         given(jwtTokenProvider.generateAccessToken(user.getId()))
@@ -89,6 +101,7 @@ class TokenServiceTest {
     @Test
     @DisplayName("토큰 재발급 실패 - DB에 없는 Refresh Token이면 AUTH_INVALID_REFRESH_TOKEN 예외가 발생한다")
     void reissueTokens_notFoundInDb_throwsException() {
+        given(jwtTokenProvider.isTokenValid("unknown-token")).willReturn(true);
         given(refreshTokenRepository.findByToken("unknown-token")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> tokenService.reissueTokens("unknown-token"))
@@ -104,6 +117,7 @@ class TokenServiceTest {
         RefreshToken expired = createRefreshToken(user, "expired-token",
                 LocalDateTime.now().minusDays(1));
 
+        given(jwtTokenProvider.isTokenValid("expired-token")).willReturn(true);
         given(refreshTokenRepository.findByToken("expired-token"))
                 .willReturn(Optional.of(expired));
 
