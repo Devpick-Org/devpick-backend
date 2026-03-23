@@ -146,10 +146,11 @@ class AnswerControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /posts/{postId}/answers/{answerId} - 삭제 성공 시 204 반환")
-    void deleteAnswer_success_returns204() throws Exception {
+    @DisplayName("DELETE /posts/{postId}/answers/{answerId} - 삭제 성공 시 200과 success:true 반환")
+    void deleteAnswer_success_returns200() throws Exception {
         mockMvc.perform(delete("/posts/" + postId + "/answers/" + answerId))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
 
         verify(answerService).deleteAnswer(userId, postId, answerId);
     }

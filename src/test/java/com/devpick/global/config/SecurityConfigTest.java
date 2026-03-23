@@ -1,6 +1,7 @@
 package com.devpick.global.config;
 
 import com.devpick.global.security.JwtAuthenticationFilter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,7 @@ class SecurityConfigTest {
     void setUp() {
         CorsConfig corsConfig = new CorsConfig();
         JwtAuthenticationFilter jwtFilter = mock(JwtAuthenticationFilter.class);
-        securityConfig = new SecurityConfig(corsConfig.corsConfigurationSource(), jwtFilter);
+        securityConfig = new SecurityConfig(corsConfig.corsConfigurationSource(), jwtFilter, new ObjectMapper());
     }
 
     @Test

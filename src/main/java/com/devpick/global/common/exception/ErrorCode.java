@@ -18,6 +18,8 @@ public enum ErrorCode {
     INVALID_HTTP_PARAMETER(HttpStatus.BAD_REQUEST, "GLOBAL_400_2", "HTTP 요청 파라미터의 형식이 잘못되었습니다."),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "GLOBAL_405", "지원하지 않는 HTTP 메서드입니다."),
     ENDPOINT_NOT_FOUND(HttpStatus.NOT_FOUND, "GLOBAL_404", "존재하지 않는 엔드포인트입니다."),
+    MISSING_REQUEST_PARAMETER(HttpStatus.BAD_REQUEST, "GLOBAL_400_3", "필수 요청 파라미터가 누락되었습니다."),
+    UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "GLOBAL_415", "지원하지 않는 미디어 타입입니다."),
 
     // Auth
     AUTH_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_001", "유효하지 않은 토큰입니다."),
