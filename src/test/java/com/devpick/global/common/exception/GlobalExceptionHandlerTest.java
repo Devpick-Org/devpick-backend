@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -74,6 +75,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/refresh")
         public String refresh(@CookieValue("refreshToken") String refreshToken) {
             return refreshToken;
+        }
+
+        @GetMapping("/test/required-param")
+        public String requiredParam(@RequestParam String name) {
+            return name;
         }
     }
 
@@ -197,6 +203,26 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("AUTH_003"));
+    }
+
+    @Test
+    @DisplayName("필수 파라미터 누락 시 400과 GLOBAL_400_3이 반환된다")
+    void handleMissingServletRequestParameter_returns400() throws Exception {
+        mockMvc.perform(get("/test/required-param"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("GLOBAL_400_3"));
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 Content-Type 요청 시 415와 GLOBAL_415가 반환된다")
+    void handleHttpMediaTypeNotSupported_returns415() throws Exception {
+        mockMvc.perform(post("/auth/signup")
+                        .contentType(MediaType.APPLICATION_XML)
+                        .content("<xml/>"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("GLOBAL_415"));
     }
 
     @Test

@@ -185,10 +185,11 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /posts/{postId} - 삭제 성공 시 204 반환")
-    void deletePost_success_returns204() throws Exception {
+    @DisplayName("DELETE /posts/{postId} - 삭제 성공 시 200과 success:true 반환")
+    void deletePost_success_returns200() throws Exception {
         mockMvc.perform(delete("/posts/" + postId))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
 
         verify(postService).deletePost(userId, postId);
     }

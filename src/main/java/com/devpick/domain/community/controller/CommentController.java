@@ -47,17 +47,17 @@ public class CommentController {
 
     @Operation(summary = "댓글 삭제", description = "댓글을 삭제합니다. 작성자만 삭제 가능합니다.")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "삭제 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음")
     })
     @DeleteMapping("/{commentId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteComment(
+    public ApiResponse<Void> deleteComment(
             @AuthenticationPrincipal UUID userId,
             @Parameter(description = "게시글 ID (UUID)", required = true) @PathVariable UUID postId,
             @Parameter(description = "답변 ID (UUID)", required = true) @PathVariable UUID answerId,
             @Parameter(description = "댓글 ID (UUID)", required = true) @PathVariable UUID commentId) {
         commentService.deleteComment(userId, postId, answerId, commentId);
+        return ApiResponse.ok();
     }
 }
