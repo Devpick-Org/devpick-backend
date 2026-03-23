@@ -38,7 +38,8 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -124,8 +125,9 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
                 .andExpect(jsonPath("$.data.refreshTokenValue").doesNotExist())
                 .andExpect(jsonPath("$.data.email").value("test@devpick.kr"))
-                .andExpect(cookie().httpOnly(AuthController.REFRESH_TOKEN_COOKIE, true))
-                .andExpect(cookie().value(AuthController.REFRESH_TOKEN_COOKIE, "refresh-token"));
+                .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
+                .andExpect(header().string("Set-Cookie", containsString("SameSite=None")))
+                .andExpect(header().string("Set-Cookie", containsString("refreshToken=refresh-token")));
     }
 
     @Test
@@ -182,7 +184,7 @@ class AuthControllerTest {
                                 testUserId, null, List.of())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(cookie().maxAge(AuthController.REFRESH_TOKEN_COOKIE, 0));
+                .andExpect(header().string("Set-Cookie", containsString("Max-Age=0")));
     }
 
     @Test
@@ -211,8 +213,9 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("new-access-token"))
-                .andExpect(cookie().httpOnly(AuthController.REFRESH_TOKEN_COOKIE, true))
-                .andExpect(cookie().value(AuthController.REFRESH_TOKEN_COOKIE, "new-refresh-token"));
+                .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
+                .andExpect(header().string("Set-Cookie", containsString("SameSite=None")))
+                .andExpect(header().string("Set-Cookie", containsString("refreshToken=new-refresh-token")));
     }
 
     @Test
@@ -323,8 +326,9 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
                 .andExpect(jsonPath("$.data.email").value("hayoung@test.com"))
-                .andExpect(cookie().httpOnly(AuthController.REFRESH_TOKEN_COOKIE, true))
-                .andExpect(cookie().value(AuthController.REFRESH_TOKEN_COOKIE, "refresh-token"));
+                .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
+                .andExpect(header().string("Set-Cookie", containsString("SameSite=None")))
+                .andExpect(header().string("Set-Cookie", containsString("refreshToken=refresh-token")));
     }
 
     @Test
@@ -382,8 +386,9 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
                 .andExpect(jsonPath("$.data.email").value("hayoung@gmail.com"))
-                .andExpect(cookie().httpOnly(AuthController.REFRESH_TOKEN_COOKIE, true))
-                .andExpect(cookie().value(AuthController.REFRESH_TOKEN_COOKIE, "refresh-token"));
+                .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
+                .andExpect(header().string("Set-Cookie", containsString("SameSite=None")))
+                .andExpect(header().string("Set-Cookie", containsString("refreshToken=refresh-token")));
     }
 
     @Test
@@ -446,7 +451,8 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
-                .andExpect(cookie().httpOnly(AuthController.REFRESH_TOKEN_COOKIE, true));
+                .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
+                .andExpect(header().string("Set-Cookie", containsString("SameSite=None")));
     }
 
     @Test
