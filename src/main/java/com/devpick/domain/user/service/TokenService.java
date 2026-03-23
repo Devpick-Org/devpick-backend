@@ -74,11 +74,16 @@ public class TokenService {
      */
     @Transactional
     public String[] reissueTokens(String refreshToken) {
-        // 1. DB에 존재하는지 확인
+        // 1. JWT 서명/만료 자체 검증
+        if (!jwtTokenProvider.isTokenValid(refreshToken)) {
+            throw new DevpickException(ErrorCode.AUTH_INVALID_REFRESH_TOKEN);
+        }
+
+        // 2. DB에 존재하는지 확인
         RefreshToken stored = refreshTokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> new DevpickException(ErrorCode.AUTH_INVALID_REFRESH_TOKEN));
 
-        // 2. DB 만료 시각 검증
+        // 3. DB 만료 시각 검증
         if (stored.getExpiresAt().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.delete(stored);
             throw new DevpickException(ErrorCode.AUTH_INVALID_REFRESH_TOKEN);
@@ -86,7 +91,7 @@ public class TokenService {
 
         User user = stored.getUser();
 
-        // 3. 기존 토큰 삭제 + 신규 토큰 발급 (Token Rotation)
+        // 4. 기존 토큰 삭제 + 신규 토큰 발급 (Token Rotation)
         refreshTokenRepository.deleteByUser(user);
 
         String newAccessToken = jwtTokenProvider.generateAccessToken(user.getId());
