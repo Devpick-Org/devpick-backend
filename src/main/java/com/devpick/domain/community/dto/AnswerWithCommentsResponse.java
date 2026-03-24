@@ -1,36 +1,38 @@
 package com.devpick.domain.community.dto;
 
 import com.devpick.domain.community.entity.Answer;
+import com.devpick.domain.community.entity.Comment;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
-public record AnswerResponse(
+public record AnswerWithCommentsResponse(
         UUID id,
-        UUID postId,
         String content,
-        Boolean isAdopted,
         UUID authorId,
         String authorNickname,
         Job authorJob,
         Level authorLevel,
+        Boolean isAdopted,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        List<CommentResponse> comments
 ) {
-    public static AnswerResponse of(Answer answer) {
-        return new AnswerResponse(
+    public static AnswerWithCommentsResponse of(Answer answer, List<Comment> comments) {
+        return new AnswerWithCommentsResponse(
                 answer.getId(),
-                answer.getPost().getId(),
                 answer.getContent(),
-                answer.getIsAdopted(),
                 answer.getUser().getId(),
                 answer.getUser().getNickname(),
                 answer.getUser().getJob(),
                 answer.getUser().getLevel(),
+                answer.getIsAdopted(),
                 answer.getCreatedAt(),
-                answer.getUpdatedAt()
+                answer.getUpdatedAt(),
+                comments.stream().map(CommentResponse::of).toList()
         );
     }
 }
