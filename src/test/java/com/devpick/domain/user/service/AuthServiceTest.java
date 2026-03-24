@@ -6,6 +6,8 @@ import com.devpick.domain.user.dto.RecoverRequest;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.entity.User;
+import com.devpick.domain.user.entity.UserConsent;
+import com.devpick.domain.user.repository.UserConsentRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -47,13 +49,44 @@ class AuthServiceTest {
     @Mock
     private com.devpick.domain.point.service.PointService pointService;
 
+    @Mock
+    private UserConsentRepository userConsentRepository;
+
     // ── signup ──────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("이용약관 미동의 — termsAgreed=false이면 AUTH_CONSENT_REQUIRED 예외가 발생한다")
+    void signup_termsNotAgreed_throwsException() {
+        // given
+        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영", false, true);
+
+        // when & then
+        assertThatThrownBy(() -> authService.signup(request))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_CONSENT_REQUIRED));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("개인정보처리방침 미동의 — privacyAgreed=false이면 AUTH_CONSENT_REQUIRED 예외가 발생한다")
+    void signup_privacyNotAgreed_throwsException() {
+        // given
+        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영", true, false);
+
+        // when & then
+        assertThatThrownBy(() -> authService.signup(request))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AUTH_CONSENT_REQUIRED));
+        verify(userRepository, never()).save(any(User.class));
+    }
 
     @Test
     @DisplayName("정상 회원가입 — 이메일 인증 완료 후 회원가입 시 User가 저장되고 is_email_verified=true로 생성된다")
     void signup_success() {
         // given
-        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영");
+        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영", true, true);
         given(emailVerificationRedisService.isVerified(request.email())).willReturn(true);
         given(userRepository.findByEmail(request.email())).willReturn(java.util.Optional.empty());
         given(userRepository.existsByNicknameAndIsActiveTrue(request.nickname())).willReturn(false);
@@ -67,6 +100,7 @@ class AuthServiceTest {
         assertThat(response.email()).isEqualTo(request.email());
         assertThat(response.nickname()).isEqualTo(request.nickname());
         verify(userRepository).save(any(User.class));
+        verify(userConsentRepository, org.mockito.Mockito.times(2)).save(any(UserConsent.class));
         verify(emailVerificationRedisService).deleteVerified(request.email());
     }
 
@@ -74,7 +108,7 @@ class AuthServiceTest {
     @DisplayName("이메일 인증 전 회원가입 시도 — Redis 인증완료 플래그 없으면 AUTH_EMAIL_NOT_VERIFIED_FOR_SIGNUP 예외가 발생한다")
     void signup_emailNotVerified_throwsException() {
         // given
-        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영");
+        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영", true, true);
         given(emailVerificationRedisService.isVerified(request.email())).willReturn(false);
 
         // when & then
@@ -89,7 +123,7 @@ class AuthServiceTest {
     @DisplayName("이메일 중복 — 활성 계정과 같은 이메일로 가입 시 AUTH_DUPLICATE_EMAIL 예외가 발생한다")
     void signup_duplicateEmail_throwsException() {
         // given
-        SignupRequest request = new SignupRequest("duplicate@devpick.kr", "password123!", "하영");
+        SignupRequest request = new SignupRequest("duplicate@devpick.kr", "password123!", "하영", true, true);
         User activeUser = User.createVerifiedEmailUser("duplicate@devpick.kr", "encoded", "기존닉");
         given(emailVerificationRedisService.isVerified(request.email())).willReturn(true);
         given(userRepository.findByEmail(request.email())).willReturn(java.util.Optional.of(activeUser));
@@ -106,7 +140,7 @@ class AuthServiceTest {
     @DisplayName("탈퇴 후 7일 이내 가입 시도 — AUTH_ACCOUNT_RECOVERABLE 예외가 발생한다")
     void signup_recoverableDeletedEmail_throwsRecoverable() {
         // given
-        SignupRequest request = new SignupRequest("deleted@devpick.kr", "password123!", "새닉");
+        SignupRequest request = new SignupRequest("deleted@devpick.kr", "password123!", "새닉", true, true);
         User deletedUser = User.createVerifiedEmailUser("deleted@devpick.kr", "encoded", "구닉");
         deletedUser.softDelete(); // deletedAt = now, isRecoverable() = true
         given(emailVerificationRedisService.isVerified(request.email())).willReturn(true);
@@ -124,7 +158,7 @@ class AuthServiceTest {
     @DisplayName("닉네임 중복 — 활성 계정과 같은 닉네임으로 가입 시 AUTH_DUPLICATE_NICKNAME 예외가 발생한다")
     void signup_duplicateNickname_throwsException() {
         // given
-        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "중복닉네임");
+        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "중복닉네임", true, true);
         given(emailVerificationRedisService.isVerified(request.email())).willReturn(true);
         given(userRepository.findByEmail(request.email())).willReturn(java.util.Optional.empty());
         given(userRepository.existsByNicknameAndIsActiveTrue(request.nickname())).willReturn(true);

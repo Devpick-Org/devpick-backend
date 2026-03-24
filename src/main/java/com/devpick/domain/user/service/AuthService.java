@@ -7,7 +7,10 @@ import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.RecoverRequest;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
+import com.devpick.domain.user.entity.ConsentType;
 import com.devpick.domain.user.entity.User;
+import com.devpick.domain.user.entity.UserConsent;
+import com.devpick.domain.user.repository.UserConsentRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -27,6 +30,7 @@ public class AuthService {
     private final TokenService tokenService;
     private final EmailVerificationRedisService emailVerificationRedisService;
     private final PointService pointService;
+    private final UserConsentRepository userConsentRepository;
 
     /**
      * 이메일 회원가입 (DP-177 수정 — 이메일 인증 후 가입 흐름).
@@ -40,6 +44,10 @@ public class AuthService {
      */
     @Transactional
     public SignupResponse signup(SignupRequest request) {
+        if (!Boolean.TRUE.equals(request.termsAgreed()) || !Boolean.TRUE.equals(request.privacyAgreed())) {
+            throw new DevpickException(ErrorCode.AUTH_CONSENT_REQUIRED);
+        }
+
         if (!emailVerificationRedisService.isVerified(request.email())) {
             throw new DevpickException(ErrorCode.AUTH_EMAIL_NOT_VERIFIED_FOR_SIGNUP);
         }
@@ -50,6 +58,9 @@ public class AuthService {
         String encodedPassword = passwordEncoder.encode(request.password());
         User user = User.createVerifiedEmailUser(request.email(), encodedPassword, request.nickname());
         userRepository.save(user);
+
+        userConsentRepository.save(UserConsent.of(user, ConsentType.TERMS));
+        userConsentRepository.save(UserConsent.of(user, ConsentType.PRIVACY));
 
         emailVerificationRedisService.deleteVerified(request.email());
 

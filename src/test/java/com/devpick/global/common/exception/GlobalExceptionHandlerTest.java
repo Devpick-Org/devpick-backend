@@ -97,10 +97,12 @@ class GlobalExceptionHandlerTest {
         // given
         given(authService.signup(any())).willThrow(new DevpickException(ErrorCode.AUTH_DUPLICATE_EMAIL));
 
-        Map<String, String> request = Map.of(
+        Map<String, Object> request = Map.of(
                 "email", "test@devpick.kr",
                 "password", "password123!",
-                "nickname", "하영"
+                "nickname", "하영",
+                "termsAgreed", true,
+                "privacyAgreed", true
         );
 
         // when & then
@@ -137,10 +139,12 @@ class GlobalExceptionHandlerTest {
         // given
         given(authService.signup(any())).willThrow(new RuntimeException("unexpected"));
 
-        Map<String, String> request = Map.of(
+        Map<String, Object> request = Map.of(
                 "email", "test@devpick.kr",
                 "password", "password123!",
-                "nickname", "하영"
+                "nickname", "하영",
+                "termsAgreed", true,
+                "privacyAgreed", true
         );
 
         // when & then
