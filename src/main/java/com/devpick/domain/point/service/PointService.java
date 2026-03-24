@@ -44,13 +44,13 @@ public class PointService {
      * DAILY_LOGIN: KST 기준 하루 1회만 적립.
      */
     @Transactional
-    public void earn(User user, PointAction action) {
-        earn(user, action, null);
+    public boolean earn(User user, PointAction action) {
+        return earn(user, action, null);
     }
 
     @Transactional
-    public void earn(User user, PointAction action, UUID referenceId) {
-        if (isDuplicate(user.getId(), action, referenceId)) return;
+    public boolean earn(User user, PointAction action, UUID referenceId) {
+        if (isDuplicate(user.getId(), action, referenceId)) return false;
 
         pointLogRepository.save(PointLog.builder()
                 .user(user)
@@ -65,6 +65,7 @@ public class PointService {
             log.warn("배지 잠금 해제 중 오류 발생 (포인트 적립은 정상 처리됨): userId={}, action={}, error={}",
                     user.getId(), action, e.getMessage());
         }
+        return true;
     }
 
     @Transactional(readOnly = true)
