@@ -1,11 +1,15 @@
 package com.devpick.domain.community.service;
 
 import com.devpick.domain.community.dto.AnswerCreateRequest;
+import com.devpick.domain.community.dto.AnswerListResponse;
 import com.devpick.domain.community.dto.AnswerResponse;
 import com.devpick.domain.community.dto.AnswerUpdateRequest;
+import com.devpick.domain.community.dto.AnswerWithCommentsResponse;
 import com.devpick.domain.community.entity.Answer;
+import com.devpick.domain.community.entity.Comment;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.repository.AnswerRepository;
+import com.devpick.domain.community.repository.CommentRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.domain.point.entity.PointAction;
 import com.devpick.domain.point.service.PointService;
@@ -19,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -30,6 +35,22 @@ public class AnswerService {
     private final UserRepository userRepository;
     private final HistoryRepository historyRepository;
     private final PointService pointService;
+    private final CommentRepository commentRepository;
+
+    @Transactional(readOnly = true)
+    public AnswerListResponse getAnswers(UUID postId) {
+        postRepository.findById(postId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.COMMUNITY_POST_NOT_FOUND));
+
+        List<Answer> answers = answerRepository.findByPost_IdOrderByCreatedAtAsc(postId);
+        List<AnswerWithCommentsResponse> result = answers.stream()
+                .map(answer -> {
+                    List<Comment> comments = commentRepository.findByAnswer_IdOrderByCreatedAtAsc(answer.getId());
+                    return AnswerWithCommentsResponse.of(answer, comments);
+                })
+                .toList();
+        return new AnswerListResponse(result);
+    }
 
     @Transactional
     public AnswerResponse createAnswer(UUID userId, UUID postId, AnswerCreateRequest request) {

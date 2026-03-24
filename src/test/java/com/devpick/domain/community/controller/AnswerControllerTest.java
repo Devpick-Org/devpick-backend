@@ -76,7 +76,7 @@ class AnswerControllerTest {
 
         answerResponse = new AnswerResponse(
                 answerId, postId, "Test Answer", false,
-                userId, "tester",
+                userId, "tester", null, null,
                 LocalDateTime.now(), LocalDateTime.now()
         );
     }
@@ -120,7 +120,7 @@ class AnswerControllerTest {
         AnswerUpdateRequest request = new AnswerUpdateRequest("Updated Answer");
         AnswerResponse updated = new AnswerResponse(
                 answerId, postId, "Updated Answer", false,
-                userId, "tester", LocalDateTime.now(), LocalDateTime.now());
+                userId, "tester", null, null, LocalDateTime.now(), LocalDateTime.now());
         given(answerService.updateAnswer(eq(userId), eq(postId), eq(answerId), any())).willReturn(updated);
 
         mockMvc.perform(put("/posts/" + postId + "/answers/" + answerId)
@@ -160,7 +160,7 @@ class AnswerControllerTest {
     void adoptAnswer_success_returns200() throws Exception {
         AnswerResponse adopted = new AnswerResponse(
                 answerId, postId, "Test Answer", true,
-                userId, "tester", LocalDateTime.now(), LocalDateTime.now());
+                userId, "tester", null, null, LocalDateTime.now(), LocalDateTime.now());
         given(answerService.adoptAnswer(userId, postId, answerId)).willReturn(adopted);
 
         mockMvc.perform(post("/posts/" + postId + "/answers/" + answerId + "/adopt"))

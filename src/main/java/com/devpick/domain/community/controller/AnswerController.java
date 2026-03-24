@@ -1,6 +1,7 @@
 package com.devpick.domain.community.controller;
 
 import com.devpick.domain.community.dto.AnswerCreateRequest;
+import com.devpick.domain.community.dto.AnswerListResponse;
 import com.devpick.domain.community.dto.AnswerResponse;
 import com.devpick.domain.community.dto.AnswerUpdateRequest;
 import com.devpick.domain.community.service.AnswerService;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -31,6 +33,17 @@ import java.util.UUID;
 public class AnswerController {
 
     private final AnswerService answerService;
+
+    @Operation(summary = "답변 및 댓글 통합 조회", description = "게시글의 답변 목록과 각 답변에 달린 댓글을 함께 반환합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음")
+    })
+    @GetMapping
+    public ApiResponse<AnswerListResponse> getAnswers(
+            @Parameter(description = "게시글 ID (UUID)", required = true) @PathVariable UUID postId) {
+        return ApiResponse.ok(answerService.getAnswers(postId));
+    }
 
     @Operation(summary = "답변 작성", description = "게시글에 답변을 작성합니다.")
     @ApiResponses({
