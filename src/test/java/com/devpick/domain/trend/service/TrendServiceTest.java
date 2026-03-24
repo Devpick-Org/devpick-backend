@@ -79,6 +79,22 @@ class TrendServiceTest {
     }
 
     @Test
+    @DisplayName("캐시 미스 - SO API도 빈 결과면 Redis 저장 없이 빈 목록 반환한다")
+    void getTrendingKeywords_cacheMiss_emptyApiResult_returnsEmpty() {
+        // given
+        given(valueOperations.get("trends:keywords")).willReturn(null);
+        given(tagClient.fetchTrendingTagNames()).willReturn(List.of());
+        given(valueOperations.get("trends:keywords:updated_at")).willReturn(null);
+
+        // when
+        TrendingKeywordsResponse response = trendService.getTrendingKeywords();
+
+        // then
+        assertThat(response.keywords()).isEmpty();
+        verify(valueOperations, never()).set(anyString(), anyString(), any());
+    }
+
+    @Test
     @DisplayName("refreshTrendingKeywords - SO API 결과 없으면 Redis에 저장하지 않는다")
     void refreshTrendingKeywords_emptyResult_doesNotSave() {
         // given
