@@ -47,6 +47,7 @@ public enum ErrorCode {
     AUTH_EMAIL_NOT_VERIFIED_FOR_SIGNUP(HttpStatus.FORBIDDEN, "AUTH_023", "이메일 인증을 먼저 완료해 주세요."),
     AUTH_ACCOUNT_RECOVERABLE(HttpStatus.CONFLICT, "AUTH_024", "탈퇴 처리 중인 계정입니다. 7일 이내 복구할 수 있습니다."),
     AUTH_ACCOUNT_DELETED(HttpStatus.GONE, "AUTH_025", "탈퇴 처리가 완료된 계정입니다."),
+    AUTH_CONSENT_REQUIRED(HttpStatus.BAD_REQUEST, "AUTH_026", "이용약관 및 개인정보처리방침 동의가 필요합니다."),
 
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "사용자를 찾을 수 없습니다."),

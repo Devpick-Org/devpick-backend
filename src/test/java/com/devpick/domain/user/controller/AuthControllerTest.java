@@ -82,7 +82,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("POST /auth/signup - 정상 회원가입 시 201과 userId, email, nickname을 반환한다")
     void signup_success() throws Exception {
-        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영");
+        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영", true, true);
         SignupResponse response = new SignupResponse(UUID.randomUUID(), "test@devpick.kr", "하영");
         given(authService.signup(any(SignupRequest.class))).willReturn(response);
 
@@ -105,6 +105,38 @@ class AuthControllerTest {
                         .content(request))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /auth/signup - 이용약관 미동의 시 400을 반환한다")
+    void signup_termsNotAgreed_returns400() throws Exception {
+        given(authService.signup(any(SignupRequest.class)))
+                .willThrow(new DevpickException(ErrorCode.AUTH_CONSENT_REQUIRED));
+
+        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영", false, true);
+
+        mockMvc.perform(post("/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("AUTH_026"));
+    }
+
+    @Test
+    @DisplayName("POST /auth/signup - 개인정보처리방침 미동의 시 400을 반환한다")
+    void signup_privacyNotAgreed_returns400() throws Exception {
+        given(authService.signup(any(SignupRequest.class)))
+                .willThrow(new DevpickException(ErrorCode.AUTH_CONSENT_REQUIRED));
+
+        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영", true, false);
+
+        mockMvc.perform(post("/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("AUTH_026"));
     }
 
     // ── login ──────────────────────────────────────────────
