@@ -1,5 +1,7 @@
 package com.devpick.domain.report.controller;
 
+import com.devpick.domain.point.dto.PointSummaryResponse;
+import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.dto.HistoryPageResponse;
 import com.devpick.domain.report.service.HistoryService;
 import com.devpick.global.common.exception.DevpickException;
@@ -32,6 +34,7 @@ public class HistoryController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final HistoryService historyService;
+    private final PointService pointService;
 
     @Operation(summary = "내 히스토리 조회",
                description = "actionTypes 필터로 학습/활동을 구분하여 조회합니다. 미입력 시 전체 반환. (DP-248)")
@@ -53,6 +56,17 @@ public class HistoryController {
         validatePageParams(page, size);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ApiResponse.ok(historyService.getHistory(userId, actionTypes, startDate, endDate, pageable));
+    }
+
+    @Operation(summary = "포인트 요약 조회", description = "누적 포인트, 이번 주 획득 포인트, 연속 로그인 일수를 조회합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자 없음")
+    })
+    @GetMapping("/points")
+    public ApiResponse<PointSummaryResponse> getPoints(@AuthenticationPrincipal UUID userId) {
+        return ApiResponse.ok(pointService.getSummary(userId));
     }
 
     private void validatePageParams(int page, int size) {
