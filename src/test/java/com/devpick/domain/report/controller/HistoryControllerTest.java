@@ -1,5 +1,7 @@
 package com.devpick.domain.report.controller;
 
+import com.devpick.domain.point.dto.PointSummaryResponse;
+import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.dto.HistoryItemResponse;
 import com.devpick.domain.report.dto.HistoryPageResponse;
 import com.devpick.domain.report.service.HistoryService;
@@ -38,6 +40,9 @@ class HistoryControllerTest {
 
     @Mock
     private HistoryService historyService;
+
+    @Mock
+    private PointService pointService;
 
     @InjectMocks
     private HistoryController historyController;
@@ -138,6 +143,35 @@ class HistoryControllerTest {
         mockMvc.perform(get("/history").param("page", "1").param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
+    }
+
+    // ============================================================
+    // GET /history/points
+    // ============================================================
+
+    @Test
+    @DisplayName("GET /history/points - 포인트 요약 조회 성공 시 200 반환")
+    void getPoints_success_returns200() throws Exception {
+        PointSummaryResponse summary = new PointSummaryResponse(1250, 320, 5);
+        given(pointService.getSummary(any(UUID.class))).willReturn(summary);
+
+        mockMvc.perform(get("/history/points"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.totalPoints").value(1250))
+                .andExpect(jsonPath("$.data.weeklyPoints").value(320))
+                .andExpect(jsonPath("$.data.currentStreak").value(5));
+    }
+
+    @Test
+    @DisplayName("GET /history/points - 사용자 없으면 404 반환")
+    void getPoints_userNotFound_returns404() throws Exception {
+        given(pointService.getSummary(any(UUID.class)))
+                .willThrow(new DevpickException(ErrorCode.USER_NOT_FOUND));
+
+        mockMvc.perform(get("/history/points"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
     }
 
 }
