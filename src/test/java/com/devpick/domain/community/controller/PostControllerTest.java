@@ -78,7 +78,7 @@ class PostControllerTest {
 
         detailResponse = new PostDetailResponse(
                 postId, "Test Post", "Test Content", Level.JUNIOR,
-                userId, "tester", 2L,
+                userId, "tester", null, null, 2L,
                 LocalDateTime.now(), LocalDateTime.now()
         );
     }
@@ -159,7 +159,7 @@ class PostControllerTest {
         PostUpdateRequest request = new PostUpdateRequest("Updated", "Updated Content", Level.SENIOR);
         PostDetailResponse updated = new PostDetailResponse(
                 postId, "Updated", "Updated Content", Level.SENIOR,
-                userId, "tester", 0L, LocalDateTime.now(), LocalDateTime.now());
+                userId, "tester", null, null, 0L, LocalDateTime.now(), LocalDateTime.now());
         given(postService.updatePost(eq(userId), eq(postId), any())).willReturn(updated);
 
         mockMvc.perform(put("/posts/" + postId)

@@ -1,6 +1,7 @@
 package com.devpick.domain.community.dto;
 
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 
 import java.time.LocalDateTime;
@@ -13,6 +14,8 @@ public record PostDetailResponse(
         Level level,
         UUID authorId,
         String authorNickname,
+        Job authorJob,
+        Level authorLevel,
         long answerCount,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
@@ -25,6 +28,8 @@ public record PostDetailResponse(
                 post.getLevel(),
                 post.getUser().getId(),
                 post.getUser().getNickname(),
+                post.getUser().getJob(),
+                post.getUser().getLevel(),
                 answerCount,
                 post.getCreatedAt(),
                 post.getUpdatedAt()
