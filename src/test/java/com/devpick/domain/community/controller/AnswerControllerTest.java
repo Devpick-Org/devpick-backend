@@ -1,8 +1,10 @@
 package com.devpick.domain.community.controller;
 
 import com.devpick.domain.community.dto.AnswerCreateRequest;
+import com.devpick.domain.community.dto.AnswerListResponse;
 import com.devpick.domain.community.dto.AnswerResponse;
 import com.devpick.domain.community.dto.AnswerUpdateRequest;
+import com.devpick.domain.community.dto.AnswerWithCommentsResponse;
 import com.devpick.domain.community.service.AnswerService;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -177,6 +179,36 @@ class AnswerControllerTest {
 
         mockMvc.perform(post("/posts/" + postId + "/answers/" + answerId + "/adopt"))
                 .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /posts/{postId}/answers - 답변 목록 조회 성공 시 200 반환")
+    void getAnswers_success_returns200() throws Exception {
+        AnswerWithCommentsResponse answerWithComments = new AnswerWithCommentsResponse(
+                answerId, "Test Answer", userId, "tester", null, null,
+                false, LocalDateTime.now(), LocalDateTime.now(), List.of()
+        );
+        AnswerListResponse listResponse = new AnswerListResponse(List.of(answerWithComments));
+        given(answerService.getAnswers(postId)).willReturn(listResponse);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/posts/" + postId + "/answers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.answers[0].content").value("Test Answer"))
+                .andExpect(jsonPath("$.data.answers[0].comments").isArray());
+    }
+
+    @Test
+    @DisplayName("GET /posts/{postId}/answers - 게시글 없으면 404 반환")
+    void getAnswers_postNotFound_returns404() throws Exception {
+        given(answerService.getAnswers(postId))
+                .willThrow(new DevpickException(ErrorCode.COMMUNITY_POST_NOT_FOUND));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/posts/" + postId + "/answers"))
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
     }
 }

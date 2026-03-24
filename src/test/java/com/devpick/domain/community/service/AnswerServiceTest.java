@@ -1,11 +1,14 @@
 package com.devpick.domain.community.service;
 
 import com.devpick.domain.community.dto.AnswerCreateRequest;
+import com.devpick.domain.community.dto.AnswerListResponse;
 import com.devpick.domain.community.dto.AnswerResponse;
 import com.devpick.domain.community.dto.AnswerUpdateRequest;
 import com.devpick.domain.community.entity.Answer;
+import com.devpick.domain.community.entity.Comment;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.repository.AnswerRepository;
+import com.devpick.domain.community.repository.CommentRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.entity.History;
@@ -54,6 +57,8 @@ class AnswerServiceTest {
     private HistoryRepository historyRepository;
     @Mock
     private com.devpick.domain.point.service.PointService pointService;
+    @Mock
+    private CommentRepository commentRepository;
 
     private UUID userId;
     private UUID postId;
@@ -93,8 +98,32 @@ class AnswerServiceTest {
     }
 
     @Test
-    @DisplayName("createAnswer — 성공 시 답변 저장 후 반환")
-    void createAnswer_success_savesAndReturns() {
+    @DisplayName("getAnswers — 게시글의 답변과 댓글 목록을 반환한다")
+    void getAnswers_success_returnsAnswerListWithComments() {
+        given(postRepository.findById(postId)).willReturn(Optional.of(post));
+        given(answerRepository.findByPost_IdOrderByCreatedAtAsc(postId)).willReturn(List.of(answer));
+        given(commentRepository.findByAnswer_IdOrderByCreatedAtAsc(answerId)).willReturn(List.of());
+
+        AnswerListResponse response = answerService.getAnswers(postId);
+
+        assertThat(response.answers()).hasSize(1);
+        assertThat(response.answers().get(0).id()).isEqualTo(answerId);
+        assertThat(response.answers().get(0).comments()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getAnswers — 게시글 없으면 COMMUNITY_POST_NOT_FOUND 예외")
+    void getAnswers_postNotFound_throwsException() {
+        given(postRepository.findById(postId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> answerService.getAnswers(postId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.COMMUNITY_POST_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("createAnswer — 성공 시 답변 저장 후 반환")    void createAnswer_success_savesAndReturns() {
         AnswerCreateRequest request = new AnswerCreateRequest("Test Answer");
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
