@@ -38,11 +38,8 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 
-    // DP-248: 히스토리 조회 - actionType 필터 있을 때
-    @Query(value = "SELECT h FROM History h " +
-                   "LEFT JOIN FETCH h.content " +
-                   "LEFT JOIN FETCH h.post " +
-                   "LEFT JOIN FETCH h.answer " +
+    // DP-293: 2단계 페이징 - 1단계: ID만 조회 (actionType 필터 있을 때)
+    @Query(value = "SELECT h.id FROM History h " +
                    "WHERE h.user.id = :userId " +
                    "AND h.actionType IN :actionTypes " +
                    "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
@@ -53,18 +50,15 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
                         "AND h.actionType IN :actionTypes " +
                         "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
                         "AND (:endDate IS NULL OR h.createdAt <= :endDate)")
-    Page<History> findHistoryByActionTypesAndDateRange(
+    Page<UUID> findHistoryIdsByActionTypesAndDateRange(
             @Param("userId") UUID userId,
             @Param("actionTypes") List<String> actionTypes,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             Pageable pageable);
 
-    // DP-248: 히스토리 조회 - actionType 필터 없을 때
-    @Query(value = "SELECT h FROM History h " +
-                   "LEFT JOIN FETCH h.content " +
-                   "LEFT JOIN FETCH h.post " +
-                   "LEFT JOIN FETCH h.answer " +
+    // DP-293: 2단계 페이징 - 1단계: ID만 조회 (actionType 필터 없을 때)
+    @Query(value = "SELECT h.id FROM History h " +
                    "WHERE h.user.id = :userId " +
                    "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
                    "AND (:endDate IS NULL OR h.createdAt <= :endDate) " +
@@ -73,9 +67,18 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
                         "WHERE h.user.id = :userId " +
                         "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
                         "AND (:endDate IS NULL OR h.createdAt <= :endDate)")
-    Page<History> findHistoryByDateRange(
+    Page<UUID> findHistoryIdsByDateRange(
             @Param("userId") UUID userId,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             Pageable pageable);
+
+    // DP-293: 2단계 페이징 - 2단계: ID 목록으로 연관 엔티티 FETCH JOIN (최대 pageSize개)
+    @Query("SELECT h FROM History h " +
+           "LEFT JOIN FETCH h.content " +
+           "LEFT JOIN FETCH h.post " +
+           "LEFT JOIN FETCH h.answer " +
+           "WHERE h.id IN :ids " +
+           "ORDER BY h.createdAt DESC")
+    List<History> findHistoriesWithAssociationsByIds(@Param("ids") List<UUID> ids);
 }

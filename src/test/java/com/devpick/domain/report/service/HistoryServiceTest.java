@@ -34,6 +34,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class HistoryServiceTest {
@@ -60,7 +62,7 @@ class HistoryServiceTest {
     }
 
     // ============================================================
-    // getLearningHistory
+    // getHistory
     // ============================================================
 
     @Test
@@ -74,11 +76,15 @@ class HistoryServiceTest {
 
         History history = History.builder()
                 .user(user).actionType("content_opened").content(content).build();
-        ReflectionTestUtils.setField(history, "id", UUID.randomUUID());
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
 
-        Page<History> page = new PageImpl<>(List.of(history), pageable, 1);
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(historyRepository.findHistoryByDateRange(eq(userId), isNull(), isNull(), any(Pageable.class))).willReturn(page);
+        given(historyRepository.findHistoryIdsByDateRange(eq(userId), isNull(), isNull(), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
 
         HistoryPageResponse response = historyService.getHistory(userId, null, null, null, pageable);
 
@@ -101,11 +107,15 @@ class HistoryServiceTest {
 
         History history = History.builder()
                 .user(user).actionType("question_created").post(post).content(null).build();
-        ReflectionTestUtils.setField(history, "id", UUID.randomUUID());
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
 
-        Page<History> page = new PageImpl<>(List.of(history), pageable, 1);
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(historyRepository.findHistoryByDateRange(eq(userId), isNull(), isNull(), any(Pageable.class))).willReturn(page);
+        given(historyRepository.findHistoryIdsByDateRange(eq(userId), isNull(), isNull(), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
 
         HistoryPageResponse response = historyService.getHistory(userId, null, null, null, pageable);
 
@@ -116,16 +126,18 @@ class HistoryServiceTest {
     }
 
     @Test
-    @DisplayName("학습 히스토리 조회 - 히스토리 없으면 빈 items 반환")
+    @DisplayName("학습 히스토리 조회 - 히스토리 없으면 빈 items 반환 (2단계 쿼리 호출 안 됨)")
     void getLearningHistory_emptyHistory_returnsEmptyItems() {
-        Page<History> emptyPage = new PageImpl<>(List.of(), pageable, 0);
+        Page<UUID> emptyIdPage = new PageImpl<>(List.of(), pageable, 0);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(historyRepository.findHistoryByDateRange(eq(userId), isNull(), isNull(), any(Pageable.class))).willReturn(emptyPage);
+        given(historyRepository.findHistoryIdsByDateRange(eq(userId), isNull(), isNull(), any(Pageable.class)))
+                .willReturn(emptyIdPage);
 
         HistoryPageResponse response = historyService.getHistory(userId, null, null, null, pageable);
 
         assertThat(response.items()).isEmpty();
         assertThat(response.totalElements()).isEqualTo(0L);
+        verify(historyRepository, never()).findHistoriesWithAssociationsByIds(any());
     }
 
     @Test
@@ -144,11 +156,15 @@ class HistoryServiceTest {
     void getLearningHistory_historyWithNoContentAndPost_bothNull() {
         History history = History.builder()
                 .user(user).actionType("weekly_report_viewed").post(null).content(null).build();
-        ReflectionTestUtils.setField(history, "id", UUID.randomUUID());
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
 
-        Page<History> page = new PageImpl<>(List.of(history), pageable, 1);
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(historyRepository.findHistoryByDateRange(eq(userId), isNull(), isNull(), any(Pageable.class))).willReturn(page);
+        given(historyRepository.findHistoryIdsByDateRange(eq(userId), isNull(), isNull(), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
 
         HistoryPageResponse response = historyService.getHistory(userId, null, null, null, pageable);
 
@@ -157,4 +173,29 @@ class HistoryServiceTest {
         assertThat(response.items().get(0).post()).isNull();
     }
 
+    @Test
+    @DisplayName("actionTypes 필터 있을 때 ID 필터 쿼리가 호출된다")
+    void getLearningHistory_withActionTypes_usesActionTypeQuery() {
+        List<String> actionTypes = List.of("content_opened");
+
+        History history = History.builder()
+                .user(user).actionType("content_opened").build();
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
+
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findHistoryIdsByActionTypesAndDateRange(
+                eq(userId), eq(actionTypes), isNull(), isNull(), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
+
+        HistoryPageResponse response = historyService.getHistory(userId, actionTypes, null, null, pageable);
+
+        assertThat(response.items()).hasSize(1);
+        verify(historyRepository).findHistoryIdsByActionTypesAndDateRange(
+                eq(userId), eq(actionTypes), isNull(), isNull(), any(Pageable.class));
+        verify(historyRepository, never()).findHistoryIdsByDateRange(any(), any(), any(), any());
+    }
 }

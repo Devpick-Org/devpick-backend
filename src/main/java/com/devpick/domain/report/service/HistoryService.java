@@ -26,7 +26,7 @@ public class HistoryService {
     private final HistoryRepository historyRepository;
     private final UserRepository userRepository;
 
-    // DP-248: 히스토리 조회 (actionTypes 필터, 날짜 범위 지원)
+    // DP-248/DP-293: 히스토리 조회 - 2단계 쿼리로 FETCH JOIN + 페이징 메모리 이슈 해결
     @Transactional(readOnly = true)
     public HistoryPageResponse getHistory(UUID userId, List<String> actionTypes,
             OffsetDateTime startDate, OffsetDateTime endDate, Pageable pageable) {
@@ -38,23 +38,31 @@ public class HistoryService {
         LocalDateTime end = endDate != null
                 ? endDate.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime() : null;
 
-        Page<History> page;
+        // 1단계: SQL LIMIT/OFFSET이 적용된 ID 페이징 조회
+        Page<UUID> idPage;
         if (actionTypes != null && !actionTypes.isEmpty()) {
-            page = historyRepository.findHistoryByActionTypesAndDateRange(userId, actionTypes, start, end, pageable);
+            idPage = historyRepository.findHistoryIdsByActionTypesAndDateRange(userId, actionTypes, start, end, pageable);
         } else {
-            page = historyRepository.findHistoryByDateRange(userId, start, end, pageable);
+            idPage = historyRepository.findHistoryIdsByDateRange(userId, start, end, pageable);
         }
 
-        List<HistoryItemResponse> items = page.getContent().stream()
+        if (idPage.isEmpty()) {
+            return new HistoryPageResponse(List.of(), idPage.getNumber(), idPage.getSize(), 0, 0);
+        }
+
+        // 2단계: 페이지 크기(최대 100개)만큼만 FETCH JOIN으로 연관 엔티티 로딩
+        List<History> histories = historyRepository.findHistoriesWithAssociationsByIds(idPage.getContent());
+
+        List<HistoryItemResponse> items = histories.stream()
                 .map(HistoryItemResponse::of)
                 .toList();
 
         return new HistoryPageResponse(
                 items,
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages()
+                idPage.getNumber(),
+                idPage.getSize(),
+                idPage.getTotalElements(),
+                idPage.getTotalPages()
         );
     }
 }
