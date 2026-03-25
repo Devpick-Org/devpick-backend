@@ -13,7 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,10 +34,19 @@ public class SimilarQuestionService {
         String searchText = post.getTitle() + " " + post.getContent();
         List<UUID> similarIds = similarQuestionClient.searchSimilar(postId, searchText, 5);
 
+        if (similarIds.isEmpty()) {
+            return new SimilarPostListResponse(List.of());
+        }
+
+        Map<UUID, Post> postMap = postRepository.findAllById(similarIds).stream()
+                .collect(Collectors.toMap(Post::getId, Function.identity()));
+
+        Map<UUID, Long> countMap = answerRepository.countByPostIds(similarIds).stream()
+                .collect(Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
+
         List<SimilarPostResponse> posts = similarIds.stream()
-                .map(id -> postRepository.findById(id).orElse(null))
-                .filter(p -> p != null)
-                .map(p -> SimilarPostResponse.of(p, answerRepository.countByPost_Id(p.getId())))
+                .filter(postMap::containsKey)
+                .map(id -> SimilarPostResponse.of(postMap.get(id), countMap.getOrDefault(id, 0L)))
                 .toList();
 
         return new SimilarPostListResponse(posts);

@@ -14,6 +14,9 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
 
     long countByPost_Id(UUID postId);
 
+    @Query("SELECT a.post.id, COUNT(a) FROM Answer a WHERE a.post.id IN :postIds GROUP BY a.post.id")
+    List<Object[]> countByPostIds(@Param("postIds") List<UUID> postIds);
+
     List<Answer> findByPost_IdOrderByCreatedAtAsc(UUID postId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

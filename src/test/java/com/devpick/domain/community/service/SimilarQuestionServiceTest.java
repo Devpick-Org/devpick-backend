@@ -24,6 +24,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class SimilarQuestionServiceTest {
@@ -77,8 +79,9 @@ class SimilarQuestionServiceTest {
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
         given(similarQuestionClient.searchSimilar(postId, "Spring 질문 내용입니다", 5))
                 .willReturn(List.of(similarId));
-        given(postRepository.findById(similarId)).willReturn(Optional.of(similarPost));
-        given(answerRepository.countByPost_Id(similarId)).willReturn(2L);
+        given(postRepository.findAllById(List.of(similarId))).willReturn(List.of(similarPost));
+        given(answerRepository.countByPostIds(List.of(similarId)))
+                .willReturn(List.<Object[]>of(new Object[]{similarId, 2L}));
 
         SimilarPostListResponse result = similarQuestionService.getSimilarPosts(postId);
 
@@ -96,7 +99,8 @@ class SimilarQuestionServiceTest {
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
         given(similarQuestionClient.searchSimilar(postId, "Spring 질문 내용입니다", 5))
                 .willReturn(List.of(missingId));
-        given(postRepository.findById(missingId)).willReturn(Optional.empty());
+        given(postRepository.findAllById(List.of(missingId))).willReturn(List.of());
+        given(answerRepository.countByPostIds(List.of(missingId))).willReturn(List.of());
 
         SimilarPostListResponse result = similarQuestionService.getSimilarPosts(postId);
 
@@ -104,7 +108,7 @@ class SimilarQuestionServiceTest {
     }
 
     @Test
-    @DisplayName("FastAPI가 빈 목록을 반환하면 빈 배열을 반환한다")
+    @DisplayName("FastAPI가 빈 목록을 반환하면 배치 쿼리 없이 빈 배열을 반환한다")
     void getSimilarPosts_empty_returnsEmptyList() {
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
         given(similarQuestionClient.searchSimilar(postId, "Spring 질문 내용입니다", 5))
@@ -113,5 +117,39 @@ class SimilarQuestionServiceTest {
         SimilarPostListResponse result = similarQuestionService.getSimilarPosts(postId);
 
         assertThat(result.posts()).isEmpty();
+        verify(postRepository, never()).findAllById(org.mockito.ArgumentMatchers.any());
+        verify(answerRepository, never()).countByPostIds(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("유사 질문 결과가 AI 서버 응답 순서대로 반환된다")
+    void getSimilarPosts_preservesOrder() {
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
+        UUID id3 = UUID.randomUUID();
+
+        Post p1 = buildPost(id1, "질문1");
+        Post p2 = buildPost(id2, "질문2");
+        Post p3 = buildPost(id3, "질문3");
+
+        given(postRepository.findById(postId)).willReturn(Optional.of(post));
+        given(similarQuestionClient.searchSimilar(postId, "Spring 질문 내용입니다", 5))
+                .willReturn(List.of(id1, id2, id3));
+        // findAllById may return in any order
+        given(postRepository.findAllById(List.of(id1, id2, id3))).willReturn(List.of(p3, p1, p2));
+        given(answerRepository.countByPostIds(List.of(id1, id2, id3))).willReturn(List.of());
+
+        SimilarPostListResponse result = similarQuestionService.getSimilarPosts(postId);
+
+        assertThat(result.posts()).hasSize(3);
+        assertThat(result.posts().get(0).id()).isEqualTo(id1);
+        assertThat(result.posts().get(1).id()).isEqualTo(id2);
+        assertThat(result.posts().get(2).id()).isEqualTo(id3);
+    }
+
+    private Post buildPost(UUID id, String title) {
+        Post p = Post.builder().title(title).content("내용").level(Level.JUNIOR).build();
+        ReflectionTestUtils.setField(p, "id", id);
+        return p;
     }
 }
