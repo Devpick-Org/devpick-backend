@@ -76,17 +76,17 @@ public class AnswerController {
 
     @Operation(summary = "답변 삭제", description = "답변을 삭제합니다. 작성자만 삭제 가능합니다.")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "삭제 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음")
     })
     @DeleteMapping("/{answerId}")
-    public ApiResponse<Void> deleteAnswer(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAnswer(
             @AuthenticationPrincipal UUID userId,
             @Parameter(description = "게시글 ID (UUID)", required = true) @PathVariable UUID postId,
             @Parameter(description = "답변 ID (UUID)", required = true) @PathVariable UUID answerId) {
         answerService.deleteAnswer(userId, postId, answerId);
-        return ApiResponse.ok();
     }
 
     @Operation(summary = "답변 채택", description = "답변을 채택합니다. 게시글 작성자만 채택 가능하며, 게시글당 1개만 채택 가능합니다.")

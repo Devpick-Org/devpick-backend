@@ -93,16 +93,16 @@ public class ContentController {
 
     @Operation(summary = "스크랩 취소", description = "스크랩한 콘텐츠를 취소합니다.")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "취소 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "취소 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "스크랩 내역 없음")
     })
     @DeleteMapping("/{contentId}/scrap")
-    public ApiResponse<Void> removeScrap(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeScrap(
             @AuthenticationPrincipal UUID userId,
             @Parameter(description = "콘텐츠 ID (UUID)", required = true) @PathVariable UUID contentId) {
         contentService.removeScrap(userId, contentId);
-        return ApiResponse.ok();
     }
 
     @Operation(summary = "좋아요 추가", description = "콘텐츠에 좋아요를 추가합니다. 좋아요는 학습 히스토리에 포함되지 않습니다.")
@@ -122,16 +122,16 @@ public class ContentController {
 
     @Operation(summary = "좋아요 취소", description = "콘텐츠 좋아요를 취소합니다.")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "취소 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "취소 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "좋아요 내역 없음")
     })
     @DeleteMapping("/{contentId}/like")
-    public ApiResponse<Void> removeLike(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeLike(
             @AuthenticationPrincipal UUID userId,
             @Parameter(description = "콘텐츠 ID (UUID)", required = true) @PathVariable UUID contentId) {
         contentService.removeLike(userId, contentId);
-        return ApiResponse.ok();
     }
 
     @Operation(summary = "추천 콘텐츠 조회", description = "특정 콘텐츠의 태그를 기반으로 유사한 추천 콘텐츠를 반환합니다. 태그가 없으면 최신 콘텐츠를 반환합니다.")

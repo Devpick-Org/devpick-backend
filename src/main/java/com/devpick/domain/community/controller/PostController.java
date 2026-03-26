@@ -91,15 +91,15 @@ public class PostController {
 
     @Operation(summary = "게시글 삭제", description = "게시글을 삭제합니다. 작성자만 삭제 가능합니다.")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "삭제 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음")
     })
     @DeleteMapping("/{postId}")
-    public ApiResponse<Void> deletePost(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletePost(
             @AuthenticationPrincipal UUID userId,
             @Parameter(description = "게시글 ID (UUID)", required = true) @PathVariable UUID postId) {
         postService.deletePost(userId, postId);
-        return ApiResponse.ok();
     }
 }

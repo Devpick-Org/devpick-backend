@@ -149,14 +149,13 @@ class CommentControllerTest {
     // ─── DELETE /posts/{postId}/answers/{answerId}/comments/{commentId} ───
 
     @Test
-    @DisplayName("DELETE /posts/{postId}/answers/{answerId}/comments/{commentId} — 성공 시 200과 success:true 반환")
-    void deleteComment_success_returns200() throws Exception {
+    @DisplayName("DELETE /posts/{postId}/answers/{answerId}/comments/{commentId} — 성공 시 204 반환")
+    void deleteComment_success_returns204() throws Exception {
         doNothing().when(commentService).deleteComment(userId, postId, answerId, commentId);
 
         mockMvc.perform(delete("/posts/{postId}/answers/{answerId}/comments/{commentId}",
                         postId, answerId, commentId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(status().isNoContent());
     }
 
     @Test

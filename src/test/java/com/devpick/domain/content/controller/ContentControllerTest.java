@@ -162,13 +162,12 @@ class ContentControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /contents/{contentId}/scrap - 스크랩 취소 성공 시 200과 success:true 반환")
-    void removeScrap_success_returns200() throws Exception {
+    @DisplayName("DELETE /contents/{contentId}/scrap - 스크랩 취소 성공 시 204 반환")
+    void removeScrap_success_returns204() throws Exception {
         UUID contentId = UUID.randomUUID();
 
         mockMvc.perform(delete("/contents/" + contentId + "/scrap"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(status().isNoContent());
 
         verify(contentService).removeScrap(userId, contentId);
     }
@@ -186,13 +185,12 @@ class ContentControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /contents/{contentId}/like - 좋아요 취소 성공 시 200과 success:true 반환")
-    void removeLike_success_returns200() throws Exception {
+    @DisplayName("DELETE /contents/{contentId}/like - 좋아요 취소 성공 시 204 반환")
+    void removeLike_success_returns204() throws Exception {
         UUID contentId = UUID.randomUUID();
 
         mockMvc.perform(delete("/contents/" + contentId + "/like"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(status().isNoContent());
 
         verify(contentService).removeLike(userId, contentId);
     }
