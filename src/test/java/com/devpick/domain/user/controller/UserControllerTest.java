@@ -2,6 +2,7 @@ package com.devpick.domain.user.controller;
 
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
+import com.devpick.domain.user.dto.UserProfileUpdateResponse;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.domain.user.service.UserService;
@@ -102,12 +103,12 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /users/me - 프로필 수정 성공 시 200과 수정된 프로필 반환")
+    @DisplayName("PUT /users/me - 프로필 수정 성공 시 200과 수정된 프로필 반환 (totalPoints, representativeBadge 미포함)")
     void updateProfile_success() throws Exception {
         UserProfileUpdateRequest request = new UserProfileUpdateRequest("새닉네임", null, null, null, null);
-        UserProfileResponse response = new UserProfileResponse(
+        UserProfileUpdateResponse response = new UserProfileUpdateResponse(
                 userId, "test@devpick.kr", "새닉네임", null,
-                Job.BACKEND, Level.JUNIOR, List.of(), LocalDateTime.now(), 0, null);
+                Job.BACKEND, Level.JUNIOR, List.of(), LocalDateTime.now());
         given(userService.updateProfile(eq(userId), any(UserProfileUpdateRequest.class)))
                 .willReturn(response);
 
@@ -116,7 +117,9 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.nickname").value("새닉네임"));
+                .andExpect(jsonPath("$.data.nickname").value("새닉네임"))
+                .andExpect(jsonPath("$.data.totalPoints").doesNotExist())
+                .andExpect(jsonPath("$.data.representativeBadge").doesNotExist());
     }
 
     @Test

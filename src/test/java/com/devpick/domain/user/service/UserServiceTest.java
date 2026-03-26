@@ -2,6 +2,7 @@ package com.devpick.domain.user.service;
 
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
+import com.devpick.domain.user.dto.UserProfileUpdateResponse;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.domain.user.entity.Tag;
@@ -91,7 +92,7 @@ class UserServiceTest {
         given(userRepository.existsByNicknameAndIdNot("새닉네임", userId)).willReturn(false);
         UserProfileUpdateRequest request = new UserProfileUpdateRequest("새닉네임", null, null, null, null);
 
-        UserProfileResponse response = userService.updateProfile(userId, request);
+        UserProfileUpdateResponse response = userService.updateProfile(userId, request);
 
         assertThat(response.nickname()).isEqualTo("새닉네임");
     }
@@ -117,7 +118,7 @@ class UserServiceTest {
         given(tagRepository.findByName("React")).willReturn(Optional.of(reactTag));
         UserProfileUpdateRequest request = new UserProfileUpdateRequest(null, null, null, null, List.of("React"));
 
-        UserProfileResponse response = userService.updateProfile(userId, request);
+        UserProfileUpdateResponse response = userService.updateProfile(userId, request);
 
         assertThat(response.tags()).containsExactly("React");
     }
@@ -132,7 +133,7 @@ class UserServiceTest {
         given(tagRepository.findByName("TypeScript")).willReturn(Optional.of(tsTag));
         UserProfileUpdateRequest request = new UserProfileUpdateRequest(null, null, null, null, List.of("React", "TypeScript"));
 
-        UserProfileResponse response = userService.updateProfile(userId, request);
+        UserProfileUpdateResponse response = userService.updateProfile(userId, request);
 
         assertThat(response.tags()).containsExactlyInAnyOrder("React", "TypeScript");
         assertThat(response.tags()).doesNotHaveDuplicates();
