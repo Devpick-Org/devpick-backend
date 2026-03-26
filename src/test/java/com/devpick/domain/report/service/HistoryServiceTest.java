@@ -13,6 +13,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -26,6 +29,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -171,6 +175,41 @@ class HistoryServiceTest {
         assertThat(response.items()).hasSize(1);
         assertThat(response.items().get(0).content()).isNull();
         assertThat(response.items().get(0).post()).isNull();
+    }
+
+    @ParameterizedTest(name = "{0} → {1}p")
+    @MethodSource("actionTypePointsProvider")
+    @DisplayName("actionType별 points 매핑 검증")
+    void historyItemResponse_of_pointsMappedCorrectly(String actionType, Integer expectedPoints) {
+        History history = History.builder()
+                .user(user).actionType(actionType).build();
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
+
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findHistoryIdsByDateRange(eq(userId), isNull(), isNull(), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
+
+        HistoryPageResponse response = historyService.getHistory(userId, null, null, null, pageable);
+
+        assertThat(response.items().get(0).points()).isEqualTo(expectedPoints);
+    }
+
+    static Stream<Arguments> actionTypePointsProvider() {
+        return Stream.of(
+                Arguments.of("ai_summary_viewed", 3),
+                Arguments.of("scrapped", 5),
+                Arguments.of("content_liked", 2),
+                Arguments.of("question_created", 10),
+                Arguments.of("answer_written", 15),
+                Arguments.of("answer_adopted", 30),
+                Arguments.of("daily_login", 1),
+                Arguments.of("content_opened", null),
+                Arguments.of("post_created", null)
+        );
     }
 
     @Test

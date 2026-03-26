@@ -9,7 +9,7 @@ import java.util.UUID;
 public record HistoryItemResponse(
         UUID id,
         String actionType,
-        int points,
+        Integer points,
         ContentInfo content,
         PostInfo post,
         AnswerInfo answer,
@@ -37,11 +37,15 @@ public record HistoryItemResponse(
                 ? new AnswerInfo(history.getAnswer().getId())
                 : null;
 
-        int points = switch (history.getActionType()) {
+        Integer points = switch (history.getActionType()) {
             case "ai_summary_viewed" -> PointAction.AI_SUMMARY_VIEW.getPoints();
             case "scrapped"          -> PointAction.CONTENT_SCRAP.getPoints();
+            case "content_liked"     -> PointAction.CONTENT_LIKE.getPoints();
             case "question_created"  -> PointAction.QUESTION_WRITE.getPoints();
-            default                  -> 0;
+            case "answer_written"    -> PointAction.ANSWER_WRITE.getPoints();
+            case "answer_adopted"    -> PointAction.ANSWER_ADOPTED.getPoints();
+            case "daily_login"       -> PointAction.DAILY_LOGIN.getPoints();
+            default                  -> null;
         };
 
         return new HistoryItemResponse(
