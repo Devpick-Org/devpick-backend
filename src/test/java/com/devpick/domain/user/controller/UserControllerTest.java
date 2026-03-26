@@ -134,11 +134,10 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /users/me - 회원 탈퇴 성공 시 200과 success:true 반환")
+    @DisplayName("DELETE /users/me - 회원 탈퇴 성공 시 204 반환")
     void deleteAccount_success() throws Exception {
         mockMvc.perform(delete("/users/me"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(status().isNoContent());
 
         verify(userService).deleteAccount(userId);
     }
