@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -72,7 +73,7 @@ class HistoryControllerTest {
         );
 
         HistoryItemResponse item = new HistoryItemResponse(
-                UUID.randomUUID(), "content_opened", 0,
+                UUID.randomUUID(), "content_opened", null,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React useEffect 완전 정복", "미리보기"),
                 null, null,
                 LocalDateTime.now()
@@ -99,7 +100,7 @@ class HistoryControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.items").isArray())
                 .andExpect(jsonPath("$.data.items[0].actionType").value("content_opened"))
-                .andExpect(jsonPath("$.data.items[0].points").value(0))
+                .andExpect(jsonPath("$.data.items[0].points", nullValue()))
                 .andExpect(jsonPath("$.data.items[0].content.title").value("React useEffect 완전 정복"))
                 .andExpect(jsonPath("$.data.page").value(0))
                 .andExpect(jsonPath("$.data.size").value(20))
