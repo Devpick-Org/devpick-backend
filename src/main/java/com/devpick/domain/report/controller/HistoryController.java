@@ -1,6 +1,8 @@
 package com.devpick.domain.report.controller;
 
+import com.devpick.domain.point.dto.BadgeResponse;
 import com.devpick.domain.point.dto.PointSummaryResponse;
+import com.devpick.domain.point.service.BadgeService;
 import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.dto.HistoryPageResponse;
 import com.devpick.domain.report.service.HistoryService;
@@ -35,6 +37,7 @@ public class HistoryController {
 
     private final HistoryService historyService;
     private final PointService pointService;
+    private final BadgeService badgeService;
 
     @Operation(summary = "내 히스토리 조회",
                description = "actionTypes 필터로 학습/활동을 구분하여 조회합니다. 미입력 시 전체 반환. (DP-248)")
@@ -67,6 +70,16 @@ public class HistoryController {
     @GetMapping("/points")
     public ApiResponse<PointSummaryResponse> getPoints(@AuthenticationPrincipal UUID userId) {
         return ApiResponse.ok(pointService.getSummary(userId));
+    }
+
+    @Operation(summary = "배지 목록 조회", description = "전체 배지 목록을 획득 여부와 함께 조회합니다. 미획득 배지도 포함됩니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    @GetMapping("/badges")
+    public ApiResponse<List<BadgeResponse>> getBadges(@AuthenticationPrincipal UUID userId) {
+        return ApiResponse.ok(badgeService.getBadges(userId));
     }
 
     private void validatePageParams(int page, int size) {
