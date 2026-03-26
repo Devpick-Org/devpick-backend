@@ -1,5 +1,6 @@
 package com.devpick.domain.report.dto;
 
+import com.devpick.domain.point.entity.PointAction;
 import com.devpick.domain.report.entity.History;
 
 import java.time.LocalDateTime;
@@ -8,6 +9,7 @@ import java.util.UUID;
 public record HistoryItemResponse(
         UUID id,
         String actionType,
+        int points,
         ContentInfo content,
         PostInfo post,
         AnswerInfo answer,
@@ -35,9 +37,17 @@ public record HistoryItemResponse(
                 ? new AnswerInfo(history.getAnswer().getId())
                 : null;
 
+        int points = switch (history.getActionType()) {
+            case "ai_summary_viewed" -> PointAction.AI_SUMMARY_VIEW.getPoints();
+            case "scrapped"          -> PointAction.CONTENT_SCRAP.getPoints();
+            case "question_created"  -> PointAction.QUESTION_WRITE.getPoints();
+            default                  -> 0;
+        };
+
         return new HistoryItemResponse(
                 history.getId(),
                 history.getActionType(),
+                points,
                 contentInfo,
                 postInfo,
                 answerInfo,

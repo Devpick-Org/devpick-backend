@@ -72,7 +72,7 @@ class HistoryControllerTest {
         );
 
         HistoryItemResponse item = new HistoryItemResponse(
-                UUID.randomUUID(), "content_opened",
+                UUID.randomUUID(), "content_opened", 0,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React useEffect 완전 정복", "미리보기"),
                 null, null,
                 LocalDateTime.now()
@@ -99,6 +99,7 @@ class HistoryControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.items").isArray())
                 .andExpect(jsonPath("$.data.items[0].actionType").value("content_opened"))
+                .andExpect(jsonPath("$.data.items[0].points").value(0))
                 .andExpect(jsonPath("$.data.items[0].content.title").value("React useEffect 완전 정복"))
                 .andExpect(jsonPath("$.data.page").value(0))
                 .andExpect(jsonPath("$.data.size").value(20))
@@ -138,6 +139,55 @@ class HistoryControllerTest {
         mockMvc.perform(get("/history"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /history - scrapped 액션은 points 5를 반환한다")
+    void getLearningHistory_scrappedAction_returnsPoints5() throws Exception {
+        HistoryItemResponse item = new HistoryItemResponse(
+                UUID.randomUUID(), "scrapped", 5,
+                new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "제목", "미리보기"),
+                null, null, LocalDateTime.now()
+        );
+        given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
+                .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
+
+        mockMvc.perform(get("/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].points").value(5));
+    }
+
+    @Test
+    @DisplayName("GET /history - ai_summary_viewed 액션은 points 3을 반환한다")
+    void getLearningHistory_aiSummaryViewedAction_returnsPoints3() throws Exception {
+        HistoryItemResponse item = new HistoryItemResponse(
+                UUID.randomUUID(), "ai_summary_viewed", 3,
+                new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "제목", "미리보기"),
+                null, null, LocalDateTime.now()
+        );
+        given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
+                .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
+
+        mockMvc.perform(get("/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].points").value(3));
+    }
+
+    @Test
+    @DisplayName("GET /history - question_created 액션은 points 10을 반환한다")
+    void getLearningHistory_questionCreatedAction_returnsPoints10() throws Exception {
+        HistoryItemResponse item = new HistoryItemResponse(
+                UUID.randomUUID(), "question_created", 10,
+                null,
+                new HistoryItemResponse.PostInfo(UUID.randomUUID(), "질문 제목"),
+                null, LocalDateTime.now()
+        );
+        given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
+                .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
+
+        mockMvc.perform(get("/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].points").value(10));
     }
 
     @Test
