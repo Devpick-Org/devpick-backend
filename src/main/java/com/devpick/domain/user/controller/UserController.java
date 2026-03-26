@@ -2,6 +2,7 @@ package com.devpick.domain.user.controller;
 
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
+import com.devpick.domain.user.dto.UserProfileUpdateResponse;
 import com.devpick.domain.user.service.UserService;
 import com.devpick.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,7 +48,7 @@ public class UserController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "닉네임 중복")
     })
     @PutMapping("/me")
-    public ApiResponse<UserProfileResponse> updateProfile(
+    public ApiResponse<UserProfileUpdateResponse> updateProfile(
             @AuthenticationPrincipal UUID userId,
             @Valid @RequestBody UserProfileUpdateRequest request) {
         return ApiResponse.ok(userService.updateProfile(userId, request));
