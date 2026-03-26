@@ -3,6 +3,7 @@ package com.devpick.domain.user.service;
 import com.devpick.domain.point.service.BadgeService;
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
+import com.devpick.domain.user.dto.UserProfileUpdateResponse;
 import com.devpick.domain.user.entity.Tag;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.entity.UserTag;
@@ -36,7 +37,7 @@ public class UserService {
     }
 
     @Transactional
-    public UserProfileResponse updateProfile(UUID userId, UserProfileUpdateRequest request) {
+    public UserProfileUpdateResponse updateProfile(UUID userId, UserProfileUpdateRequest request) {
         User user = findActiveUser(userId);
 
         if (request.nickname() != null &&
@@ -55,7 +56,7 @@ public class UserService {
             tags.forEach(tag -> user.getUserTags().add(UserTag.builder().user(user).tag(tag).build()));
         }
 
-        return UserProfileResponse.of(user, badgeService.getRepresentativeBadge(user.getId()).orElse(null));
+        return UserProfileUpdateResponse.from(user);
     }
 
     @Transactional
