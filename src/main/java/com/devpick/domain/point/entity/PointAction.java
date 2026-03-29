@@ -10,6 +10,7 @@ public enum PointAction {
     CONTENT_SCRAP(5),
     CONTENT_LIKE(2),
     AI_SUMMARY_VIEW(3),
+    AI_QUIZ_PASS(5),
     QUESTION_WRITE(10),
     ANSWER_WRITE(15),
     ANSWER_ADOPTED(30),

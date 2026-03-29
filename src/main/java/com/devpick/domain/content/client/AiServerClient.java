@@ -1,5 +1,6 @@
 package com.devpick.domain.content.client;
 
+import com.devpick.domain.content.dto.AiQuizResult;
 import com.devpick.domain.content.dto.AiSummaryResult;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -28,6 +29,24 @@ public class AiServerClient {
                     .bodyValue(Map.of("content_id", contentId.toString(), "level", level))
                     .retrieve()
                     .bodyToMono(AiSummaryResult.class)
+                    .block();
+
+            if (result == null) {
+                throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
+            }
+            return result;
+        } catch (WebClientResponseException e) {
+            throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
+        }
+    }
+
+    public AiQuizResult fetchQuiz(UUID contentId, String level) {
+        try {
+            AiQuizResult result = webClient.post()
+                    .uri(aiServerUrl + "/api/quiz")
+                    .bodyValue(Map.of("content_id", contentId.toString(), "level", level))
+                    .retrieve()
+                    .bodyToMono(AiQuizResult.class)
                     .block();
 
             if (result == null) {

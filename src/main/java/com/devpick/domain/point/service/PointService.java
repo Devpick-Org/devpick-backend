@@ -106,7 +106,7 @@ public class PointService {
 
     private boolean isDuplicate(UUID userId, PointAction action, UUID referenceId) {
         return switch (action) {
-            case CONTENT_SCRAP, CONTENT_LIKE ->
+            case CONTENT_SCRAP, CONTENT_LIKE, AI_QUIZ_PASS ->
                     referenceId != null &&
                     pointLogRepository.existsByUser_IdAndActionAndReferenceId(userId, action, referenceId);
             case DAILY_LOGIN -> {
