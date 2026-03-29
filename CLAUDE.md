@@ -6,6 +6,50 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## 빌드 & 테스트 명령어
+
+```bash
+# 빌드 + 전체 테스트 (PR 전 필수)
+./gradlew build --no-daemon
+
+# 테스트만 실행
+./gradlew test --no-daemon
+
+# 단일 테스트 클래스 실행
+./gradlew test --tests "com.devpick.domain.user.service.AuthServiceTest" --no-daemon
+
+# 단일 테스트 메서드 실행
+./gradlew test --tests "com.devpick.domain.user.service.AuthServiceTest.signup_duplicateEmail_throwsException" --no-daemon
+
+# 테스트 커버리지 리포트 생성 (build/reports/jacoco/test/index.html)
+./gradlew jacocoTestReport --no-daemon
+
+# QueryDSL Q클래스 재생성
+./gradlew compileJava --no-daemon
+```
+
+### 로컬 인프라 (Docker Compose)
+
+```bash
+# PostgreSQL + MongoDB + Redis + Spring Boot 앱 전체 기동
+DB_PASSWORD=... MONGO_PASSWORD=... REDIS_PASSWORD=... JWT_SECRET=... \
+  RESEND_API_KEY=... GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=... \
+  GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... \
+  docker compose up -d
+
+# DB/캐시만 기동 (앱은 로컬에서 직접 실행할 때)
+docker compose up -d postgres mongodb redis
+
+# 종료
+docker compose down
+```
+
+환경변수는 `.env.example` 참고.
+
+테스트 실패 시 원인 확인: `build/reports/tests/test/index.html`
+
+---
+
 ## ⚠️ Claude Code 작업 필수 규칙
 
 ### 커밋 메시지
@@ -73,6 +117,13 @@ PR 생성 전 **아래 항목을 코드에서 직접 눈으로 확인**한다:
 2. **코드 중복률 > 3%** → 공통 추상 클래스 재사용, 복붙 금지
 3. **Security Hotspot 미검토** → `// NOSONAR java:Sxxxx` 주석 추가
 
+**SonarCloud CI 타임아웃 대응 (TRB-005):**
+별도 polling 스크립트 대신 scanner 자체 wait 옵션 사용:
+```bash
+./gradlew sonar --no-daemon -Dsonar.qualitygate.wait=true
+```
+`STATUS=NONE` 타임아웃 오탐 방지 — scanner가 직접 QG 결과를 폴링함.
+
 **GitHub branch protection 설정 (수동):**
 `develop` 브랜치 보호 규칙에서 Required status checks:
 - `Build & Test`
@@ -83,13 +134,12 @@ PR 생성 전 **아래 항목을 코드에서 직접 눈으로 확인**한다:
 
 ## 1. 프로젝트 개요
 
-**DevPick** — 개발자 성장형 통합 플랫폼
+**Trace** — 개발자 성장형 통합 플랫폼
 > 개발 콘텐츠 탐색 → AI 요약/질문 → 커뮤니티 소통 → 성장 기록/리포트를 하나의 흐름으로 연결
 
 이 레포는 **Spring Boot REST API 서버**다.
 - 담당: **홍근** (백엔드 메인), **하영** (백엔드 서브)
 - MVP 데드라인: **2026-04-13**
-- 현재 스프린트: Sprint 1 (3/3 ~ 3/16) — Epic A/B 핵심 API
 
 ### 시스템 구조 (4개 서버)
 ```
@@ -130,14 +180,25 @@ com.devpick
 │   │   ├── repository
 │   │   ├── entity
 │   │   └── dto
-│   ├── content       # 콘텐츠 피드/스크랩/좋아요/AI요약 (구현 완료)
+│   ├── content       # 콘텐츠 피드/스크랩/좋아요/AI요약/AI퀴즈 (구현 완료)
 │   │   └── collector/    # CollectedContent, NormalizedContentDto, StackOverflowCollector
-│   │   └── document/     # AiSummaryDocument (MongoDB)
+│   │   └── document/     # AiSummaryDocument, AiQuizDocument (MongoDB)
 │   │   └── client/       # AiServerClient (FastAPI 통신)
+│   │   └── entity/       # Content, ContentSource, Like, Scrap, QuizAttempt
+│   │   └── repository/   # AiQuizRepository, QuizAttemptRepository
 │   ├── community     # 게시글/답변/AI질문개선 (구현 완료)
+│   │   ├── controller/   # PostController, AnswerController, AiQuestionController, CommentController
 │   │   └── client/       # AiQuestionClient (FastAPI /refine 호출)
-│   └── report        # 주간 리포트 + 학습 히스토리 (구현 완료)
-│                     # ※ history 패키지는 설계상 분리 예정이나 현재 report 하위에 있음
+│   ├── report        # 주간 리포트 + 학습 히스토리 (구현 완료)
+│   │   ├── document/     # ReportInsightDocument (MongoDB)
+│   │   └── repository/   # WeeklyReportRepository, ReportActivityRepository, HistoryRepository, ReportInsightRepository
+│   │                 # ※ history 패키지는 설계상 분리 예정이나 현재 report 하위에 있음
+│   └── point         # 포인트 적립/조회 + 배지 시스템 (구현 완료, DP-269)
+│       ├── controller/   # PointController  ← 신규 (미커밋)
+│       ├── service/      # PointService, BadgeService
+│       ├── repository/   # PointLogRepository, UserBadgeRepository, BadgeRepository
+│       ├── dto/          # PointSummaryResponse, PointHistoryResponse, PointHistoryItem, BadgeResponse
+│       └── entity/       # PointLog, UserBadge, Badge, PointAction(enum), BadgeSeeder
 ├── global
 │   ├── common
 │   │   ├── exception     # DevpickException, ErrorCode enum, GlobalExceptionHandler
@@ -198,10 +259,10 @@ DP-{티켓번호}: {작업 내용}
 ```json
 {
   "success": true,
-  "data": { },
-  "message": "요청이 성공했습니다"
+  "data": { }
 }
 ```
+> `data`가 null이면 `@JsonInclude(NON_NULL)` 설정으로 필드 자체가 응답에서 제외됨
 
 ### 에러 응답
 ```json
@@ -223,6 +284,8 @@ DP-{티켓번호}: {작업 내용}
 | `CONTENT_` | 콘텐츠 |
 | `AI_` | AI 기능 |
 | `COMMUNITY_` | 커뮤니티 |
+| `POINT_` | 포인트 |
+| `BADGE_` | 배지 |
 
 ### HTTP 상태 코드
 | 코드 | 의미 |
@@ -281,7 +344,14 @@ return ApiResponse.ok(null);   // 또는 ApiResponse.ok()
 컨트롤러에서 HTTP 상태 코드는 `@ResponseStatus`로 선언한다 (`@ResponseStatus(HttpStatus.CREATED)`).
 
 ### 엔티티 기본 구조
-모든 JPA 엔티티는 `BaseEntity`를 상속한다. `BaseEntity`는 `id(UUID)`, `createdAt`, `updatedAt`을 포함한다. 엔티티 생성자는 `protected`로 막고, `static factory method` 또는 `@Builder`를 사용한다.
+JPA 엔티티는 두 베이스 클래스 중 하나를 상속한다. 생성자는 `protected`로 막고, `static factory method` 또는 `@Builder`를 사용한다.
+
+| 베이스 클래스 | 포함 필드 | 사용 대상 |
+|--------------|----------|----------|
+| `BaseTimeEntity` | `id(UUID)`, `createdAt`, `updatedAt` | 수정 가능한 일반 엔티티 (User, Content, Post 등) |
+| `BaseCreatedEntity` | `id(UUID)`, `createdAt` | 불변 이력 테이블 (Like, Scrap, PostLike, AnswerLike 등) |
+
+> `BaseEntity`는 존재하지 않음 — 절대 새로 생성 금지
 
 ---
 
@@ -350,8 +420,12 @@ class AuthControllerTest {
 | POST | `/auth/login` | 이메일 로그인 | X | 하영 (DP-180) |
 | POST | `/auth/logout` | 로그아웃 | O | 하영 (DP-185) |
 | POST | `/auth/refresh` | Access Token 재발급 | X | 하영 (DP-181) |
-| GET | `/auth/github` | GitHub 소셜 로그인 | X | 하영 (DP-183) |
-| GET | `/auth/google` | Google 소셜 로그인 | X | 하영 (DP-184) |
+| GET | `/auth/github` | GitHub 소셜 로그인 (redirect) | X | 하영 (DP-183) |
+| GET | `/auth/github/callback` | GitHub OAuth 콜백 | X | 하영 (DP-183) |
+| GET | `/auth/google` | Google 소셜 로그인 (redirect) | X | 하영 (DP-184) |
+| GET | `/auth/google/callback` | Google OAuth 콜백 | X | 하영 (DP-184) |
+| POST | `/auth/recover` | 탈퇴 계정 복구 (이메일) | X | 홍근 (DP-189) |
+| POST | `/auth/social/recover` | 탈퇴 계정 복구 (소셜) | X | 홍근 (DP-189) |
 | GET | `/users/me` | 내 프로필 조회 | O | 홍근 (DP-187) |
 | PUT | `/users/me` | 내 프로필 수정 | O | 홍근 (DP-187) |
 | DELETE | `/users/me` | 회원 탈퇴 (soft delete) | O | 홍근 (DP-189) |
@@ -373,11 +447,13 @@ class AuthControllerTest {
 |--------|----------|------|------|------|
 | POST | `/internal/contents` | AI 레포가 수집한 콘텐츠 일괄 수신 → PostgreSQL 저장 | X(내부) | 홍근 (DP-289) |
 
-### Epic C — AI 요약
+### Epic C — AI 요약 / AI 퀴즈
 | Method | Endpoint | 설명 | 인증 | 담당 |
 |--------|----------|------|------|------|
 | GET | `/contents/{contentId}/summary` | 레벨별 AI 요약 조회 | O | 홍근 (DP-221) |
 | POST | `/contents/{contentId}/summary/retry` | AI 요약 재시도 | O | 홍근 (DP-221) |
+| GET | `/contents/{contentId}/quiz` | 레벨별 AI 퀴즈 조회 (`?level=JUNIOR`) | O | 홍근 |
+| POST | `/contents/{contentId}/quiz/submit` | 퀴즈 결과 제출 (통과 시 히스토리 + 포인트) | O | 홍근 |
 
 ### Epic D — 질문/커뮤니티
 | Method | Endpoint | 설명 | 인증 | 담당 |
@@ -400,15 +476,23 @@ class AuthControllerTest {
 ### Epic E — 학습 히스토리
 | Method | Endpoint | 설명 | 인증 | 담당 |
 |--------|----------|------|------|------|
-| GET | `/history` | 학습 히스토리 조회 | O | 하영 (DP-248) |
-| GET | `/history/activity` | 활동 내역 (좋아요 포함) | O | 하영 (DP-249) |
+| GET | `/history` | 히스토리/활동 통합 조회 (`actionTypes`, `startDate`, `endDate` 필터) | O | 하영 (DP-248) |
+
+### Epic — 포인트/배지 (DP-269)
+| Method | Endpoint | 설명 | 인증 | 담당 |
+|--------|----------|------|------|------|
+| GET | `/users/me/points` | 누적 포인트, 이번 주 포인트, 연속 로그인 일수 조회 | O | 홍근 |
+| GET | `/users/me/points/history` | 포인트 적립 내역 페이징 조회 | O | 홍근 |
+| GET | `/users/me/badges` | 전체 배지 목록 (획득 여부 포함) | O | 홍근 |
 
 ### Epic F — 주간 리포트
 | Method | Endpoint | 설명 | 인증 | 담당 |
 |--------|----------|------|------|------|
+| GET | `/reports/weekly/list` | 내 리포트 목록 (드롭다운용) | O | 홍근 (DP-256) |
 | GET | `/reports/weekly` | 이번 주 리포트 | O | 홍근 (DP-256) |
 | GET | `/reports/weekly/{reportId}` | 특정 주 리포트 | O | 홍근 (DP-256) |
-| POST | `/reports/weekly/share` | 공유 링크 생성 | O | 홍근 (DP-258) |
+| POST | `/reports/weekly/{reportId}/share` | 공유 링크 생성 | O | 홍근 (DP-258) |
+| GET | `/reports/weekly/share/{token}` | 공유 링크로 리포트 조회 | X | 홍근 (DP-258) |
 
 ---
 
@@ -419,8 +503,10 @@ class AuthControllerTest {
 | user (인증/프로필) | ✅ 완료 | DP-177~189, DP-196 |
 | content (피드/스크랩/좋아요/검색) | ✅ 완료 | DP-204~210, DP-289 |
 | content (AI 요약) | ✅ 완료 | DP-221 |
+| content (AI 퀴즈) | ✅ 완료 (미커밋) | — |
 | community (게시글/답변/AI질문개선) | ✅ 완료 | DP-229~240 |
-| report (주간 리포트) | ✅ 완료 | DP-256~258 |
+| report (주간 리포트 + 히스토리) | ✅ 완료 | DP-248~249, DP-256~258 |
+| point (포인트/배지) | ✅ 완료 | DP-269 |
 
 > 티켓별 상세 진행 상황은 Jira (프로젝트: DevPick) 참고
 
@@ -441,7 +527,7 @@ class AuthControllerTest {
 |------|------|
 | `dp.ai.summary` | AI 요약 |
 | `dp.ai.question_refine` | AI 질문 개선 |
-| `dp.ai.quiz` | AI 퀴즈 (MVP+) |
+| `dp.ai.quiz` | AI 퀴즈 |
 | `dp.reports.weekly` | 주간 리포트 |
 
 ---
@@ -449,7 +535,7 @@ class AuthControllerTest {
 ## 12. 테스트 전략
 
 - **도구**: JUnit 5 + Mockito (단위), Spring Boot Test + MockMvc (API)
-- **커버리지 목표**: Service 레이어 **70% 이상**
+- **커버리지 목표**: 신규 코드 **80% 이상** (SonarCloud Quality Gate 기준)
 - **CI 트리거**: PR → develop / PR → main 시 자동 실행
 - **테스트 패턴**: given / when / then 구조
 
@@ -473,13 +559,15 @@ class AuthControllerTest {
 | 문서 | 내용 |
 |------|------|
 | `src/main/java/com/devpick/CLAUDE.md` | 도메인/DB 구조 상세 |
-| `TRB.md` | 트러블슈팅 로그 전체 |
+| `TRB.md` | 트러블슈팅 로그 전체 (TRB-001 ~ TRB-005) |
+| `docs/통신.md` | FastAPI ↔ Spring 서버 간 통신 스펙 (POST /internal/contents, /api/summary, /api/refine, /api/answer 계약) |
+| `docs/idea.md` | 캡스톤 확장 아이디어 (0312 교수님 미팅 기반, 제안서 마감 2026-03-31) |
+| `docs/proposal.md` | 캡스톤 제안서 초안 |
 | `hong.md` | 팀원 하영 온보딩 가이드 |
 | `.env.example` | 환경변수 목록 |
 | `.github/PULL_REQUEST_TEMPLATE.md` | PR 작성 양식 |
 | Confluence ADR | 기술 결정 기록 |
 
-<!-- auto-merge 테스트 -->
 ---
 
 ## 15. CI/CD 자동화 구조

@@ -1,8 +1,8 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "DevPick API",
-    "description": "DevPick 백엔드 REST API — 개발자 성장형 통합 플랫폼\n\n**Base URL**: `https://api.devpick.kr/v1`\n\n**인증**: `Authorization: Bearer {access_token}` (JWT)",
+    "title": "Trace API",
+    "description": "Trace 백엔드 REST API — 개발자 성장형 통합 플랫폼\n\n**Base URL**: `https://api.devpick.kr/v1`\n\n**인증**: `Authorization: Bearer {access_token}` (JWT)",
     "version": "1.0.0"
   },
   "servers": [
@@ -203,6 +203,63 @@
           "additionalQuestions": { "type": "array", "items": { "type": "string" } },
           "cachedAt": { "type": "string", "format": "date-time" },
           "expiresAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AiQuizResponse": {
+        "type": "object",
+        "properties": {
+          "contentId": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "level": { "type": "string", "enum": ["BEGINNER", "JUNIOR", "MIDDLE", "SENIOR"] },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "question": { "type": "string" },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string" },
+                      "text": { "type": "string" }
+                    }
+                  }
+                },
+                "correctOptionId": { "type": "string" },
+                "explanation": { "type": "string" }
+              }
+            }
+          },
+          "passingCount": { "type": "integer" },
+          "estimatedMinutes": { "type": "integer" },
+          "cachedAt": { "type": "string", "format": "date-time" },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "hasAttempted": { "type": "boolean", "description": "이전에 풀었는지 여부" },
+          "lastPassed": { "type": "boolean", "nullable": true, "description": "이전 시도 통과 여부 (시도 없으면 null)" },
+          "lastScore": { "type": "integer", "nullable": true, "description": "이전 시도 점수 (시도 없으면 null)" },
+          "lastTotalQuestions": { "type": "integer", "nullable": true, "description": "이전 시도 전체 문제 수 (시도 없으면 null)" }
+        }
+      },
+      "QuizSubmitRequest": {
+        "type": "object",
+        "required": ["level", "score", "totalQuestions", "passed"],
+        "properties": {
+          "level": { "type": "string", "enum": ["BEGINNER", "JUNIOR", "MIDDLE", "SENIOR"] },
+          "score": { "type": "integer" },
+          "totalQuestions": { "type": "integer" },
+          "passed": { "type": "boolean" }
+        }
+      },
+      "QuizSubmitResponse": {
+        "type": "object",
+        "properties": {
+          "passed": { "type": "boolean" },
+          "score": { "type": "integer" },
+          "totalQuestions": { "type": "integer" },
+          "pointsEarned": { "type": "integer" }
         }
       },
       "PostCreateRequest": {
@@ -1144,6 +1201,76 @@
             }
           },
           "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/contents/{contentId}/quiz": {
+      "get": {
+        "tags": ["AI Quiz"],
+        "summary": "AI 퀴즈 조회",
+        "description": "Redis 캐시(7일) → MongoDB fallback → FastAPI 호출 순서로 처리됩니다.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "contentId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          {
+            "name": "level",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["BEGINNER", "JUNIOR", "MIDDLE", "SENIOR"], "default": "JUNIOR" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "퀴즈 조회 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "properties": { "data": { "$ref": "#/components/schemas/AiQuizResponse" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "503": { "description": "AI 서버 오류" }
+        }
+      }
+    },
+    "/contents/{contentId}/quiz/submit": {
+      "post": {
+        "tags": ["AI Quiz"],
+        "summary": "AI 퀴즈 결과 제출",
+        "description": "퀴즈 결과를 제출합니다. passed=true일 때만 히스토리(ai_quiz_completed) 기록 및 포인트(+5) 적립. 동일 contentId 중복 적립 방지.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "contentId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/QuizSubmitRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "제출 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "properties": { "data": { "$ref": "#/components/schemas/QuizSubmitResponse" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
     },

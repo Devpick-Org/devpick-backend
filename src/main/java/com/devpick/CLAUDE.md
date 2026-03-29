@@ -1,4 +1,4 @@
-# DevPick Backend — 도메인 & DB 구조
+# Trace Backend — 도메인 & DB 구조
 
 > 이 파일은 `com.devpick` 패키지 하위 코드 작업 시 참고한다.
 > 상위 컨텍스트: 루트 `CLAUDE.md`
@@ -10,18 +10,19 @@
 | 도메인 | 패키지 | 핵심 책임 | 구현 상태 |
 |--------|--------|-----------|-----------|
 | user | `domain.user` | 회원가입/로그인/소셜인증/프로필/토큰 관리 | ✅ 완료 |
-| content | `domain.content` | 콘텐츠 피드/스크랩/좋아요/검색/AI요약/수집 파이프라인 | ✅ 완료 |
+| content | `domain.content` | 콘텐츠 피드/스크랩/좋아요/검색/AI요약/AI퀴즈/수집 파이프라인 | ✅ 완료 |
 | community | `domain.community` | 게시글/답변/AI질문개선/AI답변/댓글 | ✅ 완료 |
 | report | `domain.report` | 주간 리포트 생성/조회/공유 + 학습 히스토리 (※ 설계상 `domain.history` 분리 예정이나 현재 report 하위에 있음) | ✅ 완료 |
+| point | `domain.point` | 포인트 적립/조회 + 배지 잠금해제/조회 (DP-269) | ✅ 완료 |
 
 ---
 
-## 2. PostgreSQL 테이블 목록 (21개)
+## 2. PostgreSQL 테이블 목록 (24개)
 
 ### 인증/사용자
 | 테이블 | 설명 | 핵심 컬럼 |
 |--------|------|-----------|
-| `users` | 사용자 | `id(UUID)`, `email(UNIQUE)`, `password_hash`, `nickname(UNIQUE)`, `profile_image`, `job`, `level`, `is_active`, `is_email_verified`, `deleted_at`(soft delete) |
+| `users` | 사용자 | `id(UUID)`, `email(UNIQUE)`, `password_hash`, `nickname(UNIQUE)`, `profile_image`, `job`, `level`, `is_active`, `is_email_verified`, `deleted_at`(soft delete), `total_points`(INT, default 0) |
 | `social_accounts` | 소셜 로그인 | `user_id(FK)`, `provider(github/google)`, `provider_id` |
 | `refresh_tokens` | JWT Refresh Token | `user_id(FK)`, `token`, `expires_at` |
 | `email_verifications` | 이메일 인증 발송 이력 | `email`, `is_verified` |
@@ -56,6 +57,18 @@
 | `weekly_reports` | 주간 리포트 | `user_id+week_start(UNIQUE 복합)`, `share_token`, `status` |
 | `report_activities` | 리포트 활동 집계 | `report_id(FK)`, `contents_read`, `questions_created`, `top_tags(JSONB)` |
 
+### 포인트/배지
+| 테이블 | 설명 | 핵심 컬럼 |
+|--------|------|-----------|
+| `point_logs` | 포인트 적립 기록 | `id(UUID)`, `user_id(FK)`, `action(VARCHAR 50)`, `points(INT)`, `reference_id(UUID, nullable)`, `earned_at` |
+| `badges` | 배지 정의 | `id(VARCHAR 50, PK)`, `name(VARCHAR 100)`, `description(VARCHAR 255)`, `sort_order(INT)`, `created_at` |
+| `user_badges` | 사용자 획득 배지 | `id(UUID)`, `user_id(FK)`, `badge_id(FK)`, `acquired_at` — UNIQUE(user_id, badge_id) |
+
+### AI 퀴즈
+| 테이블 | 설명 | 핵심 컬럼 |
+|--------|------|-----------|
+| `quiz_attempts` | 퀴즈 시도 이력 | `user_id(FK)`, `content_id(FK)`, `level(VARCHAR 20)`, `score(INT)`, `total_questions(INT)`, `passed(BOOLEAN)` — INDEX(user_id, content_id) |
+
 ### history.action_type 허용값
 ```
 content_opened       — 글 상세 진입 (학습 기록 O)
@@ -63,12 +76,37 @@ ai_summary_viewed    — AI 요약 조회 (학습 기록 O)
 scrapped             — 스크랩 (학습 기록 O)
 question_created     — 질문 작성 (학습 기록 O)
 post_created         — 커뮤니티 게시 (학습 기록 O)
+ai_quiz_completed    — AI 퀴즈 통과 (학습 기록 O)
 ```
 > **주의**: `content_liked`는 학습 기록 X (activity에만 표시)
 
 ---
 
 ## 3. MongoDB 컬렉션 (3개)
+
+### ai_quizzes
+```json
+{
+  "_id": "ObjectId",
+  "content_id": "UUID",
+  "level": "BEGINNER | JUNIOR | MIDDLE | SENIOR",
+  "title": "퀴즈 제목",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "질문 텍스트",
+      "options": [{"id": "o1", "text": "선택지"}],
+      "correct_option_id": "o1",
+      "explanation": "해설"
+    }
+  ],
+  "passing_count": 3,
+  "estimated_minutes": 5,
+  "cached_at": "2026-03-29T00:00:00",
+  "expires_at": "2026-04-05T00:00:00"
+}
+```
+인덱스: `content_id + level` 복합 (UNIQUE)
 
 ### ai_summaries
 ```json
@@ -121,6 +159,7 @@ post_created         — 커뮤니티 게시 (학습 기록 O)
 | 데이터 | 캐시 키 | TTL |
 |--------|---------|-----|
 | AI 요약 결과 | `summary:{contentId}:{level}` | 7일 |
+| AI 퀴즈 결과 | `quiz:{contentId}:{level}` | 7일 |
 | 개인화 피드 | `feed:{userId}:page:{page}` | 10분 |
 | 주간 리포트 | `report:{userId}:{weekStart}` | 7일 |
 | 이메일 인증 코드 | `email:verify:{email}` | 5분 |
@@ -197,3 +236,4 @@ PRD 9번 기반 — MongoDB event_logs에 저장
 | `answer_adopted` | `{post_id, answer_id}` |
 | `weekly_report_generated` | `{report_id}` |
 | `weekly_report_viewed` | `{report_id}` |
+| `ai_quiz_completed` | `{content_id, level, score, passed: true}` |
