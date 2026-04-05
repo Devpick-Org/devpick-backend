@@ -2,8 +2,13 @@ package com.devpick.domain.content.collector.velog;
 
 import com.devpick.domain.content.collector.CollectedContent;
 import com.devpick.domain.content.collector.ContentCollector;
+import com.devpick.domain.content.entity.Content;
+import com.devpick.domain.content.entity.ContentTag;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.content.repository.ContentSourceRepository;
+import com.devpick.domain.content.repository.ContentTagRepository;
+import com.devpick.domain.user.entity.Tag;
+import com.devpick.domain.user.repository.TagRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -33,6 +38,8 @@ public class VelogCollector extends ContentCollector {
     private static final int PAGE_LIMIT = 20;
 
     private final WebClient webClient;
+    private final TagRepository tagRepository;
+    private final ContentTagRepository contentTagRepository;
 
     @Value("${velog.collection.offset:0}")
     private int collectionOffset;
@@ -42,14 +49,44 @@ public class VelogCollector extends ContentCollector {
 
     public VelogCollector(WebClient webClient,
                           ContentRepository contentRepository,
-                          ContentSourceRepository contentSourceRepository) {
+                          ContentSourceRepository contentSourceRepository,
+                          TagRepository tagRepository,
+                          ContentTagRepository contentTagRepository) {
         super(contentRepository, contentSourceRepository);
         this.webClient = webClient;
+        this.tagRepository = tagRepository;
+        this.contentTagRepository = contentTagRepository;
     }
 
     @Override
     public String sourceName() {
         return SOURCE_NAME;
+    }
+
+    /**
+     * 수집된 Velog 글의 태그를 content_tags 테이블에 저장한다.
+     * tags 테이블에 존재하는 태그만 연결하고, 없는 태그는 skip한다.
+     */
+    @Override
+    protected void afterSave(Content content, CollectedContent item) {
+        if (item.tags().isEmpty()) {
+            return;
+        }
+        try {
+            List<Tag> matchedTags = tagRepository.findByNameIn(item.tags());
+            if (matchedTags.isEmpty()) {
+                return;
+            }
+            matchedTags.forEach(tag ->
+                    contentTagRepository.save(ContentTag.builder()
+                            .content(content)
+                            .tag(tag)
+                            .build())
+            );
+            log.debug("Velog content tags saved: contentId={}, tags={}", content.getId(), matchedTags.size());
+        } catch (Exception e) {
+            log.error("Failed to save content tags: contentId={}, error={}", content.getId(), e.getMessage());
+        }
     }
 
     @Override
