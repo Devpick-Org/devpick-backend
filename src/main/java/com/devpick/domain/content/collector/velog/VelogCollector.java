@@ -72,17 +72,21 @@ public class VelogCollector extends ContentCollector {
         if (item.tags().isEmpty()) {
             return;
         }
-        List<Tag> matchedTags = tagRepository.findByNameIn(item.tags());
-        if (matchedTags.isEmpty()) {
-            return;
+        try {
+            List<Tag> matchedTags = tagRepository.findByNameIn(item.tags());
+            if (matchedTags.isEmpty()) {
+                return;
+            }
+            matchedTags.forEach(tag ->
+                    contentTagRepository.save(ContentTag.builder()
+                            .content(content)
+                            .tag(tag)
+                            .build())
+            );
+            log.debug("Velog content tags saved: contentId={}, tags={}", content.getId(), matchedTags.size());
+        } catch (Exception e) {
+            log.error("Failed to save content tags: contentId={}, error={}", content.getId(), e.getMessage());
         }
-        matchedTags.forEach(tag ->
-                contentTagRepository.save(ContentTag.builder()
-                        .content(content)
-                        .tag(tag)
-                        .build())
-        );
-        log.debug("Velog content tags saved: contentId={}, tags={}", content.getId(), matchedTags.size());
     }
 
     @Override
