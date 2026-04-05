@@ -3,8 +3,12 @@ package com.devpick.domain.content.collector.velog;
 import com.devpick.domain.content.collector.CollectedContent;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.ContentSource;
+import com.devpick.domain.content.entity.ContentTag;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.content.repository.ContentSourceRepository;
+import com.devpick.domain.content.repository.ContentTagRepository;
+import com.devpick.domain.user.entity.Tag;
+import com.devpick.domain.user.repository.TagRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,6 +28,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -40,6 +45,10 @@ class VelogCollectorTest {
     private ContentRepository contentRepository;
     @Mock
     private ContentSourceRepository contentSourceRepository;
+    @Mock
+    private TagRepository tagRepository;
+    @Mock
+    private ContentTagRepository contentTagRepository;
 
     @Mock
     private WebClient.RequestBodyUriSpec requestBodyUriSpec;
@@ -304,6 +313,67 @@ class VelogCollectorTest {
         assertThat(saved.getSource()).isEqualTo(velogSource);
     }
 
+    // ─── afterSave (tag 저장 로직) ────────────────────────────────
+
+    @Test
+    @DisplayName("afterSave — DB에 있는 태그는 content_tags에 저장됨")
+    void afterSave_matchingTags_savesContentTags() {
+        Content content = Content.builder()
+                .source(velogSource).title("제목").canonicalUrl("https://velog.io/@u/slug").build();
+        Tag javaTag = Tag.builder().name("Java").build();
+        given(tagRepository.findByNameIn(List.of("Java"))).willReturn(List.of(javaTag));
+        given(contentTagRepository.save(any(ContentTag.class))).willAnswer(inv -> inv.getArgument(0));
+
+        CollectedContent item = buildCollectedContent("https://velog.io/@u/slug", List.of("Java"));
+        collector.afterSave(content, item);
+
+        verify(contentTagRepository, times(1)).save(any(ContentTag.class));
+    }
+
+    @Test
+    @DisplayName("afterSave — DB에 없는 태그는 content_tags에 저장하지 않음 (skip 전략)")
+    void afterSave_noMatchingTags_skipsTagSave() {
+        Content content = Content.builder()
+                .source(velogSource).title("제목").canonicalUrl("https://velog.io/@u/slug").build();
+        given(tagRepository.findByNameIn(anyList())).willReturn(List.of());
+
+        CollectedContent item = buildCollectedContent("https://velog.io/@u/slug", List.of("알수없는태그"));
+        collector.afterSave(content, item);
+
+        verifyNoInteractions(contentTagRepository);
+    }
+
+    @Test
+    @DisplayName("afterSave — 태그 리스트가 비어있으면 DB 조회 자체를 하지 않음")
+    void afterSave_emptyTagList_skipsDbLookup() {
+        Content content = Content.builder()
+                .source(velogSource).title("제목").canonicalUrl("https://velog.io/@u/slug").build();
+
+        CollectedContent item = buildCollectedContent("https://velog.io/@u/slug", List.of());
+        collector.afterSave(content, item);
+
+        verifyNoInteractions(tagRepository);
+        verifyNoInteractions(contentTagRepository);
+    }
+
+    @Test
+    @DisplayName("afterSave — tag 저장 중 예외 발생해도 collect 흐름에 영향 없음")
+    void afterSave_tagSaveException_doesNotBreakCollect() {
+        given(contentSourceRepository.findByNameAndIsActiveTrue("Velog"))
+                .willReturn(Optional.of(velogSource));
+
+        VelogCollector spyCollector = spy(collector);
+        CollectedContent item = buildCollectedContent("https://velog.io/@u/slug", List.of("Java"));
+        doReturn(List.of(item)).when(spyCollector).fetchItems(anyString());
+
+        given(contentRepository.save(any(Content.class))).willAnswer(inv -> inv.getArgument(0));
+        given(tagRepository.findByNameIn(anyList())).willThrow(new RuntimeException("DB down"));
+
+        int result = spyCollector.collect("spring");
+
+        assertThat(result).isEqualTo(1);
+    }
+
     // ─── helpers ─────────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
@@ -327,9 +397,13 @@ class VelogCollectorTest {
     }
 
     private CollectedContent buildCollectedContent(String url) {
+        return buildCollectedContent(url, List.of("java"));
+    }
+
+    private CollectedContent buildCollectedContent(String url, List<String> tags) {
         return CollectedContent.of(
                 "테스트 게시글 제목", "devuser", url, "짧은 설명",
-                null, false, null, java.time.LocalDateTime.now(), List.of("java")
+                null, false, null, java.time.LocalDateTime.now(), tags
         );
     }
 }
