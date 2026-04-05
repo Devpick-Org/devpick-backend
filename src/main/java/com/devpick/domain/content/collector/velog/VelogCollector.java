@@ -10,7 +10,6 @@ import com.devpick.domain.content.repository.ContentTagRepository;
 import com.devpick.domain.user.entity.Tag;
 import com.devpick.domain.user.repository.TagRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -22,10 +21,10 @@ import java.util.List;
 
 /**
  * Velog GraphQL API 수집기.
- * 엔드포인트: POST https://v3.velog.io/graphql
+ * 엔드포인트: POST https://v2.velog.io/graphql
  *
- * <p>trendingPosts 쿼리로 인기 게시물을 수집한다.
- * timeframe 은 반드시 명시해야 데이터가 반환된다.
+ * <p>posts 쿼리로 최신 게시물을 수집한다.
+ * trendingPosts 쿼리는 Velog SSR 전환 이후 빈 배열을 반환하므로 사용하지 않는다.
  * ADR-006 정책: SUMMARY_ONLY — preview(short_description)만 저장,
  * isOriginalVisible = false.
  */
@@ -34,18 +33,11 @@ import java.util.List;
 public class VelogCollector extends ContentCollector {
 
     private static final String SOURCE_NAME = "Velog";
-    private static final String GRAPHQL_ENDPOINT = "https://v3.velog.io/graphql";
-    private static final int PAGE_LIMIT = 20;
+    private static final String GRAPHQL_ENDPOINT = "https://v2.velog.io/graphql";
 
     private final WebClient webClient;
     private final TagRepository tagRepository;
     private final ContentTagRepository contentTagRepository;
-
-    @Value("${velog.collection.offset:0}")
-    private int collectionOffset;
-
-    @Value("${velog.collection.timeframe:week}")
-    private String timeframe;
 
     public VelogCollector(WebClient webClient,
                           ContentRepository contentRepository,
@@ -96,7 +88,7 @@ public class VelogCollector extends ContentCollector {
 
     List<CollectedContent> fetchPosts() {
         try {
-            VelogGraphQlRequest request = VelogGraphQlRequest.trendingPosts(collectionOffset, PAGE_LIMIT, timeframe);
+            VelogGraphQlRequest request = VelogGraphQlRequest.recentPosts();
 
             VelogGraphQlResponse response = webClient.post()
                     .uri(GRAPHQL_ENDPOINT)

@@ -51,6 +51,7 @@ public class SecurityConfig {
                         .requestMatchers("/reports/weekly/share/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/internal/**").permitAll()
+                        .requestMatchers("/dev/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
