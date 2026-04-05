@@ -14,7 +14,7 @@ public record StackOverflowQuestion(
         @JsonProperty("link") String link,
         @JsonProperty("owner") Owner owner,
         @JsonProperty("tags") List<String> tags,
-        @JsonProperty("body_markdown") String bodyMarkdown,
+        @JsonProperty("body") String bodyMarkdown,
         @JsonProperty("creation_date") long creationDate,
         @JsonProperty("score") int score,
         @JsonProperty("view_count") int viewCount,
