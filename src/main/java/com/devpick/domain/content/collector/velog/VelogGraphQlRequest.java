@@ -13,9 +13,9 @@ public record VelogGraphQlRequest(
         Variables variables
 ) {
 
-    private static final String TRENDING_POSTS_QUERY = """
-            query TrendingPosts($limit: Int, $offset: Int, $timeframe: String) {
-              trendingPosts(limit: $limit, offset: $offset, timeframe: $timeframe) {
+    private static final String POSTS_QUERY = """
+            query Posts {
+              posts {
                 id
                 title
                 short_description
@@ -29,12 +29,8 @@ public record VelogGraphQlRequest(
             }
             """;
 
-    public static VelogGraphQlRequest trendingPosts(int offset, int limit, String timeframe) {
-        return new VelogGraphQlRequest(
-                "TrendingPosts",
-                TRENDING_POSTS_QUERY,
-                new Variables(limit, offset, timeframe)
-        );
+    public static VelogGraphQlRequest recentPosts() {
+        return new VelogGraphQlRequest("Posts", POSTS_QUERY, null);
     }
 
     public record Variables(int limit, int offset, String timeframe) {}

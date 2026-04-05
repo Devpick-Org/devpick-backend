@@ -10,15 +10,15 @@ public record VelogGraphQlResponse(
         Data data
 ) {
 
-    public record Data(List<VelogPost> trendingPosts) {}
+    public record Data(List<VelogPost> posts) {}
 
     /**
      * null-safe 하게 게시물 목록을 반환한다.
      */
     public List<VelogPost> posts() {
-        if (data == null || data.trendingPosts() == null) {
+        if (data == null || data.posts() == null) {
             return List.of();
         }
-        return data.trendingPosts();
+        return data.posts();
     }
 }

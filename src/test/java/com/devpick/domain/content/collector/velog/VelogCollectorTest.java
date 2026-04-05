@@ -18,7 +18,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
@@ -65,11 +64,9 @@ class VelogCollectorTest {
     void setUp() {
         velogSource = ContentSource.builder()
                 .name("Velog")
-                .url("https://v3.velog.io/graphql")
-                .collectMethod("api")
+                .url("https://v2.velog.io/graphql")
+                .collectMethod("graphql")
                 .build();
-        ReflectionTestUtils.setField(collector, "timeframe", "week");
-        ReflectionTestUtils.setField(collector, "collectionOffset", 0);
     }
 
     // ─── sourceName ──────────────────────────────────────────────
@@ -276,19 +273,6 @@ class VelogCollectorTest {
         collector.fetchPosts();
 
         verify(requestBodySpec).header("Origin", "https://velog.io");
-    }
-
-    @SuppressWarnings("unchecked")
-    @Test
-    @DisplayName("fetchPosts — timeframe 설정값이 요청에 반영됨 (month)")
-    void fetchPosts_timeframeAppliedFromConfig() {
-        ReflectionTestUtils.setField(collector, "timeframe", "month");
-        VelogGraphQlResponse response = new VelogGraphQlResponse(new VelogGraphQlResponse.Data(List.of()));
-        mockWebClientPost(Mono.just(response));
-
-        List<CollectedContent> result = collector.fetchPosts();
-
-        assertThat(result).isEmpty();
     }
 
     @SuppressWarnings("unchecked")
