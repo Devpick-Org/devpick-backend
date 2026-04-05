@@ -61,7 +61,8 @@ public abstract class ContentCollector {
 
         for (CollectedContent item : collected) {
             try {
-                contentRepository.save(toEntity(item, source));
+                Content saved = contentRepository.save(toEntity(item, source));
+                afterSave(saved, item);
                 savedCount++;
             } catch (DataIntegrityViolationException e) {
                 log.debug("Duplicate {} content skipped: {}", sourceName(), item.canonicalUrl());
@@ -73,6 +74,13 @@ public abstract class ContentCollector {
 
         log.info("{} collection done. fetched={}, saved={}", sourceName(), collected.size(), savedCount);
         return savedCount;
+    }
+
+    /**
+     * 콘텐츠 저장 후 호출되는 훅. 기본 구현은 no-op.
+     * 플랫폼별 후처리(예: 태그 저장)가 필요하면 서브클래스에서 override한다.
+     */
+    protected void afterSave(Content content, CollectedContent item) {
     }
 
     /** CollectedContent → Content 엔티티 변환 */

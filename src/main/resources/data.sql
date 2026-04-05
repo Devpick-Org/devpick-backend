@@ -48,6 +48,6 @@ SELECT gen_random_uuid(), 'Stack Overflow', 'https://api.stackexchange.com/2.3',
 WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Stack Overflow');
 
 INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at)
-SELECT gen_random_uuid(), 'Velog', 'https://v2.velog.io/graphql', 'api', true, NOW()
+SELECT gen_random_uuid(), 'Velog', 'https://v3.velog.io/graphql', 'graphql', true, NOW()
 WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Velog');
 -- 참고: RSS 기반 수집(우아한형제들 등)은 devpick-ai 레포에서 담당 (DP-202)
