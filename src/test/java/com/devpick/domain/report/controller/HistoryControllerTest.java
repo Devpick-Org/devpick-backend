@@ -192,6 +192,23 @@ class HistoryControllerTest {
     }
 
     @Test
+    @DisplayName("GET /history - ai_quiz_completed 액션은 points 5를 반환한다")
+    void getLearningHistory_aiQuizCompletedAction_returnsPoints5() throws Exception {
+        HistoryItemResponse item = new HistoryItemResponse(
+                UUID.randomUUID(), "ai_quiz_completed", 5,
+                new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React 퀴즈", "미리보기"),
+                null, null, LocalDateTime.now()
+        );
+        given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
+                .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
+
+        mockMvc.perform(get("/history").param("actionTypes", "ai_quiz_completed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].actionType").value("ai_quiz_completed"))
+                .andExpect(jsonPath("$.data.items[0].points").value(5));
+    }
+
+    @Test
     @DisplayName("GET /history - 커스텀 page/size 파라미터 정상 동작")
     void getLearningHistory_customPageParams_returns200() throws Exception {
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any())).willReturn(historyPageResponse);
