@@ -212,11 +212,15 @@ com.devpick
 
 ## 4. 브랜치 / 커밋 / PR 규칙
 
+> **현재 작업 브랜치**: `developV2`
+> - `develop`: MVP 완성본 고정 (건드리지 않음)
+> - `developV2`: MVP 이후 추가 기능 작업 기준 브랜치. **모든 신규 작업은 여기서 시작.**
+
 ### 브랜치
 ```bash
-# develop에서 시작 (main 직접 작업 금지)
-git checkout develop
-git pull origin develop
+# developV2에서 시작 (develop/main 직접 작업 금지)
+git checkout developV2
+git pull origin developV2
 git checkout -b feature/DP-{티켓번호}-{기능명}
 
 # 예시
@@ -226,10 +230,11 @@ git checkout -b feature/DP-177-이메일-회원가입-API
 | 브랜치 | 용도 |
 |--------|------|
 | `main` | 배포용. 직접 push 절대 금지 |
-| `develop` | 개발 통합. PR 머지 대상 |
+| `develop` | MVP 완성본. 직접 작업 금지 |
+| `developV2` | MVP 이후 추가 기능 통합. PR 머지 대상 |
 | `feature/DP-{번호}-{기능명}` | 기능 개발 (사람이 직접 작업) |
-| `auto/feature/DP-{번호}-{기능명}` | Claude Code 신규 기능 자동화. CI 통과 시 develop에 자동 머지 |
-| `auto/fix/DP-{번호}-{설명}` | Claude Code 버그 수정 자동화. CI 통과 시 develop에 자동 머지 |
+| `auto/feature/DP-{번호}-{기능명}` | Claude Code 신규 기능 자동화. CI 통과 시 developV2에 자동 머지 |
+| `auto/fix/DP-{번호}-{설명}` | Claude Code 버그 수정 자동화. CI 통과 시 developV2에 자동 머지 |
 | `hotfix/DP-{번호}-{설명}` | 긴급 버그 수정 |
 
 ### 커밋 메시지
