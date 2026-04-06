@@ -34,6 +34,7 @@ jwt:
 ai-server:
   url: ${AI_SERVER_URL:http://ai-server:8000}
   timeout-ms: ${AI_SERVER_TIMEOUT_MS:10000}
+  internal-key: ${AI_SERVER_INTERNAL_KEY:}
 
 oauth:
   frontend-base-url: ${FRONTEND_URL:http://localhost:3000}
