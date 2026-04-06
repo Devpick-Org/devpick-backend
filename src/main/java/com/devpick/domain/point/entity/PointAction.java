@@ -13,7 +13,8 @@ public enum PointAction {
     QUESTION_WRITE(10),
     ANSWER_WRITE(15),
     ANSWER_ADOPTED(30),
-    DAILY_LOGIN(1);
+    DAILY_LOGIN(1),
+    AI_QUIZ_COMPLETE(5);
 
     private final int points;
 }
