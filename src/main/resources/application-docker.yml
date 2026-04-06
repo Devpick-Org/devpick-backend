@@ -16,12 +16,13 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   data:
-    mongodb:
-      uri: mongodb://${MONGO_USERNAME:devpick}:${MONGO_PASSWORD}@${MONGO_HOST:mongodb}:${MONGO_PORT:27017}/${MONGO_DB:devpick}?authSource=admin
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
+
+aws:
+  region: ${AWS_REGION:ap-northeast-2}
 
 resend:
   api-key: ${RESEND_API_KEY}

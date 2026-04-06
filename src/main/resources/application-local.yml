@@ -17,8 +17,6 @@ spring:
       hibernate:
         format_sql: true
   data:
-    mongodb:
-      uri: ${MONGODB_URI:mongodb://devpick:devpick@localhost:27017/devpick?authSource=admin}
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
@@ -51,6 +49,9 @@ oauth:
     client-id: ${GOOGLE_CLIENT_ID:local-google-client-id}
     client-secret: ${GOOGLE_CLIENT_SECRET:local-google-client-secret}
     redirect-uri: ${FRONTEND_URL:http://localhost:3000}/auth/google/callback
+
+aws:
+  region: ${AWS_REGION:ap-northeast-2}
 
 resend:
   api-key: ${RESEND_API_KEY:local-dummy-key}

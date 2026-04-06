@@ -1,85 +1,140 @@
 package com.devpick.domain.content.document;
 
-import lombok.AccessLevel;
+import com.devpick.global.config.LocalDateTimeConverter;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import lombok.Setter;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbConvertedBy;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortKey;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Document(collection = "ai_quizzes")
-@CompoundIndex(name = "idx_quiz_content_level", def = "{'content_id': 1, 'level': 1}", unique = true)
+@DynamoDbBean
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Setter
+@NoArgsConstructor
 @Builder
 @AllArgsConstructor
 public class AiQuizDocument {
 
-    @Id
-    private String id;
-
-    @Field("content_id")
     private String contentId;
-
-    @Field("level")
     private String level;
-
-    @Field("title")
     private String title;
-
-    @Field("questions")
     private List<Question> questions;
-
-    @Field("passing_count")
     private int passingCount;
-
-    @Field("estimated_minutes")
     private int estimatedMinutes;
-
-    @Field("cached_at")
     private LocalDateTime cachedAt;
-
-    @Field("expires_at")
     private LocalDateTime expiresAt;
 
+    @DynamoDbPartitionKey
+    @DynamoDbAttribute("content_id")
+    public String getContentId() {
+        return contentId;
+    }
+
+    @DynamoDbSortKey
+    @DynamoDbAttribute("level")
+    public String getLevel() {
+        return level;
+    }
+
+    @DynamoDbAttribute("title")
+    public String getTitle() {
+        return title;
+    }
+
+    @DynamoDbAttribute("questions")
+    public List<Question> getQuestions() {
+        return questions;
+    }
+
+    @DynamoDbAttribute("passing_count")
+    public int getPassingCount() {
+        return passingCount;
+    }
+
+    @DynamoDbAttribute("estimated_minutes")
+    public int getEstimatedMinutes() {
+        return estimatedMinutes;
+    }
+
+    @DynamoDbConvertedBy(LocalDateTimeConverter.class)
+    @DynamoDbAttribute("cached_at")
+    public LocalDateTime getCachedAt() {
+        return cachedAt;
+    }
+
+    @DynamoDbConvertedBy(LocalDateTimeConverter.class)
+    @DynamoDbAttribute("expires_at")
+    public LocalDateTime getExpiresAt() {
+        return expiresAt;
+    }
+
+    @DynamoDbBean
     @Getter
-    @NoArgsConstructor(access = AccessLevel.PROTECTED)
+    @Setter
+    @NoArgsConstructor
     @Builder
     @AllArgsConstructor
     public static class Question {
 
-        @Field("id")
         private String id;
-
-        @Field("question")
         private String question;
-
-        @Field("options")
         private List<Option> options;
-
-        @Field("correct_option_id")
         private String correctOptionId;
-
-        @Field("explanation")
         private String explanation;
+
+        @DynamoDbAttribute("id")
+        public String getId() {
+            return id;
+        }
+
+        @DynamoDbAttribute("question")
+        public String getQuestion() {
+            return question;
+        }
+
+        @DynamoDbAttribute("options")
+        public List<Option> getOptions() {
+            return options;
+        }
+
+        @DynamoDbAttribute("correct_option_id")
+        public String getCorrectOptionId() {
+            return correctOptionId;
+        }
+
+        @DynamoDbAttribute("explanation")
+        public String getExplanation() {
+            return explanation;
+        }
     }
 
+    @DynamoDbBean
     @Getter
-    @NoArgsConstructor(access = AccessLevel.PROTECTED)
+    @Setter
+    @NoArgsConstructor
     @Builder
     @AllArgsConstructor
     public static class Option {
 
-        @Field("id")
         private String id;
-
-        @Field("text")
         private String text;
+
+        @DynamoDbAttribute("id")
+        public String getId() {
+            return id;
+        }
+
+        @DynamoDbAttribute("text")
+        public String getText() {
+            return text;
+        }
     }
 }

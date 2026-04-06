@@ -1,43 +1,62 @@
 package com.devpick.domain.report.document;
 
-import lombok.AccessLevel;
+import com.devpick.global.config.LocalDateTimeConverter;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import lombok.Setter;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbConvertedBy;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 
 import java.time.LocalDateTime;
 
-@Document(collection = "weekly_report_insights")
+@DynamoDbBean
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Setter
+@NoArgsConstructor
 @Builder
 @AllArgsConstructor
 public class ReportInsightDocument {
 
-    @Id
-    private String id;
-
-    @Indexed(unique = true)
-    @Field("report_id")
     private String reportId;
-
-    @Field("user_id")
     private String userId;
-
-    @Field("well_done")
     private String wellDone;
-
-    @Field("lacking")
     private String lacking;
-
-    @Field("next_week")
     private String nextWeek;
-
-    @Field("generated_at")
     private LocalDateTime generatedAt;
+
+    @DynamoDbPartitionKey
+    @DynamoDbAttribute("report_id")
+    public String getReportId() {
+        return reportId;
+    }
+
+    @DynamoDbAttribute("user_id")
+    public String getUserId() {
+        return userId;
+    }
+
+    @DynamoDbAttribute("well_done")
+    public String getWellDone() {
+        return wellDone;
+    }
+
+    @DynamoDbAttribute("lacking")
+    public String getLacking() {
+        return lacking;
+    }
+
+    @DynamoDbAttribute("next_week")
+    public String getNextWeek() {
+        return nextWeek;
+    }
+
+    @DynamoDbConvertedBy(LocalDateTimeConverter.class)
+    @DynamoDbAttribute("generated_at")
+    public LocalDateTime getGeneratedAt() {
+        return generatedAt;
+    }
 }
