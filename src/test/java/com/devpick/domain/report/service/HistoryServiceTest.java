@@ -207,6 +207,7 @@ class HistoryServiceTest {
                 Arguments.of("answer_written", 15),
                 Arguments.of("answer_adopted", 30),
                 Arguments.of("daily_login", 1),
+                Arguments.of("ai_quiz_completed", 5),
                 Arguments.of("content_opened", null),
                 Arguments.of("post_created", null)
         );
