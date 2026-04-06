@@ -63,6 +63,7 @@ ai_summary_viewed    — AI 요약 조회 (학습 기록 O)
 scrapped             — 스크랩 (학습 기록 O)
 question_created     — 질문 작성 (학습 기록 O)
 post_created         — 커뮤니티 게시 (학습 기록 O)
+ai_quiz_completed    — AI 퀴즈 완료 (학습 기록 O, +5p)
 ```
 > **주의**: `content_liked`는 학습 기록 X (activity에만 표시)
 

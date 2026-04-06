@@ -45,6 +45,7 @@ public record HistoryItemResponse(
             case "answer_written"    -> PointAction.ANSWER_WRITE.getPoints();
             case "answer_adopted"    -> PointAction.ANSWER_ADOPTED.getPoints();
             case "daily_login"       -> PointAction.DAILY_LOGIN.getPoints();
+            case "ai_quiz_completed" -> PointAction.AI_QUIZ_COMPLETE.getPoints();
             default                  -> null;
         };
 
