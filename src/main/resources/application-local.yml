@@ -52,10 +52,6 @@ oauth:
     client-secret: ${GOOGLE_CLIENT_SECRET:local-google-client-secret}
     redirect-uri: ${FRONTEND_URL:http://localhost:3000}/auth/google/callback
 
-stackoverflow:
-  api-key: ${STACKOVERFLOW_API_KEY:}
-  collect-tags: ${STACKOVERFLOW_COLLECT_TAGS:java;spring-boot;kotlin;python}
-
 resend:
   api-key: ${RESEND_API_KEY:local-dummy-key}
 
