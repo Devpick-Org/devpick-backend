@@ -2,7 +2,8 @@ package com.devpick.domain.community.dto;
 
 import com.devpick.domain.community.entity.AiAnswer;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 public record AiAnswerResponse(
@@ -10,7 +11,7 @@ public record AiAnswerResponse(
         UUID postId,
         String content,
         Boolean isAdopted,
-        LocalDateTime createdAt
+        Instant createdAt
 ) {
     public static AiAnswerResponse of(AiAnswer aiAnswer) {
         return new AiAnswerResponse(
@@ -18,7 +19,7 @@ public record AiAnswerResponse(
                 aiAnswer.getPost().getId(),
                 aiAnswer.getContent(),
                 aiAnswer.getIsAdopted(),
-                aiAnswer.getCreatedAt()
+                aiAnswer.getCreatedAt() != null ? aiAnswer.getCreatedAt().toInstant(ZoneOffset.UTC) : null
         );
     }
 }

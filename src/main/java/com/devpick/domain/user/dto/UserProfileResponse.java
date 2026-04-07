@@ -5,7 +5,8 @@ import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.domain.user.entity.User;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,7 +18,7 @@ public record UserProfileResponse(
         Job job,
         Level level,
         List<String> tags,
-        LocalDateTime createdAt,
+        Instant createdAt,
         int totalPoints,
         RepresentativeBadgeDto representativeBadge
 ) {
@@ -33,7 +34,7 @@ public record UserProfileResponse(
                 user.getJob(),
                 user.getLevel(),
                 tagNames,
-                user.getCreatedAt(),
+                user.getCreatedAt() != null ? user.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
                 user.getTotalPoints(),
                 representativeBadge
         );

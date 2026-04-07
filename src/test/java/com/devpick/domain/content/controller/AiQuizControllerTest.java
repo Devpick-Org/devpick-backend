@@ -24,7 +24,7 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -76,14 +76,14 @@ class AiQuizControllerTest {
         quizResponse = new AiQuizResponse(
                 contentId.toString(), "Spring 가이드", "JUNIOR",
                 List.of(question), 1, 5,
-                LocalDateTime.now(), LocalDateTime.now().plusDays(7),
+                Instant.now(), Instant.now().plusSeconds(7 * 24 * 3600),
                 false, null, null, null
         );
 
         quizResponseWithAttempt = new AiQuizResponse(
                 contentId.toString(), "Spring 가이드", "JUNIOR",
                 List.of(question), 1, 5,
-                LocalDateTime.now(), LocalDateTime.now().plusDays(7),
+                Instant.now(), Instant.now().plusSeconds(7 * 24 * 3600),
                 true, true, 4, 5
         );
     }

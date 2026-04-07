@@ -16,8 +16,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +67,7 @@ public class BadgeService {
                             badge.getName(),
                             badge.getDescription(),
                             ub != null,
-                            ub != null ? ub.getAcquiredAt() : null
+                            ub != null ? ub.getAcquiredAt().toInstant(ZoneOffset.UTC) : null
                     );
                 })
                 .toList();

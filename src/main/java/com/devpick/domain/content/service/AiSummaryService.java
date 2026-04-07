@@ -22,6 +22,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -51,7 +52,7 @@ public class AiSummaryService {
         // 1. Redis 캐시 조회
         String redisKey = buildRedisKey(contentId, level);
         AiSummaryResponse cached = getFromRedis(redisKey);
-        if (cached != null && cached.expiresAt() != null && cached.expiresAt().isAfter(LocalDateTime.now())) {
+        if (cached != null && cached.expiresAt() != null && cached.expiresAt().isAfter(Instant.now())) {
             recordHistory(userId, contentId);
             return cached;
         }

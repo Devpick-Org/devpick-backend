@@ -2,7 +2,8 @@ package com.devpick.domain.community.dto;
 
 import com.devpick.domain.community.entity.Comment;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 public record CommentResponse(
@@ -11,8 +12,8 @@ public record CommentResponse(
         UUID userId,
         String nickname,
         String content,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) {
     public static CommentResponse of(Comment comment) {
         return new CommentResponse(
@@ -21,8 +22,8 @@ public record CommentResponse(
                 comment.getUser().getId(),
                 comment.getUser().getNickname(),
                 comment.getContent(),
-                comment.getCreatedAt(),
-                comment.getUpdatedAt()
+                comment.getCreatedAt() != null ? comment.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
+                comment.getUpdatedAt() != null ? comment.getUpdatedAt().toInstant(ZoneOffset.UTC) : null
         );
     }
 }

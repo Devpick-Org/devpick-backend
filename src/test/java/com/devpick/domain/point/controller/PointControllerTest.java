@@ -25,7 +25,7 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -106,7 +106,7 @@ class PointControllerTest {
     @Test
     @DisplayName("GET /users/me/points/history - 적립 내역 조회 성공 시 200 반환")
     void getPointHistory_success_returns200() throws Exception {
-        PointHistoryItem item = new PointHistoryItem("CONTENT_SCRAP", 5, LocalDateTime.now());
+        PointHistoryItem item = new PointHistoryItem("CONTENT_SCRAP", 5, Instant.now());
         PointHistoryResponse response = new PointHistoryResponse(List.of(item), 0, 10, 1L, 1);
         given(pointService.getHistory(userId, 0, 10)).willReturn(response);
 
@@ -149,7 +149,7 @@ class PointControllerTest {
     @Test
     @DisplayName("GET /users/me/badges - 배지 목록 조회 성공 시 200 반환")
     void getBadges_success_returns200() throws Exception {
-        BadgeResponse acquired = new BadgeResponse("FIRST_SCRAP", "첫 스크랩", "첫 스크랩 달성", true, LocalDateTime.now());
+        BadgeResponse acquired = new BadgeResponse("FIRST_SCRAP", "첫 스크랩", "첫 스크랩 달성", true, Instant.now());
         BadgeResponse notAcquired = new BadgeResponse("FIRST_QUESTION", "첫 질문", "첫 질문 달성", false, null);
         given(badgeService.getBadges(userId)).willReturn(List.of(acquired, notAcquired));
 

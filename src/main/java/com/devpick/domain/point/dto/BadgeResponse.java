@@ -1,11 +1,11 @@
 package com.devpick.domain.point.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record BadgeResponse(
         String badgeId,
         String name,
         String description,
         boolean acquired,
-        LocalDateTime acquiredAt
+        Instant acquiredAt
 ) {}

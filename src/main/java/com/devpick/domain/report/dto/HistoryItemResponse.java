@@ -3,7 +3,8 @@ package com.devpick.domain.report.dto;
 import com.devpick.domain.point.entity.PointAction;
 import com.devpick.domain.report.entity.History;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 public record HistoryItemResponse(
@@ -13,7 +14,7 @@ public record HistoryItemResponse(
         ContentInfo content,
         PostInfo post,
         AnswerInfo answer,
-        LocalDateTime createdAt
+        Instant createdAt
 ) {
     public record ContentInfo(UUID id, String title, String preview) {}
     public record PostInfo(UUID id, String title) {}
@@ -56,7 +57,7 @@ public record HistoryItemResponse(
                 contentInfo,
                 postInfo,
                 answerInfo,
-                history.getCreatedAt()
+                history.getCreatedAt() != null ? history.getCreatedAt().toInstant(ZoneOffset.UTC) : null
         );
     }
 }

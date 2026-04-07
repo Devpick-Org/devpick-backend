@@ -2,7 +2,8 @@ package com.devpick.domain.content.dto;
 
 import com.devpick.domain.content.document.AiSummaryDocument;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 
 public record AiSummaryResponse(
@@ -15,8 +16,8 @@ public record AiSummaryResponse(
         String nextRecommendation,
         Double confidence,
         List<String> additionalQuestions,
-        LocalDateTime cachedAt,
-        LocalDateTime expiresAt
+        Instant cachedAt,
+        Instant expiresAt
 ) {
     public static AiSummaryResponse of(AiSummaryDocument doc) {
         return new AiSummaryResponse(
@@ -29,8 +30,8 @@ public record AiSummaryResponse(
                 doc.getNextRecommendation(),
                 doc.getConfidence(),
                 doc.getAdditionalQuestions(),
-                doc.getCachedAt(),
-                doc.getExpiresAt()
+                doc.getCachedAt() != null ? doc.getCachedAt().toInstant(ZoneOffset.UTC) : null,
+                doc.getExpiresAt() != null ? doc.getExpiresAt().toInstant(ZoneOffset.UTC) : null
         );
     }
 }

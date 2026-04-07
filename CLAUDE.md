@@ -320,6 +320,14 @@ DP-{티켓번호}: {작업 내용}
 | 테이블/컬럼 | snake_case | `user_id` |
 | URL | kebab-case | `/auth/sign-up` |
 
+### 날짜/시간 직렬화 규칙 (ISO 8601 UTC)
+- API **응답** DTO의 날짜-시간 필드는 반드시 `Instant` 타입 사용
+- API **요청** 파라미터는 `OffsetDateTime` 사용 (`@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)`)
+- 직렬화 결과: `2026-04-06T12:00:00Z` 형식 (ISO 8601, Z suffix = UTC)
+- `LocalDateTime`은 타임존 정보가 없으므로 **응답 DTO에 절대 사용 금지**
+- 엔티티/내부 로직/MongoDB document는 `LocalDateTime` 유지 가능. DTO 변환 시 `entity.getCreatedAt().toInstant(ZoneOffset.UTC)` 패턴 사용
+- JacksonConfig에 전역 설정됨 — 별도 `@JsonFormat` 불필요
+
 ---
 
 ## 7. 핵심 코드 패턴

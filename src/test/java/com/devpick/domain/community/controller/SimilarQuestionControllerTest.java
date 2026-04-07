@@ -21,7 +21,7 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -63,7 +63,7 @@ class SimilarQuestionControllerTest {
     @DisplayName("GET /posts/{postId}/similar - 유사 질문 조회 성공 시 200 반환")
     void getSimilarQuestions_success_returns200() throws Exception {
         SimilarPostResponse post1 = new SimilarPostResponse(
-                UUID.randomUUID(), "Spring Filter vs Interceptor", Level.JUNIOR, 3, LocalDateTime.now());
+                UUID.randomUUID(), "Spring Filter vs Interceptor", Level.JUNIOR, 3, Instant.now());
         SimilarPostListResponse response = new SimilarPostListResponse(List.of(post1));
         given(similarQuestionService.getSimilarPosts(postId)).willReturn(response);
 

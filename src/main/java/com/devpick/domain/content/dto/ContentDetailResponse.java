@@ -2,7 +2,8 @@ package com.devpick.domain.content.dto;
 
 import com.devpick.domain.content.entity.Content;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,7 +18,7 @@ public record ContentDetailResponse(
         String originalContent,
         boolean isOriginalVisible,
         String licenseType,
-        LocalDateTime publishedAt,
+        Instant publishedAt,
         List<String> tags,
         boolean isScrapped,
         boolean isLiked,
@@ -44,7 +45,7 @@ public record ContentDetailResponse(
                 content.getOriginalContent(),
                 content.getIsOriginalVisible(),
                 content.getLicenseType(),
-                content.getPublishedAt(),
+                content.getPublishedAt() != null ? content.getPublishedAt().toInstant(ZoneOffset.UTC) : null,
                 tags,
                 isScrapped,
                 isLiked,

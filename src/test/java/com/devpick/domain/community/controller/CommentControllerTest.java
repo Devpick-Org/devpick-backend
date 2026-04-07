@@ -23,7 +23,7 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -77,7 +77,7 @@ class CommentControllerTest {
 
         commentResponse = new CommentResponse(
                 commentId, answerId, userId, "tester", "Test Comment",
-                LocalDateTime.now(), LocalDateTime.now()
+                Instant.now(), Instant.now()
         );
     }
 

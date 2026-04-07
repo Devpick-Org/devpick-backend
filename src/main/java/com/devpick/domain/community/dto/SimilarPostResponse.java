@@ -3,7 +3,8 @@ package com.devpick.domain.community.dto;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.user.entity.Level;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 public record SimilarPostResponse(
@@ -11,7 +12,7 @@ public record SimilarPostResponse(
         String title,
         Level level,
         long answerCount,
-        LocalDateTime createdAt
+        Instant createdAt
 ) {
     public static SimilarPostResponse of(Post post, long answerCount) {
         return new SimilarPostResponse(
@@ -19,7 +20,7 @@ public record SimilarPostResponse(
                 post.getTitle(),
                 post.getLevel(),
                 answerCount,
-                post.getCreatedAt()
+                post.getCreatedAt() != null ? post.getCreatedAt().toInstant(ZoneOffset.UTC) : null
         );
     }
 }
