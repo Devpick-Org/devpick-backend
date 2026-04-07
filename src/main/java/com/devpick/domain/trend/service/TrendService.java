@@ -12,7 +12,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Slf4j
@@ -59,7 +59,7 @@ public class TrendService {
         try {
             String json = objectMapper.writeValueAsString(keywords);
             redisTemplate.opsForValue().set(KEYWORDS_KEY, json, TTL);
-            redisTemplate.opsForValue().set(UPDATED_AT_KEY, LocalDateTime.now().toString(), TTL);
+            redisTemplate.opsForValue().set(UPDATED_AT_KEY, Instant.now().toString(), TTL);
         } catch (JsonProcessingException e) {
             log.error("트렌딩 키워드 Redis 저장 실패: {}", e.getMessage());
         }
@@ -76,9 +76,9 @@ public class TrendService {
 
     private TrendingKeywordsResponse buildResponse(List<String> keywords) {
         String updatedAtStr = redisTemplate.opsForValue().get(UPDATED_AT_KEY);
-        LocalDateTime updatedAt = updatedAtStr != null
-                ? LocalDateTime.parse(updatedAtStr)
-                : LocalDateTime.now();
+        Instant updatedAt = updatedAtStr != null
+                ? Instant.parse(updatedAtStr)
+                : Instant.now();
         return new TrendingKeywordsResponse(keywords, updatedAt);
     }
 }

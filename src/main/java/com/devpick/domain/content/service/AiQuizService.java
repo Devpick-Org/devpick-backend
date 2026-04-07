@@ -27,6 +27,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -63,7 +64,7 @@ public class AiQuizService {
         // 1. Redis 캐시 조회 (퀴즈 콘텐츠만 캐시 — 유저별 이력은 별도 조회)
         String redisKey = buildRedisKey(contentId, level);
         AiQuizResponse cached = getFromRedis(redisKey);
-        if (cached != null && cached.expiresAt() != null && cached.expiresAt().isAfter(LocalDateTime.now())) {
+        if (cached != null && cached.expiresAt() != null && cached.expiresAt().isAfter(Instant.now())) {
             return mergeWithAttempt(cached, lastAttempt);
         }
 
