@@ -4,8 +4,12 @@ import com.devpick.domain.content.collector.NormalizedContentDto;
 import com.devpick.domain.content.dto.IngestResultResponse;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.ContentSource;
+import com.devpick.domain.content.entity.ContentTag;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.content.repository.ContentSourceRepository;
+import com.devpick.domain.content.repository.ContentTagRepository;
+import com.devpick.domain.user.entity.Tag;
+import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +32,8 @@ public class InternalContentService {
 
     private final ContentRepository contentRepository;
     private final ContentSourceRepository contentSourceRepository;
+    private final TagRepository tagRepository;
+    private final ContentTagRepository contentTagRepository;
 
     /**
      * AI 레포에서 배치로 수신한 NormalizedContentDto 리스트를 PostgreSQL에 저장한다.
@@ -45,7 +51,8 @@ public class InternalContentService {
                     .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_SOURCE_NOT_FOUND));
 
             try {
-                contentRepository.save(toEntity(item, source));
+                Content content = contentRepository.save(toEntity(item, source));
+                saveContentTags(content, item.tags());
                 saved++;
             } catch (DataIntegrityViolationException e) {
                 // canonical_url unique 제약 위반 → 중복 콘텐츠, 정상 스킵
@@ -56,6 +63,17 @@ public class InternalContentService {
 
         log.info("Internal ingest done. total={}, saved={}, skipped={}", items.size(), saved, skipped);
         return new IngestResultResponse(saved, skipped);
+    }
+
+    private void saveContentTags(Content content, List<String> tagNames) {
+        if (tagNames == null || tagNames.isEmpty()) {
+            return;
+        }
+        List<Tag> matchedTags = tagRepository.findByNameIgnoreCaseIn(tagNames);
+        List<ContentTag> contentTags = matchedTags.stream()
+                .map(tag -> ContentTag.builder().content(content).tag(tag).build())
+                .toList();
+        contentTagRepository.saveAll(contentTags);
     }
 
     private Content toEntity(NormalizedContentDto dto, ContentSource source) {

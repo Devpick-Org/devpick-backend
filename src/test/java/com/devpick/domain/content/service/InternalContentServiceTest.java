@@ -4,8 +4,12 @@ import com.devpick.domain.content.collector.NormalizedContentDto;
 import com.devpick.domain.content.dto.IngestResultResponse;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.ContentSource;
+import com.devpick.domain.content.entity.ContentTag;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.content.repository.ContentSourceRepository;
+import com.devpick.domain.content.repository.ContentTagRepository;
+import com.devpick.domain.user.entity.Tag;
+import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +27,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -37,6 +42,12 @@ class InternalContentServiceTest {
 
     @Mock
     private ContentSourceRepository contentSourceRepository;
+
+    @Mock
+    private TagRepository tagRepository;
+
+    @Mock
+    private ContentTagRepository contentTagRepository;
 
     private ContentSource mockSource;
 
@@ -188,6 +199,57 @@ class InternalContentServiceTest {
 
         assertThat(result.saved()).isEqualTo(1);
         assertThat(captor.getValue().getTitle()).isEqualTo("");
+    }
+
+    @Test
+    @DisplayName("태그 매칭 — DB에 존재하는 태그만 content_tags에 저장")
+    void ingest_withTags_savesMatchedContentTags() {
+        NormalizedContentDto dto = new NormalizedContentDto(
+                "techblog",
+                "제목",
+                null,
+                "https://example.com/post/tagged",
+                "2026-03-10T09:00:00Z",
+                "미리보기",
+                "본문",
+                true,
+                null,
+                null,
+                List.of("java", "spring-boot", "unknown-tag")
+        );
+
+        Tag javaTag = Tag.builder().name("Java").build();
+        Tag springTag = Tag.builder().name("Spring Boot").build();
+
+        given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
+                .willReturn(Optional.of(mockSource));
+        given(contentRepository.save(any(Content.class)))
+                .willAnswer(inv -> inv.getArgument(0));
+        given(tagRepository.findByNameIgnoreCaseIn(List.of("java", "spring-boot", "unknown-tag")))
+                .willReturn(List.of(javaTag, springTag));
+        given(contentTagRepository.saveAll(anyList()))
+                .willAnswer(inv -> inv.getArgument(0));
+
+        IngestResultResponse result = internalContentService.ingest(List.of(dto));
+
+        assertThat(result.saved()).isEqualTo(1);
+        verify(contentTagRepository, times(1)).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("태그 없음 — content_tags 저장 호출 안 함")
+    void ingest_withEmptyTags_doesNotSaveContentTags() {
+        NormalizedContentDto dto = buildDto("techblog", "https://example.com/post/notag");
+
+        given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
+                .willReturn(Optional.of(mockSource));
+        given(contentRepository.save(any(Content.class)))
+                .willAnswer(inv -> inv.getArgument(0));
+
+        internalContentService.ingest(List.of(dto));
+
+        verifyNoInteractions(tagRepository);
+        verifyNoInteractions(contentTagRepository);
     }
 
     @Test
