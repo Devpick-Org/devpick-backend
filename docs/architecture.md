@@ -20,7 +20,7 @@
                                       │
                     ┌─────────────────┼─────────────────┐
                     ▼                 ▼                 ▼
-           [PostgreSQL :5432]  [MongoDB :27017]  [Redis :6379]
+           [PostgreSQL :5432]  [DynamoDB (AWS)]   [Redis :6379]
            구조화 도메인 데이터   AI 결과물 캐시    고속 캐시/세션
            ─────────────────   ───────────────   ─────────────
            users               ai_summaries      summary:{id}:{level}
@@ -35,12 +35,12 @@
                                       │ WebClient (내부 REST)
                                       ▼
                                [FastAPI :8000]
-                               ├─ POST /api/summary  (AI 요약 생성)
-                               ├─ POST /api/quiz     (AI 퀴즈 생성)
-                               ├─ POST /api/refine   (질문 개선)
-                               ├─ POST /api/answer   (AI 답변)
+                               ├─ POST /internal/summaries  (AI 요약 생성)
+                               ├─ POST /internal/quiz       (AI 퀴즈 생성)
+                               ├─ POST /internal/refine     (질문 개선)
+                               ├─ POST /internal/answer     (AI 답변)
                                ├─ FAISS 벡터 인덱스
-                               └─ Claude API (LLM)
+                               └─ AWS Bedrock (LLM)
 ```
 
 **포트 정리**
@@ -52,7 +52,7 @@
 | Spring Boot | 8080 | REST API 서버 |
 | FastAPI | 8000 | AI 서버 (`${ai.server.url}`) |
 | PostgreSQL | 5432 | 메인 DB |
-| MongoDB | 27017 | AI 결과물 캐시 DB |
+| DynamoDB | — | AI 결과물 캐시 (AWS 관리형) |
 | Redis | 6379 | 캐시 / 세션 |
 
 ---
@@ -124,7 +124,7 @@ AiSummaryController.getSummary()
       └────────────────────────────────────────────┘
       │ MISS
       ▼
-③ AiSummaryRepository                 [MongoDB]
+③ AiSummaryRepository                 [DynamoDB]
      .findByContentIdAndLevel()
       ┌─ 있고 expiresAt > now ──────────────────────┐
       │  Redis.set("summary:...", TTL 7일)          │
@@ -133,7 +133,7 @@ AiSummaryController.getSummary()
       │ 없거나 만료
       ▼
 ④ AiServerClient.fetchSummary()
-     WebClient POST http://ai-server:8000/api/summary
+     WebClient POST http://ai-server:8000/internal/summaries
      Body: { content_id, level }
      ← AiSummaryResult {
          coreSummary, keyPoints, keywords,
@@ -141,7 +141,7 @@ AiSummaryController.getSummary()
          confidence, additionalQuestions
        }
 
-⑤ AiSummaryRepository.save(doc)       [MongoDB, expiresAt = now+7일]
+⑤ AiSummaryRepository.save(doc)       [DynamoDB, expiresAt = now+7일]
    Redis.set("summary:{id}:{level}")   [TTL 7일]
    HistoryRepository.save(ai_summary_viewed)
    PointService.earn(AI_SUMMARY_VIEW)
@@ -162,18 +162,18 @@ AiSummaryController.getSummary()
 ③ Redis.get("quiz:{contentId}:JUNIOR")
       HIT → lastAttempt와 병합 → 응답
 
-④ AiQuizRepository.findByContentIdAndLevel()  [MongoDB]
+④ AiQuizRepository.findByContentIdAndLevel()  [DynamoDB]
       있고 유효 → Redis 재저장 → 응답
 
 ⑤ AiServerClient.fetchQuiz()
-     WebClient POST http://ai-server:8000/api/quiz
+     WebClient POST http://ai-server:8000/internal/quiz
      Body: { content_id, level }
      ← AiQuizResult {
          questions[{ id, question, options[], correctOptionId, explanation }],
          passingCount, estimatedMinutes
        }
 
-⑥ AiQuizRepository.save(doc)          [MongoDB, expiresAt = now+7일]
+⑥ AiQuizRepository.save(doc)          [DynamoDB, expiresAt = now+7일]
    Redis.set("quiz:{id}:{level}")      [TTL 7일]
 ```
 
@@ -260,7 +260,7 @@ Claude API — 면접 Q&A 생성
 개발자 / Claude Code
     │ git push
     ▼
-GitHub Pull Request → develop
+GitHub Pull Request → developV2
     │
     ▼
 ┌─────────────────────────────────────────────────────┐
@@ -271,7 +271,6 @@ GitHub Pull Request → develop
 │  Services 동시 기동:                                 │
 │    postgres:16  (localhost:5432)                    │
 │    redis:7      (localhost:6379)                    │
-│    mongodb:7    (localhost:27017)                   │
 │                                                     │
 │  Steps:                                             │
 │    1. actions/checkout@v4 (fetch-depth: 0)          │
@@ -285,7 +284,7 @@ GitHub Pull Request → develop
 │                                                     │
 │  Job 2: sonar  (needs: build-test)                  │
 │  ─────────────────────────────────────────────────  │
-│  Services: postgres:16 + redis:7 + mongodb:7 동일   │
+│  Services: postgres:16 + redis:7 동일               │
 │                                                     │
 │  Steps:                                             │
 │    1. Job1 아티팩트 다운로드 (build/)               │
@@ -312,7 +311,7 @@ GitHub Pull Request → develop
 └─────────────────────────────────────────────────────┘
     │
     ▼
-develop 브랜치에 Squash Merge 완료
+developV2 브랜치에 Squash Merge 완료
 Jira 티켓 → Done 자동 전환
 
 
