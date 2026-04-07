@@ -51,7 +51,7 @@ class TrendServiceTest {
         List<String> keywords = List.of("react", "python", "typescript");
         String json = new ObjectMapper().writeValueAsString(keywords);
         given(valueOperations.get("trends:keywords")).willReturn(json);
-        given(valueOperations.get("trends:keywords:updated_at")).willReturn("2026-03-23T00:00:00");
+        given(valueOperations.get("trends:keywords:updated_at")).willReturn("2026-03-23T00:00:00Z");
 
         // when
         TrendingKeywordsResponse response = trendService.getTrendingKeywords();

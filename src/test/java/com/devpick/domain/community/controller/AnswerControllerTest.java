@@ -26,7 +26,7 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -79,7 +79,7 @@ class AnswerControllerTest {
         answerResponse = new AnswerResponse(
                 answerId, postId, "Test Answer", false,
                 userId, "tester", null, null,
-                LocalDateTime.now(), LocalDateTime.now()
+                Instant.now(), Instant.now()
         );
     }
 
@@ -122,7 +122,7 @@ class AnswerControllerTest {
         AnswerUpdateRequest request = new AnswerUpdateRequest("Updated Answer");
         AnswerResponse updated = new AnswerResponse(
                 answerId, postId, "Updated Answer", false,
-                userId, "tester", null, null, LocalDateTime.now(), LocalDateTime.now());
+                userId, "tester", null, null, Instant.now(), Instant.now());
         given(answerService.updateAnswer(eq(userId), eq(postId), eq(answerId), any())).willReturn(updated);
 
         mockMvc.perform(put("/posts/" + postId + "/answers/" + answerId)
@@ -161,7 +161,7 @@ class AnswerControllerTest {
     void adoptAnswer_success_returns200() throws Exception {
         AnswerResponse adopted = new AnswerResponse(
                 answerId, postId, "Test Answer", true,
-                userId, "tester", null, null, LocalDateTime.now(), LocalDateTime.now());
+                userId, "tester", null, null, Instant.now(), Instant.now());
         given(answerService.adoptAnswer(userId, postId, answerId)).willReturn(adopted);
 
         mockMvc.perform(post("/posts/" + postId + "/answers/" + answerId + "/adopt"))
@@ -186,7 +186,7 @@ class AnswerControllerTest {
     void getAnswers_success_returns200() throws Exception {
         AnswerWithCommentsResponse answerWithComments = new AnswerWithCommentsResponse(
                 answerId, "Test Answer", userId, "tester", null, null,
-                false, LocalDateTime.now(), LocalDateTime.now(), List.of()
+                false, Instant.now(), Instant.now(), List.of()
         );
         AnswerListResponse listResponse = new AnswerListResponse(List.of(answerWithComments));
         given(answerService.getAnswers(postId)).willReturn(listResponse);

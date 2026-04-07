@@ -26,7 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -81,7 +81,7 @@ class UserControllerTest {
     void getProfile_success() throws Exception {
         UserProfileResponse response = new UserProfileResponse(
                 userId, "test@devpick.kr", "테스트유저", null,
-                Job.BACKEND, Level.JUNIOR, List.of("React"), LocalDateTime.now(), 0, null);
+                Job.BACKEND, Level.JUNIOR, List.of("React"), Instant.now(), 0, null);
         given(userService.getProfile(userId)).willReturn(response);
 
         mockMvc.perform(get("/users/me"))
@@ -108,7 +108,7 @@ class UserControllerTest {
         UserProfileUpdateRequest request = new UserProfileUpdateRequest("새닉네임", null, null, null, null);
         UserProfileUpdateResponse response = new UserProfileUpdateResponse(
                 userId, "test@devpick.kr", "새닉네임", null,
-                Job.BACKEND, Level.JUNIOR, List.of(), LocalDateTime.now());
+                Job.BACKEND, Level.JUNIOR, List.of(), Instant.now());
         given(userService.updateProfile(eq(userId), any(UserProfileUpdateRequest.class)))
                 .willReturn(response);
 

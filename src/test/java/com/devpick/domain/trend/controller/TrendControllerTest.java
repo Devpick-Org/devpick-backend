@@ -14,7 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.BDDMockito.given;
@@ -49,7 +49,7 @@ class TrendControllerTest {
         // given
         TrendingKeywordsResponse response = new TrendingKeywordsResponse(
                 List.of("react", "python", "typescript"),
-                LocalDateTime.of(2026, 3, 23, 0, 0)
+                Instant.parse("2026-03-23T00:00:00Z")
         );
         given(trendService.getTrendingKeywords()).willReturn(response);
 

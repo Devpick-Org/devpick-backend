@@ -33,7 +33,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -282,7 +284,7 @@ class AiQuizServiceTest {
     void getQuiz_redisCacheExpired_fallsBackToMongodb() throws JsonProcessingException {
         AiQuizResponse expiredResponse = new AiQuizResponse(
                 contentId.toString(), "Spring 가이드", level, List.of(),
-                1, 5, LocalDateTime.now().minusDays(8), LocalDateTime.now().minusDays(1),
+                1, 5, Instant.now().minus(8, ChronoUnit.DAYS), Instant.now().minus(1, ChronoUnit.DAYS),
                 false, null, null, null
         );
         QuizAttempt attempt = QuizAttempt.builder()

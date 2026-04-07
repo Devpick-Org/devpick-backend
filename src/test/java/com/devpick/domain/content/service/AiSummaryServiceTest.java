@@ -27,7 +27,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -222,8 +224,8 @@ class AiSummaryServiceTest {
         AiSummaryResponse expiredResponse = new AiSummaryResponse(
                 contentId.toString(), level, "핵심 요약", List.of("포인트1"), List.of("Spring"),
                 "보통", "다음 읽기", 0.9, List.of("질문1"),
-                LocalDateTime.now().minusDays(8),
-                LocalDateTime.now().minusDays(1)    // expiresAt 과거
+                Instant.now().minus(8, ChronoUnit.DAYS),
+                Instant.now().minus(1, ChronoUnit.DAYS)    // expiresAt 과거
         );
 
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
@@ -246,8 +248,8 @@ class AiSummaryServiceTest {
         AiSummaryResponse expiredRedisResponse = new AiSummaryResponse(
                 contentId.toString(), level, "핵심 요약", List.of(), List.of(),
                 "보통", "다음", 0.9, List.of(),
-                LocalDateTime.now().minusDays(8),
-                LocalDateTime.now().minusDays(1)   // expiresAt 과거
+                Instant.now().minus(8, ChronoUnit.DAYS),
+                Instant.now().minus(1, ChronoUnit.DAYS)   // expiresAt 과거
         );
         AiSummaryDocument expiredDoc = AiSummaryDocument.builder()
                 .contentId(contentId.toString()).level(level)
@@ -279,7 +281,7 @@ class AiSummaryServiceTest {
         AiSummaryResponse noExpiry = new AiSummaryResponse(
                 contentId.toString(), level, "핵심 요약", List.of(), List.of(),
                 "보통", "다음", 0.9, List.of(),
-                LocalDateTime.now(),
+                Instant.now(),
                 null   // expiresAt == null → 유효하지 않은 캐시로 처리
         );
 

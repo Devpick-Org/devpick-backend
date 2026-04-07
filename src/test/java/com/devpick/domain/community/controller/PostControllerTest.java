@@ -27,7 +27,7 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -79,7 +79,7 @@ class PostControllerTest {
         detailResponse = new PostDetailResponse(
                 postId, "Test Post", "Test Content", Level.JUNIOR,
                 userId, "tester", null, null, 2L,
-                LocalDateTime.now(), LocalDateTime.now()
+                Instant.now(), Instant.now()
         );
     }
 
@@ -119,7 +119,7 @@ class PostControllerTest {
     @DisplayName("GET /posts - 목록 조회 성공 시 200과 목록 반환")
     void getPosts_success_returns200() throws Exception {
         PostSummaryResponse summary = new PostSummaryResponse(
-                postId, "Test Post", Level.JUNIOR, "tester", LocalDateTime.now());
+                postId, "Test Post", Level.JUNIOR, "tester", Instant.now());
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
         given(postService.getPosts(any())).willReturn(listResponse);
 
@@ -159,7 +159,7 @@ class PostControllerTest {
         PostUpdateRequest request = new PostUpdateRequest("Updated", "Updated Content", Level.SENIOR);
         PostDetailResponse updated = new PostDetailResponse(
                 postId, "Updated", "Updated Content", Level.SENIOR,
-                userId, "tester", null, null, 0L, LocalDateTime.now(), LocalDateTime.now());
+                userId, "tester", null, null, 0L, Instant.now(), Instant.now());
         given(postService.updatePost(eq(userId), eq(postId), any())).willReturn(updated);
 
         mockMvc.perform(put("/posts/" + postId)

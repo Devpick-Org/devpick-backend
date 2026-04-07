@@ -19,7 +19,7 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -60,7 +60,7 @@ class AiAnswerControllerTest {
         aiAnswerResponse = new AiAnswerResponse(
                 UUID.randomUUID(), postId,
                 "AI가 생성한 답변 내용입니다.", false,
-                LocalDateTime.now()
+                Instant.now()
         );
     }
 

@@ -20,7 +20,7 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -67,7 +67,7 @@ class AiSummaryControllerTest {
                 contentId.toString(), "JUNIOR", "핵심 요약",
                 List.of("포인트1"), List.of("Spring"), "보통",
                 "다음 읽기", 0.9, List.of("질문1"),
-                LocalDateTime.now(), LocalDateTime.now().plusDays(7)
+                Instant.now(), Instant.now().plusSeconds(7 * 24 * 3600)
         );
     }
 

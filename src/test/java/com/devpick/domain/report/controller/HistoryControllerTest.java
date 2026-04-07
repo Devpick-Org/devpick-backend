@@ -25,7 +25,7 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -76,7 +76,7 @@ class HistoryControllerTest {
                 UUID.randomUUID(), "content_opened", null,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React useEffect 완전 정복", "미리보기"),
                 null, null,
-                LocalDateTime.now()
+                Instant.now()
         );
         historyPageResponse = new HistoryPageResponse(List.of(item), 0, 20, 1L, 1);
     }
@@ -148,7 +148,7 @@ class HistoryControllerTest {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "scrapped", 5,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "제목", "미리보기"),
-                null, null, LocalDateTime.now()
+                null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
                 .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
@@ -164,7 +164,7 @@ class HistoryControllerTest {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "ai_summary_viewed", 3,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "제목", "미리보기"),
-                null, null, LocalDateTime.now()
+                null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
                 .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
@@ -181,7 +181,7 @@ class HistoryControllerTest {
                 UUID.randomUUID(), "question_created", 10,
                 null,
                 new HistoryItemResponse.PostInfo(UUID.randomUUID(), "질문 제목"),
-                null, LocalDateTime.now()
+                null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
                 .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
@@ -197,7 +197,7 @@ class HistoryControllerTest {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "ai_quiz_completed", 5,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React 퀴즈", "미리보기"),
-                null, null, LocalDateTime.now()
+                null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
                 .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
@@ -254,7 +254,7 @@ class HistoryControllerTest {
     @Test
     @DisplayName("GET /history/badges - 배지 목록 조회 성공 시 200 반환")
     void getBadges_success_returns200() throws Exception {
-        BadgeResponse acquired = new BadgeResponse("FIRST_SCRAP", "첫 스크랩", "첫 스크랩 달성", true, LocalDateTime.now());
+        BadgeResponse acquired = new BadgeResponse("FIRST_SCRAP", "첫 스크랩", "첫 스크랩 달성", true, Instant.now());
         BadgeResponse notAcquired = new BadgeResponse("FIRST_QUESTION", "첫 질문", "첫 질문 달성", false, null);
         given(badgeService.getBadges(any(UUID.class))).willReturn(List.of(acquired, notAcquired));
 
