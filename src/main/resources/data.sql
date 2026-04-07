@@ -50,4 +50,28 @@ WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Stack Overflow');
 INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at)
 SELECT gen_random_uuid(), 'Velog', 'https://v3.velog.io/graphql', 'graphql', true, NOW()
 WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Velog');
--- 참고: RSS 기반 수집(우아한형제들 등)은 devpick-ai 레포에서 담당 (DP-202)
+
+-- DP-289: RSS 수집 소스 추가 (devpick-ai 레포에서 수집 후 POST /internal/contents 로 전달)
+INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at)
+SELECT gen_random_uuid(), 'NAVER_D2', 'https://d2.naver.com/d2.atom', 'rss', true, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'NAVER_D2');
+
+INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at)
+SELECT gen_random_uuid(), 'Toss_Tech', 'https://toss.tech/rss.xml', 'rss', true, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Toss_Tech');
+
+INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at)
+SELECT gen_random_uuid(), 'Medium_daangn', 'https://medium.com/feed/daangn', 'rss', true, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Medium_daangn');
+
+INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at)
+SELECT gen_random_uuid(), 'Medium_zigbang', 'https://medium.com/feed/zigbang', 'rss', true, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Medium_zigbang');
+
+INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at)
+SELECT gen_random_uuid(), 'Medium_watcha', 'https://medium.com/feed/watcha', 'rss', true, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Medium_watcha');
+
+INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at)
+SELECT gen_random_uuid(), 'Kakao_Tech', 'https://tech.kakao.com/feed/', 'rss_crawl', true, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Kakao_Tech');
