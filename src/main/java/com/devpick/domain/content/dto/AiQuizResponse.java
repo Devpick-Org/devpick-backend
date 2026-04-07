@@ -3,7 +3,8 @@ package com.devpick.domain.content.dto;
 import com.devpick.domain.content.document.AiQuizDocument;
 import com.devpick.domain.content.entity.QuizAttempt;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 
 public record AiQuizResponse(
@@ -13,8 +14,8 @@ public record AiQuizResponse(
         List<Question> questions,
         int passingCount,
         int estimatedMinutes,
-        LocalDateTime cachedAt,
-        LocalDateTime expiresAt,
+        Instant cachedAt,
+        Instant expiresAt,
         boolean hasAttempted,
         Boolean lastPassed,
         Integer lastScore,
@@ -55,8 +56,8 @@ public record AiQuizResponse(
                 questions,
                 doc.getPassingCount(),
                 doc.getEstimatedMinutes(),
-                doc.getCachedAt(),
-                doc.getExpiresAt(),
+                doc.getCachedAt() != null ? doc.getCachedAt().toInstant(ZoneOffset.UTC) : null,
+                doc.getExpiresAt() != null ? doc.getExpiresAt().toInstant(ZoneOffset.UTC) : null,
                 hasAttempted,
                 hasAttempted ? lastAttempt.isPassed() : null,
                 hasAttempted ? lastAttempt.getScore() : null,

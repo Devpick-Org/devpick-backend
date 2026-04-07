@@ -3,7 +3,8 @@ package com.devpick.domain.community.dto;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.user.entity.Level;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 public record PostSummaryResponse(
@@ -11,7 +12,7 @@ public record PostSummaryResponse(
         String title,
         Level level,
         String authorNickname,
-        LocalDateTime createdAt
+        Instant createdAt
 ) {
     public static PostSummaryResponse of(Post post) {
         return new PostSummaryResponse(
@@ -19,7 +20,7 @@ public record PostSummaryResponse(
                 post.getTitle(),
                 post.getLevel(),
                 post.getUser().getNickname(),
-                post.getCreatedAt()
+                post.getCreatedAt() != null ? post.getCreatedAt().toInstant(ZoneOffset.UTC) : null
         );
     }
 }

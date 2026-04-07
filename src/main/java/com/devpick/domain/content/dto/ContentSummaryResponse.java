@@ -2,7 +2,8 @@ package com.devpick.domain.content.dto;
 
 import com.devpick.domain.content.entity.Content;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,7 +16,7 @@ public record ContentSummaryResponse(
         String thumbnailUrl,
         String canonicalUrl,
         List<String> tags,
-        LocalDateTime publishedAt,
+        Instant publishedAt,
         boolean isScrapped,
         boolean isLiked,
         // Stack Overflow 전용 필드 (비-SO 소스는 null)
@@ -36,7 +37,7 @@ public record ContentSummaryResponse(
                 content.getThumbnailUrl(),
                 content.getCanonicalUrl(),
                 tags,
-                content.getPublishedAt(),
+                content.getPublishedAt() != null ? content.getPublishedAt().toInstant(ZoneOffset.UTC) : null,
                 isScrapped,
                 isLiked,
                 content.getScore(),

@@ -5,7 +5,8 @@ import com.devpick.domain.community.entity.Comment;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,8 +18,8 @@ public record AnswerWithCommentsResponse(
         Job authorJob,
         Level authorLevel,
         Boolean isAdopted,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt,
+        Instant createdAt,
+        Instant updatedAt,
         List<CommentResponse> comments
 ) {
     public static AnswerWithCommentsResponse of(Answer answer, List<Comment> comments) {
@@ -30,8 +31,8 @@ public record AnswerWithCommentsResponse(
                 answer.getUser().getJob(),
                 answer.getUser().getLevel(),
                 answer.getIsAdopted(),
-                answer.getCreatedAt(),
-                answer.getUpdatedAt(),
+                answer.getCreatedAt() != null ? answer.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
+                answer.getUpdatedAt() != null ? answer.getUpdatedAt().toInstant(ZoneOffset.UTC) : null,
                 comments.stream().map(CommentResponse::of).toList()
         );
     }

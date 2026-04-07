@@ -4,7 +4,8 @@ import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 public record AnswerResponse(
@@ -16,8 +17,8 @@ public record AnswerResponse(
         String authorNickname,
         Job authorJob,
         Level authorLevel,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) {
     public static AnswerResponse of(Answer answer) {
         return new AnswerResponse(
@@ -29,8 +30,8 @@ public record AnswerResponse(
                 answer.getUser().getNickname(),
                 answer.getUser().getJob(),
                 answer.getUser().getLevel(),
-                answer.getCreatedAt(),
-                answer.getUpdatedAt()
+                answer.getCreatedAt() != null ? answer.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
+                answer.getUpdatedAt() != null ? answer.getUpdatedAt().toInstant(ZoneOffset.UTC) : null
         );
     }
 }
