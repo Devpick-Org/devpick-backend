@@ -648,28 +648,28 @@
 - `reference_id`는 FK가 아니라 중복 방지용 식별자
 - `CONTENT_SCRAP`, `CONTENT_LIKE`, `AI_QUIZ_PASS` 등에 사용 가능
 
-## 4. MongoDB 컬렉션
+## 4. DynamoDB 테이블
+
+> MongoDB에서 DynamoDB로 마이그레이션 완료. AWS SDK v2 Enhanced Client 사용.
+> 용량 모드: 온디맨드. 인증: EC2 IAM Role (키 없음).
 
 ### 4.1 ai_summaries
 
-설명: AI 요약 캐시 컬렉션
+설명: AI 요약 캐시 테이블
 
-
-| 필드명                  | 타입            | 제약                        | 설명       |
-| -------------------- | ------------- | ------------------------- | -------- |
-| id                   | String        | PK                        | 문서 ID    |
-| content_id           | String        | UNIQUE(content_id, level) | 콘텐츠 ID   |
-| level                | String        | UNIQUE(content_id, level) | 레벨       |
-| core_summary         | String        |                           | 핵심 요약    |
-| key_points           | Array         |                           | 주요 포인트   |
-| keywords             | Array         |                           | 키워드      |
-| difficulty           | String        |                           | 난이도      |
-| next_recommendation  | String        |                           | 다음 추천    |
-| confidence           | Double        |                           | 신뢰도      |
-| additional_questions | Array         |                           | 추가 질문    |
-| cached_at            | LocalDateTime |                           | 캐시 생성 시각 |
-| expires_at           | LocalDateTime |                           | 만료 시각    |
-
+| 필드명                  | 타입     | 키         | 설명            |
+| -------------------- | ------ | --------- | ------------- |
+| content_id           | String | PK (Hash) | 콘텐츠 ID        |
+| level                | String | SK (Sort) | 레벨            |
+| core_summary         | String |           | 핵심 요약         |
+| key_points           | List   |           | 주요 포인트        |
+| keywords             | List   |           | 키워드           |
+| difficulty           | String |           | 난이도           |
+| next_recommendation  | String |           | 다음 추천         |
+| confidence           | Number |           | 신뢰도           |
+| additional_questions | List   |           | 추가 질문         |
+| cached_at            | String |           | 캐시 생성 시각 (ISO) |
+| expires_at           | Number | TTL       | 만료 Unix timestamp |
 
 연결:
 
@@ -677,27 +677,24 @@
 
 ### 4.2 ai_quizzes
 
-설명: AI 퀴즈 캐시 컬렉션
+설명: AI 퀴즈 캐시 테이블
 
-
-| 필드명               | 타입            | 제약                        | 설명         |
-| ----------------- | ------------- | ------------------------- | ---------- |
-| id                | String        | PK                        | 문서 ID      |
-| content_id        | String        | UNIQUE(content_id, level) | 콘텐츠 ID     |
-| level             | String        | UNIQUE(content_id, level) | 레벨         |
-| title             | String        |                           | 콘텐츠 제목     |
-| questions         | Array         |                           | 문제 목록      |
-| passing_count     | Integer       |                           | 합격 기준 문제 수 |
-| estimated_minutes | Integer       |                           | 예상 소요 시간   |
-| cached_at         | LocalDateTime |                           | 캐시 생성 시각   |
-| expires_at        | LocalDateTime |                           | 만료 시각      |
-
+| 필드명               | 타입     | 키         | 설명            |
+| ----------------- | ------ | --------- | ------------- |
+| content_id        | String | PK (Hash) | 콘텐츠 ID        |
+| level             | String | SK (Sort) | 레벨            |
+| title             | String |           | 콘텐츠 제목        |
+| questions         | List   |           | 문제 목록         |
+| passing_count     | Number |           | 합격 기준 문제 수    |
+| estimated_minutes | Number |           | 예상 소요 시간      |
+| cached_at         | String |           | 캐시 생성 시각 (ISO) |
+| expires_at        | Number | TTL       | 만료 Unix timestamp |
 
 questions 내부 구조:
 
 - `id`: String
 - `question`: String
-- `options`: Array<{id, text}>
+- `options`: List<{id, text}>
 - `correct_option_id`: String
 - `explanation`: String
 
@@ -707,23 +704,62 @@ questions 내부 구조:
 
 ### 4.3 weekly_report_insights
 
-설명: 주간 리포트 AI 인사이트 컬렉션
+설명: 주간 리포트 AI 인사이트 테이블
 
-
-| 필드명          | 타입            | 제약     | 설명      |
-| ------------ | ------------- | ------ | ------- |
-| id           | String        | PK     | 문서 ID   |
-| report_id    | String        | UNIQUE | 리포트 ID  |
-| user_id      | String        |        | 회원 ID   |
-| well_done    | String        |        | 잘한 점    |
-| lacking      | String        |        | 부족한 점   |
-| next_week    | String        |        | 다음 주 제안 |
-| generated_at | LocalDateTime |        | 생성 시각   |
-
+| 필드명          | 타입     | 키         | 설명       |
+| ------------ | ------ | --------- | -------- |
+| report_id    | String | PK (Hash) | 리포트 ID   |
+| user_id      | String |           | 회원 ID    |
+| well_done    | String |           | 잘한 점     |
+| lacking      | String |           | 부족한 점    |
+| next_week    | String |           | 다음 주 제안  |
+| generated_at | String |           | 생성 시각 (ISO) |
 
 연결:
 
 - 논리적으로 `weekly_reports.id`와 연결
+
+### 4.4 rag_documents
+
+설명: RAG 파이프라인 문서 청크 + 임베딩 메타데이터 테이블
+
+| 필드명          | 타입     | 키         | 설명                          |
+| ------------ | ------ | --------- | --------------------------- |
+| content_id   | String | PK (Hash) | 콘텐츠 ID                      |
+| chunk_index  | Number | SK (Sort) | 청크 순서                       |
+| text         | String |           | 청크 텍스트                      |
+| embedding    | List   |           | 임베딩 벡터 (Titan v2, 1024-dim) |
+| source_name  | String |           | 수집 소스명                      |
+| title        | String |           | 콘텐츠 제목                      |
+| created_at   | String |           | 생성 시각 (ISO)                  |
+
+비고:
+
+- 벡터 검색은 FAISS (EC2 로컬)가 담당. DynamoDB는 메타데이터 저장소 역할.
+
+### 4.5 rag_questions
+
+설명: 질문 임베딩 저장 테이블
+
+| 필드명         | 타입     | 키         | 설명                          |
+| ----------- | ------ | --------- | --------------------------- |
+| question_id | String | PK (Hash) | 질문 ID (posts.id)            |
+| embedding   | List   |           | 임베딩 벡터 (Titan v2, 1024-dim) |
+| title       | String |           | 질문 제목                       |
+| tags        | List   |           | 태그 목록                       |
+| created_at  | String |           | 생성 시각 (ISO)                  |
+
+### 4.6 event_logs
+
+설명: AI 처리 이벤트 로그 테이블 (일별 중복 제거용)
+
+| 필드명        | 타입     | 키         | 설명                                |
+| ---------- | ------ | --------- | --------------------------------- |
+| user_id    | String | PK (Hash) | 사용자 ID                            |
+| sk         | String | SK (Sort) | `{created_at}#{event_type}` 복합 정렬키 |
+| event_type | String |           | 이벤트 유형                            |
+| content_id | String |           | 관련 콘텐츠 ID (선택)                    |
+| ttl        | Number | TTL       | 만료 Unix timestamp                 |
 
 ## 5. Redis 키
 
