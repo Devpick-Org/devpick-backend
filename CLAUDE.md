@@ -31,14 +31,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 로컬 인프라 (Docker Compose)
 
 ```bash
-# PostgreSQL + MongoDB + Redis + Spring Boot 앱 전체 기동
-DB_PASSWORD=... MONGO_PASSWORD=... REDIS_PASSWORD=... JWT_SECRET=... \
+# PostgreSQL + Redis + Spring Boot 앱 전체 기동
+DB_PASSWORD=... REDIS_PASSWORD=... JWT_SECRET=... \
   RESEND_API_KEY=... GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=... \
   GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... \
   docker compose up -d
 
 # DB/캐시만 기동 (앱은 로컬에서 직접 실행할 때)
-docker compose up -d postgres mongodb redis
+docker compose up -d postgres redis
 
 # 종료
 docker compose down
@@ -145,7 +145,7 @@ PR 생성 전 **아래 항목을 코드에서 직접 눈으로 확인**한다:
 ```
 브라우저 → Nginx → Next.js (프론트, :3000)
                  → Spring Boot (백엔드, :8080) → PostgreSQL (:5432)
-                                               → MongoDB (:27017)
+                                               → DynamoDB (AWS)
                                                → Redis (:6379)
                                                → FastAPI AI 서버 (:8000)
 ```
@@ -161,7 +161,7 @@ PR 생성 전 **아래 항목을 코드에서 직접 눈으로 확인**한다:
 | ORM | JPA/Hibernate + QueryDSL | - |
 | 빌드 | Gradle | 최신 |
 | DB (구조화) | PostgreSQL | 16 (AWS RDS) |
-| DB (비정형) | MongoDB | 7 (AI 요약 JSON, 이벤트 로그) |
+| DB (비정형) | DynamoDB | AWS (AI 요약, 퀴즈, RAG, 이벤트 로그) |
 | 캐시 | Redis | 7 |
 | 웹서버 | Nginx | 최신 |
 | CI/CD | GitHub Actions | - |
@@ -182,7 +182,7 @@ com.devpick
 │   │   └── dto
 │   ├── content       # 콘텐츠 피드/스크랩/좋아요/AI요약/AI퀴즈 (구현 완료)
 │   │   └── collector/    # CollectedContent, NormalizedContentDto, StackOverflowCollector
-│   │   └── document/     # AiSummaryDocument, AiQuizDocument (MongoDB)
+│   │   └── document/     # AiSummaryDocument, AiQuizDocument (DynamoDB)
 │   │   └── client/       # AiServerClient (FastAPI 통신)
 │   │   └── entity/       # Content, ContentSource, Like, Scrap, QuizAttempt
 │   │   └── repository/   # AiQuizRepository, QuizAttemptRepository
@@ -190,7 +190,7 @@ com.devpick
 │   │   ├── controller/   # PostController, AnswerController, AiQuestionController, CommentController
 │   │   └── client/       # AiQuestionClient (FastAPI /refine 호출)
 │   ├── report        # 주간 리포트 + 학습 히스토리 (구현 완료)
-│   │   ├── document/     # ReportInsightDocument (MongoDB)
+│   │   ├── document/     # ReportInsightDocument (DynamoDB)
 │   │   └── repository/   # WeeklyReportRepository, ReportActivityRepository, HistoryRepository, ReportInsightRepository
 │   │                 # ※ history 패키지는 설계상 분리 예정이나 현재 report 하위에 있음
 │   └── point         # 포인트 적립/조회 + 배지 시스템 (구현 완료, DP-269)
@@ -529,7 +529,7 @@ class AuthControllerTest {
 
 | ADR | 결정 | 상태 |
 |-----|------|------|
-| ADR-001 | PostgreSQL(구조화) + MongoDB(AI JSON/이벤트) 분리 | **확정** |
+| ADR-001 | PostgreSQL(구조화) + DynamoDB(AI JSON/이벤트/RAG) 분리 | **확정** |
 | ADR-002 | JWT (Access + Refresh Token) | 제안됨 |
 | ADR-003 | API 에러 포맷: `{success, error:{code,message,detail}}` | 제안됨 |
 | ADR-005 | Feature Flag: `dp.{영역}.{기능명}` | 미결 |
@@ -562,7 +562,7 @@ class AuthControllerTest {
 | Next.js 프론트엔드 | 3000 |
 | FastAPI AI 서버 | 8000 |
 | PostgreSQL | 5432 |
-| MongoDB | 27017 |
+| DynamoDB | (AWS) |
 | Redis | 6379 |
 
 ---
@@ -574,7 +574,6 @@ class AuthControllerTest {
 | `src/main/java/com/devpick/CLAUDE.md` | 도메인/DB 구조 상세 |
 | `TRB.md` | 트러블슈팅 로그 전체 (TRB-001 ~ TRB-005) |
 | `docs/통신.md` | FastAPI ↔ Spring 서버 간 통신 스펙 (POST /internal/contents, /api/summary, /api/refine, /api/answer 계약) |
-| `docs/idea.md` | 캡스톤 확장 아이디어 (0312 교수님 미팅 기반, 제안서 마감 2026-03-31) |
 | `docs/proposal.md` | 캡스톤 제안서 초안 |
 | `hong.md` | 팀원 하영 온보딩 가이드 |
 | `.env.example` | 환경변수 목록 |

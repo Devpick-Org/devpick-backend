@@ -20,17 +20,17 @@
                                       │
                     ┌─────────────────┼─────────────────┐
                     ▼                 ▼                 ▼
-           [PostgreSQL :5432]  [MongoDB :27017]  [Redis :6379]
-           구조화 도메인 데이터   AI 결과물 캐시    고속 캐시/세션
+           [PostgreSQL :5432]  [DynamoDB (AWS)]   [Redis :6379]
+           구조화 도메인 데이터   AI 결과물 저장      고속 캐시/세션
            ─────────────────   ───────────────   ─────────────
            users               ai_summaries      summary:{id}:{level}
            contents            ai_quizzes        quiz:{id}:{level}
            posts / answers     weekly_report     JWT refresh token
            history             _insights         OAuth state
-           point_logs          event_logs        email verify code
-           badges / user_badges
-           weekly_reports
-           quiz_attempts
+           point_logs          rag_documents     email verify code
+           badges / user_badges rag_questions
+           weekly_reports      event_logs
+           quiz_attempts       ai_answers
                                       │
                                       │ WebClient (내부 REST)
                                       ▼
@@ -52,7 +52,7 @@
 | Spring Boot | 8080 | REST API 서버 |
 | FastAPI | 8000 | AI 서버 (`${ai.server.url}`) |
 | PostgreSQL | 5432 | 메인 DB |
-| MongoDB | 27017 | AI 결과물 캐시 DB |
+| DynamoDB | (AWS) | AI 결과물 저장 |
 | Redis | 6379 | 캐시 / 세션 |
 
 ---
@@ -124,7 +124,7 @@ AiSummaryController.getSummary()
       └────────────────────────────────────────────┘
       │ MISS
       ▼
-③ AiSummaryRepository                 [MongoDB]
+③ AiSummaryRepository                 [DynamoDB]
      .findByContentIdAndLevel()
       ┌─ 있고 expiresAt > now ──────────────────────┐
       │  Redis.set("summary:...", TTL 7일)          │
@@ -162,7 +162,7 @@ AiSummaryController.getSummary()
 ③ Redis.get("quiz:{contentId}:JUNIOR")
       HIT → lastAttempt와 병합 → 응답
 
-④ AiQuizRepository.findByContentIdAndLevel()  [MongoDB]
+④ AiQuizRepository.findByContentIdAndLevel()  [DynamoDB]
       있고 유효 → Redis 재저장 → 응답
 
 ⑤ AiServerClient.fetchQuiz()
@@ -271,7 +271,6 @@ GitHub Pull Request → develop
 │  Services 동시 기동:                                 │
 │    postgres:16  (localhost:5432)                    │
 │    redis:7      (localhost:6379)                    │
-│    mongodb:7    (localhost:27017)                   │
 │                                                     │
 │  Steps:                                             │
 │    1. actions/checkout@v4 (fetch-depth: 0)          │
@@ -285,7 +284,7 @@ GitHub Pull Request → develop
 │                                                     │
 │  Job 2: sonar  (needs: build-test)                  │
 │  ─────────────────────────────────────────────────  │
-│  Services: postgres:16 + redis:7 + mongodb:7 동일   │
+│  Services: postgres:16 + redis:7 동일               │
 │                                                     │
 │  Steps:                                             │
 │    1. Job1 아티팩트 다운로드 (build/)               │
