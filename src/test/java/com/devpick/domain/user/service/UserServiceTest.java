@@ -1,5 +1,9 @@
 package com.devpick.domain.user.service;
 
+import com.devpick.domain.community.repository.AnswerRepository;
+import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.point.repository.UserBadgeRepository;
+import com.devpick.domain.user.dto.PublicUserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
 import com.devpick.domain.user.dto.UserProfileUpdateResponse;
@@ -48,6 +52,12 @@ class UserServiceTest {
     private RefreshTokenRepository refreshTokenRepository;
     @Mock
     private com.devpick.domain.point.service.BadgeService badgeService;
+    @Mock
+    private UserBadgeRepository userBadgeRepository;
+    @Mock
+    private PostRepository postRepository;
+    @Mock
+    private AnswerRepository answerRepository;
 
     private UUID userId;
     private User user;
@@ -61,6 +71,34 @@ class UserServiceTest {
                 .job(Job.BACKEND)
                 .level(Level.JUNIOR)
                 .build();
+    }
+
+    @Test
+    @DisplayName("getPublicProfile — 활성 사용자 공개 프로필 반환")
+    void getPublicProfile_success() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(userBadgeRepository.findByUser_IdOrderByAcquiredAtDesc(userId)).willReturn(List.of());
+        given(postRepository.findTop5ByUser_IdOrderByCreatedAtDesc(userId)).willReturn(List.of());
+        given(answerRepository.findTop5ByUserIdWithPost(userId)).willReturn(List.of());
+
+        PublicUserProfileResponse response = userService.getPublicProfile(userId);
+
+        assertThat(response.nickname()).isEqualTo("테스트유저");
+        assertThat(response.job()).isEqualTo(Job.BACKEND);
+        assertThat(response.badges()).isEmpty();
+        assertThat(response.recentPosts()).isEmpty();
+        assertThat(response.recentAnswers()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getPublicProfile — 비활성 사용자 USER_NOT_FOUND 예외")
+    void getPublicProfile_inactiveUser_throwsUserNotFound() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getPublicProfile(userId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.USER_NOT_FOUND));
     }
 
     @Test

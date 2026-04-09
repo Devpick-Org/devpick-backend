@@ -1,6 +1,10 @@
 package com.devpick.domain.user.service;
 
+import com.devpick.domain.community.repository.AnswerRepository;
+import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.point.repository.UserBadgeRepository;
 import com.devpick.domain.point.service.BadgeService;
+import com.devpick.domain.user.dto.PublicUserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
 import com.devpick.domain.user.dto.UserProfileUpdateResponse;
@@ -29,6 +33,21 @@ public class UserService {
     private final UserTagRepository userTagRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final BadgeService badgeService;
+    private final UserBadgeRepository userBadgeRepository;
+    private final PostRepository postRepository;
+    private final AnswerRepository answerRepository;
+
+    @Transactional(readOnly = true)
+    public PublicUserProfileResponse getPublicProfile(UUID targetUserId) {
+        User user = userRepository.findByIdAndIsActiveTrue(targetUserId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
+        return PublicUserProfileResponse.of(
+                user,
+                userBadgeRepository.findByUser_IdOrderByAcquiredAtDesc(targetUserId),
+                postRepository.findTop5ByUser_IdOrderByCreatedAtDesc(targetUserId),
+                answerRepository.findTop5ByUserIdWithPost(targetUserId)
+        );
+    }
 
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(UUID userId) {

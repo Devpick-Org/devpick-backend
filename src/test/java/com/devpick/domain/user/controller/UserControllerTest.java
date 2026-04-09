@@ -1,5 +1,6 @@
 package com.devpick.domain.user.controller;
 
+import com.devpick.domain.user.dto.PublicUserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
 import com.devpick.domain.user.dto.UserProfileUpdateResponse;
@@ -74,6 +75,34 @@ class UserControllerTest {
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    @DisplayName("GET /users/{userId}/profile - 공개 프로필 조회 성공 시 200 반환")
+    void getPublicProfile_success() throws Exception {
+        UUID targetUserId = UUID.randomUUID();
+        PublicUserProfileResponse response = new PublicUserProfileResponse(
+                targetUserId, "홍길동", null, Job.BACKEND, Level.JUNIOR,
+                List.of(), List.of(), List.of());
+        given(userService.getPublicProfile(targetUserId)).willReturn(response);
+
+        mockMvc.perform(get("/users/" + targetUserId + "/profile"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.userId").value(targetUserId.toString()))
+                .andExpect(jsonPath("$.data.nickname").value("홍길동"));
+    }
+
+    @Test
+    @DisplayName("GET /users/{userId}/profile - 존재하지 않는 사용자 404 반환")
+    void getPublicProfile_notFound_returns404() throws Exception {
+        UUID targetUserId = UUID.randomUUID();
+        given(userService.getPublicProfile(targetUserId))
+                .willThrow(new DevpickException(ErrorCode.USER_NOT_FOUND));
+
+        mockMvc.perform(get("/users/" + targetUserId + "/profile"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test

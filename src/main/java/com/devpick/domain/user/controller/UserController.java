@@ -1,5 +1,6 @@
 package com.devpick.domain.user.controller;
 
+import com.devpick.domain.user.dto.PublicUserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
 import com.devpick.domain.user.dto.UserProfileUpdateResponse;
@@ -14,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,6 +31,17 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+
+    @Operation(summary = "사용자 공개 프로필 조회", description = "다른 사용자의 공개 프로필 정보를 조회합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자 없음")
+    })
+    @GetMapping("/{userId}/profile")
+    public ApiResponse<PublicUserProfileResponse> getPublicProfile(@PathVariable UUID userId) {
+        return ApiResponse.ok(userService.getPublicProfile(userId));
+    }
 
     @Operation(summary = "내 프로필 조회", description = "로그인한 사용자의 프로필 정보를 조회합니다.")
     @ApiResponses({

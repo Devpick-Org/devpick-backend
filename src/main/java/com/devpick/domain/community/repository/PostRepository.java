@@ -5,9 +5,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface PostRepository extends JpaRepository<Post, UUID> {
 
     Page<Post> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    List<Post> findTop5ByUser_IdOrderByCreatedAtDesc(UUID userId);
 }
