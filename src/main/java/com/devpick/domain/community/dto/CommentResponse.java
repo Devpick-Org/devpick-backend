@@ -11,6 +11,7 @@ public record CommentResponse(
         UUID answerId,
         UUID userId,
         String nickname,
+        String profileImage,
         String content,
         Instant createdAt,
         Instant updatedAt
@@ -21,6 +22,7 @@ public record CommentResponse(
                 comment.getAnswer().getId(),
                 comment.getUser().getId(),
                 comment.getUser().getNickname(),
+                comment.getUser().getProfileImage(),
                 comment.getContent(),
                 comment.getCreatedAt() != null ? comment.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
                 comment.getUpdatedAt() != null ? comment.getUpdatedAt().toInstant(ZoneOffset.UTC) : null

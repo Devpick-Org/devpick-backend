@@ -1,5 +1,14 @@
 package com.devpick.domain.user.service;
 
+import com.devpick.domain.community.entity.Answer;
+import com.devpick.domain.community.entity.Post;
+import org.mockito.Mockito;
+import com.devpick.domain.community.repository.AnswerRepository;
+import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.point.entity.Badge;
+import com.devpick.domain.point.entity.UserBadge;
+import com.devpick.domain.point.repository.UserBadgeRepository;
+import com.devpick.domain.user.dto.PublicUserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
 import com.devpick.domain.user.dto.UserProfileUpdateResponse;
@@ -21,6 +30,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,6 +58,12 @@ class UserServiceTest {
     private RefreshTokenRepository refreshTokenRepository;
     @Mock
     private com.devpick.domain.point.service.BadgeService badgeService;
+    @Mock
+    private UserBadgeRepository userBadgeRepository;
+    @Mock
+    private PostRepository postRepository;
+    @Mock
+    private AnswerRepository answerRepository;
 
     private UUID userId;
     private User user;
@@ -61,6 +77,83 @@ class UserServiceTest {
                 .job(Job.BACKEND)
                 .level(Level.JUNIOR)
                 .build();
+    }
+
+    @Test
+    @DisplayName("getPublicProfile — 활성 사용자 공개 프로필 반환")
+    void getPublicProfile_success() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(userBadgeRepository.findByUser_IdOrderByAcquiredAtDesc(userId)).willReturn(List.of());
+        given(postRepository.findByUser_IdOrderByCreatedAtDesc(userId)).willReturn(List.of());
+        given(answerRepository.findByUserIdWithPost(userId)).willReturn(List.of());
+
+        PublicUserProfileResponse response = userService.getPublicProfile(userId);
+
+        assertThat(response.nickname()).isEqualTo("테스트유저");
+        assertThat(response.job()).isEqualTo(Job.BACKEND);
+        assertThat(response.badges()).isEmpty();
+        assertThat(response.recentPosts()).isEmpty();
+        assertThat(response.recentAnswers()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getPublicProfile — 배지/게시글/답변 포함 시 매핑 정상 반환")
+    void getPublicProfile_withData_returnsMappedFields() {
+        Badge badge = Badge.builder().id("first_question").name("첫 질문왕").description("").sortOrder(1).build();
+        UserBadge userBadge = UserBadge.builder().user(user).badge(badge).build();
+
+        Post post = Post.builder().user(user).title("Spring 질문").content("내용").level(Level.JUNIOR).build();
+
+        Answer answer = Answer.builder().post(post).user(user).content("답변 내용").build();
+
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(userBadgeRepository.findByUser_IdOrderByAcquiredAtDesc(userId)).willReturn(List.of(userBadge));
+        given(postRepository.findByUser_IdOrderByCreatedAtDesc(userId)).willReturn(List.of(post));
+        given(answerRepository.findByUserIdWithPost(userId)).willReturn(List.of(answer));
+
+        PublicUserProfileResponse response = userService.getPublicProfile(userId);
+
+        assertThat(response.badges()).hasSize(1);
+        assertThat(response.badges().get(0).badgeId()).isEqualTo("first_question");
+        assertThat(response.recentPosts()).hasSize(1);
+        assertThat(response.recentPosts().get(0).title()).isEqualTo("Spring 질문");
+        assertThat(response.recentAnswers()).hasSize(1);
+        assertThat(response.recentAnswers().get(0).postTitle()).isEqualTo("Spring 질문");
+    }
+
+    @Test
+    @DisplayName("getPublicProfile — createdAt 있을 때 Instant 변환 정상")
+    void getPublicProfile_withCreatedAt_convertsToInstant() {
+        Post mockPost = Mockito.mock(Post.class);
+        Mockito.when(mockPost.getId()).thenReturn(UUID.randomUUID());
+        Mockito.when(mockPost.getTitle()).thenReturn("질문");
+        Mockito.when(mockPost.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+        Answer mockAnswer = Mockito.mock(Answer.class);
+        Mockito.when(mockAnswer.getId()).thenReturn(UUID.randomUUID());
+        Mockito.when(mockAnswer.getPost()).thenReturn(mockPost);
+        Mockito.when(mockAnswer.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(userBadgeRepository.findByUser_IdOrderByAcquiredAtDesc(userId)).willReturn(List.of());
+        given(postRepository.findByUser_IdOrderByCreatedAtDesc(userId)).willReturn(List.of(mockPost));
+        given(answerRepository.findByUserIdWithPost(userId)).willReturn(List.of(mockAnswer));
+
+        PublicUserProfileResponse response = userService.getPublicProfile(userId);
+
+        assertThat(response.recentPosts().get(0).createdAt()).isNotNull();
+        assertThat(response.recentAnswers().get(0).createdAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("getPublicProfile — 비활성 사용자 USER_NOT_FOUND 예외")
+    void getPublicProfile_inactiveUser_throwsUserNotFound() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getPublicProfile(userId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.USER_NOT_FOUND));
     }
 
     @Test
