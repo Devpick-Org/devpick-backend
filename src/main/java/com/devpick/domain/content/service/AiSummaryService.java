@@ -118,6 +118,15 @@ public class AiSummaryService {
                 .build();
     }
 
+    public Optional<String> findCachedCoreSummary(UUID contentId, String level) {
+        AiSummaryResponse cached = getFromRedis(buildRedisKey(contentId, level));
+        if (cached != null) {
+            return Optional.ofNullable(cached.coreSummary());
+        }
+        return aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level)
+                .map(AiSummaryDocument::getCoreSummary);
+    }
+
     private void recordHistory(UUID userId, UUID contentId) {
         userRepository.findByIdAndIsActiveTrue(userId).ifPresent(user ->
                 contentRepository.findByIdAndIsAvailableTrue(contentId).ifPresent(content -> {

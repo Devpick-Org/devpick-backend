@@ -340,6 +340,42 @@ class AiSummaryServiceTest {
     }
 
     @Test
+    @DisplayName("findCachedCoreSummary — Redis 캐시 히트 시 coreSummary 반환")
+    void findCachedCoreSummary_redisCacheHit_returnsCoreSummary() throws JsonProcessingException {
+        given(valueOps.get(anyString())).willReturn("{\"cached\":true}");
+        given(objectMapper.readValue(anyString(), eq(AiSummaryResponse.class))).willReturn(summaryResponse);
+
+        Optional<String> result = aiSummaryService.findCachedCoreSummary(contentId, level);
+
+        assertThat(result).isPresent().hasValue("핵심 요약");
+        verify(aiSummaryRepository, never()).findByContentIdAndLevel(any(), any());
+    }
+
+    @Test
+    @DisplayName("findCachedCoreSummary — Redis 미스, MongoDB 히트 시 coreSummary 반환")
+    void findCachedCoreSummary_mongoDbHit_returnsCoreSummary() throws JsonProcessingException {
+        given(valueOps.get(anyString())).willReturn(null);
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
+                .willReturn(Optional.of(document));
+
+        Optional<String> result = aiSummaryService.findCachedCoreSummary(contentId, level);
+
+        assertThat(result).isPresent().hasValue("핵심 요약");
+    }
+
+    @Test
+    @DisplayName("findCachedCoreSummary — Redis/MongoDB 모두 미스 시 empty 반환")
+    void findCachedCoreSummary_bothMiss_returnsEmpty() throws JsonProcessingException {
+        given(valueOps.get(anyString())).willReturn(null);
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
+                .willReturn(Optional.empty());
+
+        Optional<String> result = aiSummaryService.findCachedCoreSummary(contentId, level);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     @DisplayName("getSummary — Redis 역직렬화 실패 → MongoDB fallback")
     void getSummary_redisDeserializationFails_fallsBackToMongodb() throws JsonProcessingException {
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));

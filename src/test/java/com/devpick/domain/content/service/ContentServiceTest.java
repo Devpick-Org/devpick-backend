@@ -63,6 +63,8 @@ class ContentServiceTest {
     private UserTagRepository userTagRepository;
     @Mock
     private com.devpick.domain.point.service.PointService pointService;
+    @Mock
+    private AiSummaryService aiSummaryService;
 
     private UUID userId;
     private UUID contentId;
@@ -102,6 +104,7 @@ class ContentServiceTest {
                 .willReturn(new PageImpl<>(List.of(content)));
         given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
         given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
 
         ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
 
@@ -121,11 +124,42 @@ class ContentServiceTest {
                 .willReturn(new PageImpl<>(List.of(content)));
         given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
         given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
 
         ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
 
         assertThat(response.contents()).hasSize(1);
         verify(contentRepository).findByTagIdsAndIsAvailableTrue(any(), any());
+    }
+
+    @Test
+    @DisplayName("getFeed — coreSummary 있으면 preview 대신 coreSummary 사용")
+    void getFeed_withCoreSummary_usesCoreSummaryAsPreview() {
+        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of());
+        given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.of("AI 핵심 요약"));
+
+        ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
+
+        assertThat(response.contents().get(0).preview()).isEqualTo("AI 핵심 요약");
+    }
+
+    @Test
+    @DisplayName("getFeed — coreSummary 공백이면 content.preview로 fallback")
+    void getFeed_withBlankCoreSummary_fallsBackToContentPreview() {
+        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of());
+        given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.of("  "));
+
+        ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
+
+        assertThat(response.contents().get(0).preview()).isEqualTo("Spring Boot 입문 가이드");
     }
 
     @Test
@@ -322,10 +356,67 @@ class ContentServiceTest {
                 .willReturn(new PageImpl<>(List.of(content)));
         given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
         given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
 
         ContentListResponse response = contentService.search(userId, "Spring", List.of("Spring"), PageRequest.of(0, 20));
 
         assertThat(response.contents()).hasSize(1);
         verify(contentRepository).searchContents(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("search — coreSummary 있으면 preview 대신 사용")
+    void search_withCoreSummary_usesCoreSummaryAsPreview() {
+        given(contentRepository.searchContents(any(), any(), any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.of("AI 요약"));
+
+        ContentListResponse response = contentService.search(userId, "Spring", null, PageRequest.of(0, 20));
+
+        assertThat(response.contents().get(0).preview()).isEqualTo("AI 요약");
+    }
+
+    @Test
+    @DisplayName("getRecommendations — 태그 없는 콘텐츠 → 전체 콘텐츠 반환")
+    void getRecommendations_noTags_returnsAllContents() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+
+        ContentListResponse response = contentService.getRecommendations(userId, contentId, PageRequest.of(0, 20));
+
+        assertThat(response.contents()).hasSize(1);
+        verify(contentRepository).findByIsAvailableTrueOrderByPublishedAtDesc(any());
+    }
+
+    @Test
+    @DisplayName("getRecommendations — 콘텐츠 없으면 CONTENT_NOT_FOUND 예외")
+    void getRecommendations_contentNotFound_throwsException() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> contentService.getRecommendations(userId, contentId, PageRequest.of(0, 20)))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.CONTENT_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("getDetail — isOriginalVisible false이면 originalContent null 반환")
+    void getDetail_isOriginalVisibleFalse_originalContentIsNull() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(scrapRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
+
+        ContentDetailResponse response = contentService.getDetail(userId, contentId);
+
+        // isOriginalVisible 기본값 false → originalContent는 null이어야 함
+        assertThat(response.isOriginalVisible()).isFalse();
+        assertThat(response.originalContent()).isNull();
     }
 }

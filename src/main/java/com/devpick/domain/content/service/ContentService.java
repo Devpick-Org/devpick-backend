@@ -31,6 +31,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ContentService {
 
+    private static final String FEED_SUMMARY_LEVEL = "JUNIOR";
+
     private final ContentRepository contentRepository;
     private final ScrapRepository scrapRepository;
     private final LikeRepository likeRepository;
@@ -38,6 +40,7 @@ public class ContentService {
     private final UserRepository userRepository;
     private final UserTagRepository userTagRepository;
     private final PointService pointService;
+    private final AiSummaryService aiSummaryService;
 
     @Transactional(readOnly = true)
     public ContentListResponse getFeed(UUID userId, Pageable pageable) {
@@ -53,11 +56,17 @@ public class ContentService {
         }
 
         List<ContentSummaryResponse> contents = page.getContent().stream()
-                .map(c -> ContentSummaryResponse.of(
-                        c,
-                        scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
-                        likeRepository.existsByUser_IdAndContent_Id(userId, c.getId())
-                ))
+                .map(c -> {
+                    String preview = aiSummaryService.findCachedCoreSummary(c.getId(), FEED_SUMMARY_LEVEL)
+                            .filter(s -> !s.isBlank())
+                            .orElse(c.getPreview());
+                    return ContentSummaryResponse.of(
+                            c,
+                            scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
+                            likeRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
+                            preview
+                    );
+                })
                 .toList();
 
         return new ContentListResponse(
@@ -152,11 +161,17 @@ public class ContentService {
         Page<Content> page = contentRepository.searchContents(query, tags, pageable);
 
         List<ContentSummaryResponse> contents = page.getContent().stream()
-                .map(c -> ContentSummaryResponse.of(
-                        c,
-                        scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
-                        likeRepository.existsByUser_IdAndContent_Id(userId, c.getId())
-                ))
+                .map(c -> {
+                    String preview = aiSummaryService.findCachedCoreSummary(c.getId(), FEED_SUMMARY_LEVEL)
+                            .filter(s -> !s.isBlank())
+                            .orElse(c.getPreview());
+                    return ContentSummaryResponse.of(
+                            c,
+                            scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
+                            likeRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
+                            preview
+                    );
+                })
                 .toList();
 
         return new ContentListResponse(
@@ -185,11 +200,17 @@ public class ContentService {
         }
 
         List<ContentSummaryResponse> contents = page.getContent().stream()
-                .map(c -> ContentSummaryResponse.of(
-                        c,
-                        scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
-                        likeRepository.existsByUser_IdAndContent_Id(userId, c.getId())
-                ))
+                .map(c -> {
+                    String preview = aiSummaryService.findCachedCoreSummary(c.getId(), FEED_SUMMARY_LEVEL)
+                            .filter(s -> !s.isBlank())
+                            .orElse(c.getPreview());
+                    return ContentSummaryResponse.of(
+                            c,
+                            scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
+                            likeRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
+                            preview
+                    );
+                })
                 .toList();
 
         return new ContentListResponse(

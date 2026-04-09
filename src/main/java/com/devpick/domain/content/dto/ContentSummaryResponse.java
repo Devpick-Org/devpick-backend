@@ -25,6 +25,10 @@ public record ContentSummaryResponse(
         Boolean isAnswered
 ) {
     public static ContentSummaryResponse of(Content content, boolean isScrapped, boolean isLiked) {
+        return of(content, isScrapped, isLiked, content.getPreview());
+    }
+
+    public static ContentSummaryResponse of(Content content, boolean isScrapped, boolean isLiked, String preview) {
         List<String> tags = content.getContentTags().stream()
                 .map(ct -> ct.getTag().getName())
                 .toList();
@@ -33,7 +37,7 @@ public record ContentSummaryResponse(
                 content.getTitle(),
                 content.getAuthor(),
                 content.getSource().getName(),
-                content.getPreview(),
+                preview,
                 content.getThumbnailUrl(),
                 content.getCanonicalUrl(),
                 tags,
