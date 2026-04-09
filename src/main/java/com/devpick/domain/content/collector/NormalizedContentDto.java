@@ -1,5 +1,6 @@
 package com.devpick.domain.content.collector;
 
+import com.devpick.domain.content.dto.StackOverflowAnswerDto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDateTime;
@@ -22,7 +23,11 @@ public record NormalizedContentDto(
         @JsonProperty("is_original_visible") boolean isOriginalVisible,
         @JsonProperty("thumbnail_url") String thumbnailUrl,
         @JsonProperty("license_type") String licenseType,
-        List<String> tags
+        List<String> tags,
+        @JsonProperty("is_answered") Boolean isAnswered,
+        @JsonProperty("question_content") String questionContent,
+        @JsonProperty("accepted_answer") StackOverflowAnswerDto acceptedAnswer,
+        @JsonProperty("top_answers") List<StackOverflowAnswerDto> topAnswers
 ) {
 
     /**
