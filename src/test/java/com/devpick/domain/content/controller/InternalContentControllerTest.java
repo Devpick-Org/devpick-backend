@@ -50,7 +50,8 @@ class InternalContentControllerTest {
     private NormalizedContentDto buildDto(String sourceName, String canonicalUrl) {
         return new NormalizedContentDto(
                 sourceName, "제목", null, canonicalUrl,
-                "2026-03-10T09:00:00Z", "미리보기", "본문", false, null, null, List.of()
+                "2026-03-10T09:00:00Z", "미리보기", "본문", false, null, null, List.of(),
+                null, null, null, null
         );
     }
 

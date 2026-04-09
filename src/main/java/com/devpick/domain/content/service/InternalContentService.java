@@ -89,6 +89,10 @@ public class InternalContentService {
                 .isOriginalVisible(dto.isOriginalVisible())
                 .publishedAt(dto.parsedPublishedAt())
                 .isAvailable(true)
+                .isAnswered(dto.isAnswered())
+                .questionContent(dto.questionContent())
+                .acceptedAnswer(dto.acceptedAnswer())
+                .topAnswers(dto.topAnswers())
                 .build();
     }
 }
