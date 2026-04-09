@@ -42,7 +42,7 @@ public record ContentDetailResponse(
                 content.getPreview(),
                 content.getThumbnailUrl(),
                 content.getCanonicalUrl(),
-                content.getOriginalContent(),
+                content.getIsOriginalVisible() ? content.getOriginalContent() : null,
                 content.getIsOriginalVisible(),
                 content.getLicenseType(),
                 content.getPublishedAt() != null ? content.getPublishedAt().toInstant(ZoneOffset.UTC) : null,
