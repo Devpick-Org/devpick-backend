@@ -11,7 +11,9 @@ public record PostSummaryResponse(
         UUID id,
         String title,
         Level level,
+        UUID authorId,
         String authorNickname,
+        String authorProfileImage,
         Instant createdAt
 ) {
     public static PostSummaryResponse of(Post post) {
@@ -19,7 +21,9 @@ public record PostSummaryResponse(
                 post.getId(),
                 post.getTitle(),
                 post.getLevel(),
+                post.getUser().getId(),
                 post.getUser().getNickname(),
+                post.getUser().getProfileImage(),
                 post.getCreatedAt() != null ? post.getCreatedAt().toInstant(ZoneOffset.UTC) : null
         );
     }

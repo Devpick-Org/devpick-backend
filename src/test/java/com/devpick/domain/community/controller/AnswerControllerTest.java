@@ -185,7 +185,7 @@ class AnswerControllerTest {
     @DisplayName("GET /posts/{postId}/answers - 답변 목록 조회 성공 시 200 반환")
     void getAnswers_success_returns200() throws Exception {
         AnswerWithCommentsResponse answerWithComments = new AnswerWithCommentsResponse(
-                answerId, "Test Answer", userId, "tester", null, null,
+                answerId, "Test Answer", userId, "tester", null, null, null,
                 false, Instant.now(), Instant.now(), List.of()
         );
         AnswerListResponse listResponse = new AnswerListResponse(List.of(answerWithComments));

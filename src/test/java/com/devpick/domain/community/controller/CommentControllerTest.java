@@ -76,7 +76,7 @@ class CommentControllerTest {
         );
 
         commentResponse = new CommentResponse(
-                commentId, answerId, userId, "tester", "Test Comment",
+                commentId, answerId, userId, "tester", null, "Test Comment",
                 Instant.now(), Instant.now()
         );
     }

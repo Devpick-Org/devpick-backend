@@ -17,6 +17,7 @@ public record PostDetailResponse(
         String authorNickname,
         Job authorJob,
         Level authorLevel,
+        String authorProfileImage,
         long answerCount,
         Instant createdAt,
         Instant updatedAt
@@ -31,6 +32,7 @@ public record PostDetailResponse(
                 post.getUser().getNickname(),
                 post.getUser().getJob(),
                 post.getUser().getLevel(),
+                post.getUser().getProfileImage(),
                 answerCount,
                 post.getCreatedAt() != null ? post.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
                 post.getUpdatedAt() != null ? post.getUpdatedAt().toInstant(ZoneOffset.UTC) : null

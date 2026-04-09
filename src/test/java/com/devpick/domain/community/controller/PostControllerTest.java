@@ -78,7 +78,7 @@ class PostControllerTest {
 
         detailResponse = new PostDetailResponse(
                 postId, "Test Post", "Test Content", Level.JUNIOR,
-                userId, "tester", null, null, 2L,
+                userId, "tester", null, null, null, 2L,
                 Instant.now(), Instant.now()
         );
     }
@@ -119,7 +119,7 @@ class PostControllerTest {
     @DisplayName("GET /posts - 목록 조회 성공 시 200과 목록 반환")
     void getPosts_success_returns200() throws Exception {
         PostSummaryResponse summary = new PostSummaryResponse(
-                postId, "Test Post", Level.JUNIOR, "tester", Instant.now());
+                postId, "Test Post", Level.JUNIOR, userId, "tester", null, Instant.now());
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
         given(postService.getPosts(any())).willReturn(listResponse);
 
@@ -159,7 +159,7 @@ class PostControllerTest {
         PostUpdateRequest request = new PostUpdateRequest("Updated", "Updated Content", Level.SENIOR);
         PostDetailResponse updated = new PostDetailResponse(
                 postId, "Updated", "Updated Content", Level.SENIOR,
-                userId, "tester", null, null, 0L, Instant.now(), Instant.now());
+                userId, "tester", null, null, null, 0L, Instant.now(), Instant.now());
         given(postService.updatePost(eq(userId), eq(postId), any())).willReturn(updated);
 
         mockMvc.perform(put("/posts/" + postId)
