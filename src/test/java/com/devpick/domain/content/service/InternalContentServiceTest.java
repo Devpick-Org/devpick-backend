@@ -2,6 +2,7 @@ package com.devpick.domain.content.service;
 
 import com.devpick.domain.content.collector.NormalizedContentDto;
 import com.devpick.domain.content.dto.IngestResultResponse;
+import com.devpick.domain.content.dto.StackOverflowAnswerDto;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.ContentSource;
 import com.devpick.domain.content.entity.ContentTag;
@@ -72,7 +73,11 @@ class InternalContentServiceTest {
                 true,
                 null,
                 null,
-                List.of()
+                List.of(),
+                null,
+                null,
+                null,
+                null
         );
     }
 
@@ -185,7 +190,11 @@ class InternalContentServiceTest {
                 true,
                 null,
                 null,
-                List.of()
+                List.of(),
+                null,
+                null,
+                null,
+                null
         );
 
         given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
@@ -215,7 +224,11 @@ class InternalContentServiceTest {
                 true,
                 null,
                 null,
-                List.of("java", "spring-boot", "unknown-tag")
+                List.of("java", "spring-boot", "unknown-tag"),
+                null,
+                null,
+                null,
+                null
         );
 
         Tag javaTag = Tag.builder().name("Java").build();
@@ -253,6 +266,70 @@ class InternalContentServiceTest {
     }
 
     @Test
+    @DisplayName("SO 콘텐츠 — isAnswered/questionContent/acceptedAnswer/topAnswers 매핑")
+    void ingest_soContent_mapsAllSoFields() {
+        StackOverflowAnswerDto accepted = new StackOverflowAnswerDto("<p>accepted</p>", 42);
+        StackOverflowAnswerDto top1 = new StackOverflowAnswerDto("<p>top1</p>", 10);
+        NormalizedContentDto dto = new NormalizedContentDto(
+                "techblog",
+                "SO 질문 제목",
+                null,
+                "https://stackoverflow.com/questions/1",
+                "2026-03-10T09:00:00Z",
+                "미리보기",
+                null,
+                false,
+                null,
+                null,
+                List.of("java"),
+                true,
+                "<p>질문 본문</p>",
+                accepted,
+                List.of(top1)
+        );
+
+        given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
+                .willReturn(Optional.of(mockSource));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Content.class);
+        given(contentRepository.save(captor.capture()))
+                .willAnswer(inv -> inv.getArgument(0));
+        given(tagRepository.findByNameIgnoreCaseIn(any()))
+                .willReturn(List.of());
+        given(contentTagRepository.saveAll(anyList()))
+                .willAnswer(inv -> inv.getArgument(0));
+
+        internalContentService.ingest(List.of(dto));
+
+        Content saved = captor.getValue();
+        assertThat(saved.getIsAnswered()).isTrue();
+        assertThat(saved.getQuestionContent()).isEqualTo("<p>질문 본문</p>");
+        assertThat(saved.getAcceptedAnswer()).isEqualTo(accepted);
+        assertThat(saved.getTopAnswers()).containsExactly(top1);
+    }
+
+    @Test
+    @DisplayName("SO 필드 null — 비-SO 콘텐츠는 SO 필드가 null로 저장")
+    void ingest_nonSoContent_soFieldsAreNull() {
+        NormalizedContentDto dto = buildDto("techblog", "https://example.com/post/nonSo");
+
+        given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
+                .willReturn(Optional.of(mockSource));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Content.class);
+        given(contentRepository.save(captor.capture()))
+                .willAnswer(inv -> inv.getArgument(0));
+
+        internalContentService.ingest(List.of(dto));
+
+        Content saved = captor.getValue();
+        assertThat(saved.getIsAnswered()).isNull();
+        assertThat(saved.getQuestionContent()).isNull();
+        assertThat(saved.getAcceptedAnswer()).isNull();
+        assertThat(saved.getTopAnswers()).isNull();
+    }
+
+    @Test
     @DisplayName("isOriginalVisible false 수신 → Content.isOriginalVisible false 저장")
     void ingest_isOriginalVisibleFalse_savedAsFalse() {
         NormalizedContentDto dto = new NormalizedContentDto(
@@ -266,7 +343,11 @@ class InternalContentServiceTest {
                 false,
                 null,
                 null,
-                List.of()
+                List.of(),
+                null,
+                null,
+                null,
+                null
         );
 
         given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
