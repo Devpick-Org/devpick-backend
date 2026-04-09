@@ -23,6 +23,6 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
     @Query("SELECT a FROM Answer a WHERE a.post.id = :postId AND a.isAdopted = true")
     List<Answer> findAdoptedByPostIdForUpdate(@Param("postId") UUID postId);
 
-    @Query("SELECT a FROM Answer a JOIN FETCH a.post WHERE a.user.id = :userId ORDER BY a.createdAt DESC LIMIT 5")
-    List<Answer> findTop5ByUserIdWithPost(@Param("userId") UUID userId);
+    @Query("SELECT a FROM Answer a JOIN FETCH a.post WHERE a.user.id = :userId ORDER BY a.createdAt DESC")
+    List<Answer> findByUserIdWithPost(@Param("userId") UUID userId);
 }

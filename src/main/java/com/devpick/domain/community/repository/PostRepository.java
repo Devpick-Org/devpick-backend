@@ -12,5 +12,5 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     Page<Post> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
-    List<Post> findTop5ByUser_IdOrderByCreatedAtDesc(UUID userId);
+    List<Post> findByUser_IdOrderByCreatedAtDesc(UUID userId);
 }

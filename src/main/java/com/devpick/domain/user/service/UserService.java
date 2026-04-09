@@ -44,8 +44,8 @@ public class UserService {
         return PublicUserProfileResponse.of(
                 user,
                 userBadgeRepository.findByUser_IdOrderByAcquiredAtDesc(targetUserId),
-                postRepository.findTop5ByUser_IdOrderByCreatedAtDesc(targetUserId),
-                answerRepository.findTop5ByUserIdWithPost(targetUserId)
+                postRepository.findByUser_IdOrderByCreatedAtDesc(targetUserId),
+                answerRepository.findByUserIdWithPost(targetUserId)
         );
     }
 
