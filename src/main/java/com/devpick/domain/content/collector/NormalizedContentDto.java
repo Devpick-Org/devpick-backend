@@ -22,6 +22,8 @@ public record NormalizedContentDto(
         @JsonProperty("body_candidate") String bodyCandidate,
         @JsonProperty("is_original_visible") boolean isOriginalVisible,
         @JsonProperty("thumbnail_url") String thumbnailUrl,
+        @JsonProperty("thumbnail_width") Integer thumbnailWidth,
+        @JsonProperty("thumbnail_height") Integer thumbnailHeight,
         @JsonProperty("license_type") String licenseType,
         List<String> tags,
         @JsonProperty("is_answered") Boolean isAnswered,

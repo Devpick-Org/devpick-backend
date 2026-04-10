@@ -76,7 +76,7 @@ class ContentControllerTest {
     void getFeed_success() throws Exception {
         ContentSummaryResponse summary = new ContentSummaryResponse(
                 UUID.randomUUID(), "Spring Boot 가이드", "홍근", "Velog",
-                "입문 가이드", null, "https://velog.io/@test/spring",
+                "입문 가이드", null, null, null, "https://velog.io/@test/spring",
                 List.of("Spring"), Instant.now(), false, false,
                 null, null, null);
         ContentListResponse response = new ContentListResponse(List.of(summary), 0, 20, 1L, 1);
@@ -94,7 +94,7 @@ class ContentControllerTest {
     void search_success() throws Exception {
         ContentSummaryResponse summary = new ContentSummaryResponse(
                 UUID.randomUUID(), "React 훅 가이드", "홍근", "Velog",
-                "훅 설명", null, "https://velog.io/@test/react",
+                "훅 설명", null, null, null, "https://velog.io/@test/react",
                 List.of("React"), Instant.now(), false, false,
                 null, null, null);
         ContentListResponse response = new ContentListResponse(List.of(summary), 0, 20, 1L, 1);
@@ -112,7 +112,7 @@ class ContentControllerTest {
         UUID contentId = UUID.randomUUID();
         ContentDetailResponse response = new ContentDetailResponse(
                 contentId, "Spring Boot 가이드", "홍근", "Velog",
-                "입문 가이드", null, "https://velog.io/@test/spring",
+                "입문 가이드", null, null, null, "https://velog.io/@test/spring",
                 null, false, null, Instant.now(),
                 List.of("Spring"), false, false,
                 null, null, null, null, null, null);
@@ -201,7 +201,7 @@ class ContentControllerTest {
         UUID contentId = UUID.randomUUID();
         ContentSummaryResponse summary = new ContentSummaryResponse(
                 UUID.randomUUID(), "추천 콘텐츠", "작성자", "Velog",
-                "설명", null, "https://velog.io/@test/rec",
+                "설명", null, null, null, "https://velog.io/@test/rec",
                 List.of("Spring"), Instant.now(), false, false,
                 null, null, null);
         ContentListResponse response = new ContentListResponse(List.of(summary), 0, 5, 1L, 1);
