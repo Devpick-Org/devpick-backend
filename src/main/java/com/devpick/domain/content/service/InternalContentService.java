@@ -84,6 +84,8 @@ public class InternalContentService {
                 .canonicalUrl(dto.canonicalUrl())
                 .preview(dto.preview())
                 .thumbnailUrl(dto.thumbnailUrl())
+                .thumbnailWidth(dto.thumbnailWidth())
+                .thumbnailHeight(dto.thumbnailHeight())
                 .licenseType(dto.licenseType())
                 .originalContent(dto.bodyCandidate())
                 .isOriginalVisible(dto.isOriginalVisible())

@@ -41,6 +41,12 @@ public class Content extends BaseTimeEntity {
     @Column(name = "thumbnail_url", columnDefinition = "TEXT")
     private String thumbnailUrl;
 
+    @Column(name = "thumbnail_width")
+    private Integer thumbnailWidth;
+
+    @Column(name = "thumbnail_height")
+    private Integer thumbnailHeight;
+
     @Column(name = "is_original_visible", nullable = false)
     @Builder.Default
     private Boolean isOriginalVisible = false;
