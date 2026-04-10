@@ -6,6 +6,7 @@ import com.devpick.domain.user.entity.Level;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 public record PostDetailResponse(
@@ -20,7 +21,8 @@ public record PostDetailResponse(
         String authorProfileImage,
         long answerCount,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        List<PostAttachmentDTO> attachments
 ) {
     public static PostDetailResponse of(Post post, long answerCount) {
         return new PostDetailResponse(
@@ -35,7 +37,8 @@ public record PostDetailResponse(
                 post.getUser().getProfileImage(),
                 answerCount,
                 post.getCreatedAt() != null ? post.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
-                post.getUpdatedAt() != null ? post.getUpdatedAt().toInstant(ZoneOffset.UTC) : null
+                post.getUpdatedAt() != null ? post.getUpdatedAt().toInstant(ZoneOffset.UTC) : null,
+                List.of()
         );
     }
 }
