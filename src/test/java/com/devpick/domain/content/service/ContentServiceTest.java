@@ -130,6 +130,30 @@ class ContentServiceTest {
 
         assertThat(response.contents()).hasSize(1);
         verify(contentRepository).findByTagIdsAndIsAvailableTrue(any(), any());
+        verify(contentRepository, never()).findByIsAvailableTrueOrderByPublishedAtDesc(any());
+    }
+
+    @Test
+    @DisplayName("getFeed — 태그 필터 결과가 비면 전체 공개 글로 폴백")
+    void getFeed_tagFilterEmpty_fallsBackToAllAvailable() {
+        UserTag userTag = UserTag.builder()
+                .user(user)
+                .tag(Tag.builder().name("Rust").build())
+                .build();
+        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
+        given(contentRepository.findByTagIdsAndIsAvailableTrue(any(), any()))
+                .willReturn(new PageImpl<>(List.of()));
+        given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+
+        ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
+
+        assertThat(response.contents()).hasSize(1);
+        verify(contentRepository).findByTagIdsAndIsAvailableTrue(any(), any());
+        verify(contentRepository).findByIsAvailableTrueOrderByPublishedAtDesc(any());
     }
 
     @Test

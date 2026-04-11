@@ -53,6 +53,9 @@ public class ContentService {
             page = contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(pageable);
         } else {
             page = contentRepository.findByTagIdsAndIsAvailableTrue(tagIds, pageable);
+            if (page.getTotalElements() == 0) {
+                page = contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(pageable);
+            }
         }
 
         List<ContentSummaryResponse> contents = page.getContent().stream()
