@@ -83,12 +83,12 @@ class AiServerClientTest {
     }
 
     @Test
-    @DisplayName("fetchSummary — 본문 없으면 AI_SERVER_ERROR")
+    @DisplayName("fetchSummary — 본문 없으면 CONTENT_NOT_READY")
     void fetchSummary_blankText_throws() {
         assertThatThrownBy(() -> aiServerClient.fetchSummary(contentId, "  ", null))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
-                        .isEqualTo(ErrorCode.AI_SERVER_ERROR));
+                        .isEqualTo(ErrorCode.CONTENT_NOT_READY));
     }
 
     @Test
@@ -125,12 +125,12 @@ class AiServerClientTest {
     }
 
     @Test
-    @DisplayName("fetchQuiz — 본문 없으면 AI_SERVER_ERROR")
+    @DisplayName("fetchQuiz — 본문 없으면 CONTENT_NOT_READY")
     void fetchQuiz_blankText_throws() {
         assertThatThrownBy(() -> aiServerClient.fetchQuiz(contentId, ""))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
-                        .isEqualTo(ErrorCode.AI_SERVER_ERROR));
+                        .isEqualTo(ErrorCode.CONTENT_NOT_READY));
     }
 
     @Test

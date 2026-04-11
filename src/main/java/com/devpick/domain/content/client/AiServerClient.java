@@ -32,7 +32,7 @@ public class AiServerClient {
      */
     public AiSummaryResult fetchSummary(UUID contentId, String text, String thumbnailUrl) {
         if (text == null || text.isBlank()) {
-            throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
+            throw new DevpickException(ErrorCode.CONTENT_NOT_READY);
         }
         try {
             Map<String, Object> body = new HashMap<>();
@@ -64,7 +64,7 @@ public class AiServerClient {
      */
     public AiQuizResult fetchQuiz(UUID contentId, String text) {
         if (text == null || text.isBlank()) {
-            throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
+            throw new DevpickException(ErrorCode.CONTENT_NOT_READY);
         }
         try {
             AiQuizResult result = webClient.post()
