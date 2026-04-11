@@ -70,6 +70,8 @@ class AiSummaryServiceTest {
     private ValueOperations<String, String> valueOps;
     @Mock
     private PointService pointService;
+    @Mock
+    private ContentTagService contentTagService;
 
     private UUID userId;
     private UUID contentId;

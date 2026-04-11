@@ -5,12 +5,8 @@ import com.devpick.domain.content.dto.IngestResultResponse;
 import com.devpick.domain.content.dto.StackOverflowAnswerDto;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.ContentSource;
-import com.devpick.domain.content.entity.ContentTag;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.content.repository.ContentSourceRepository;
-import com.devpick.domain.content.repository.ContentTagRepository;
-import com.devpick.domain.user.entity.Tag;
-import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,10 +41,7 @@ class InternalContentServiceTest {
     private ContentSourceRepository contentSourceRepository;
 
     @Mock
-    private TagRepository tagRepository;
-
-    @Mock
-    private ContentTagRepository contentTagRepository;
+    private ContentTagService contentTagService;
 
     private ContentSource mockSource;
 
@@ -223,8 +216,8 @@ class InternalContentServiceTest {
     }
 
     @Test
-    @DisplayName("태그 매칭 — DB에 존재하는 태그만 content_tags에 저장")
-    void ingest_withTags_savesMatchedContentTags() {
+    @DisplayName("태그 있음 — ContentTagService.save() 호출")
+    void ingest_withTags_callsContentTagService() {
         NormalizedContentDto dto = new NormalizedContentDto(
                 "techblog",
                 "제목",
@@ -249,27 +242,20 @@ class InternalContentServiceTest {
                 null
         );
 
-        Tag javaTag = Tag.builder().name("Java").build();
-        Tag springTag = Tag.builder().name("Spring Boot").build();
-
         given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
                 .willReturn(Optional.of(mockSource));
         given(contentRepository.save(any(Content.class)))
-                .willAnswer(inv -> inv.getArgument(0));
-        given(tagRepository.findByNameIgnoreCaseIn(List.of("java", "spring-boot", "unknown-tag")))
-                .willReturn(List.of(javaTag, springTag));
-        given(contentTagRepository.saveAll(anyList()))
                 .willAnswer(inv -> inv.getArgument(0));
 
         IngestResultResponse result = internalContentService.ingest(List.of(dto));
 
         assertThat(result.saved()).isEqualTo(1);
-        verify(contentTagRepository, times(1)).saveAll(anyList());
+        verify(contentTagService, times(1)).save(any(Content.class), anyList());
     }
 
     @Test
-    @DisplayName("태그 없음 — content_tags 저장 호출 안 함")
-    void ingest_withEmptyTags_doesNotSaveContentTags() {
+    @DisplayName("태그 없음 — ContentTagService.save()는 빈 리스트로 호출됨")
+    void ingest_withEmptyTags_callsContentTagServiceWithEmptyList() {
         NormalizedContentDto dto = buildDto("techblog", "https://example.com/post/notag");
 
         given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
@@ -279,8 +265,7 @@ class InternalContentServiceTest {
 
         internalContentService.ingest(List.of(dto));
 
-        verifyNoInteractions(tagRepository);
-        verifyNoInteractions(contentTagRepository);
+        verify(contentTagService, times(1)).save(any(Content.class), eq(List.of()));
     }
 
     @Test
@@ -317,10 +302,6 @@ class InternalContentServiceTest {
 
         var captor = org.mockito.ArgumentCaptor.forClass(Content.class);
         given(contentRepository.save(captor.capture()))
-                .willAnswer(inv -> inv.getArgument(0));
-        given(tagRepository.findByNameIgnoreCaseIn(any()))
-                .willReturn(List.of());
-        given(contentTagRepository.saveAll(anyList()))
                 .willAnswer(inv -> inv.getArgument(0));
 
         internalContentService.ingest(List.of(dto));
