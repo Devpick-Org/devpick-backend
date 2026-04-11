@@ -76,6 +76,10 @@ public enum ErrorCode {
     COMMUNITY_ONLY_POST_AUTHOR_CAN_ADOPT(HttpStatus.FORBIDDEN, "COMMUNITY_006", "게시글 작성자만 답변을 채택할 수 있습니다."),
     COMMUNITY_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMUNITY_007", "댓글을 찾을 수 없습니다."),
     COMMUNITY_UNAUTHORIZED_COMMENT_ACTION(HttpStatus.FORBIDDEN, "COMMUNITY_008", "댓글 삭제 권한이 없습니다."),
+    COMMUNITY_POST_ALREADY_LIKED(HttpStatus.CONFLICT, "COMMUNITY_009", "이미 좋아요한 게시글입니다."),
+    COMMUNITY_POST_NOT_LIKED(HttpStatus.NOT_FOUND, "COMMUNITY_010", "좋아요하지 않은 게시글입니다."),
+    COMMUNITY_ANSWER_ALREADY_LIKED(HttpStatus.CONFLICT, "COMMUNITY_011", "이미 좋아요한 답변입니다."),
+    COMMUNITY_ANSWER_NOT_LIKED(HttpStatus.NOT_FOUND, "COMMUNITY_012", "좋아요하지 않은 답변입니다."),
 
     // Report
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "REPORT_001", "주간 리포트를 찾을 수 없습니다."),

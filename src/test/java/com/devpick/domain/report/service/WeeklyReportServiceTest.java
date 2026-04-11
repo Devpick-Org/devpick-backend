@@ -111,6 +111,7 @@ class WeeklyReportServiceTest {
     @Test
     @DisplayName("getCurrentWeekReport — 이번 주 리포트 정상 반환 및 weekly_report_viewed 기록")
     void getCurrentWeekReport_success_returnsReportAndRecordsHistory() {
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
         given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
                 .willReturn(Optional.of(report));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
@@ -126,6 +127,7 @@ class WeeklyReportServiceTest {
     @Test
     @DisplayName("getCurrentWeekReport — 유저 없으면 히스토리 기록 안 함 (리포트는 정상 반환)")
     void getCurrentWeekReport_userNotFound_doesNotRecordHistory() {
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
         given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
                 .willReturn(Optional.of(report));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
@@ -137,15 +139,24 @@ class WeeklyReportServiceTest {
     }
 
     @Test
-    @DisplayName("getCurrentWeekReport — 리포트 없으면 REPORT_NOT_FOUND 예외")
-    void getCurrentWeekReport_notFound_throwsException() {
-        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(any(), any()))
-                .willReturn(Optional.empty());
+    @DisplayName("getCurrentWeekReport — 리포트 없으면 온디맨드 생성 후 반환")
+    void getCurrentWeekReport_notExists_createsReport() throws Exception {
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(false);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(eq(userId), any(), any(), any()))
+                .willReturn(0L);
+        given(historyRepository.findTopTagsByUserAndPeriod(eq(userId), any(), any()))
+                .willReturn(List.of());
+        given(historyRepository.findDailyActivityCountsByUserAndPeriod(eq(userId), any(), any()))
+                .willReturn(List.of());
+        given(objectMapper.writeValueAsString(any())).willReturn("[]");
+        given(weeklyReportRepository.save(any(WeeklyReport.class))).willReturn(report);
 
-        assertThatThrownBy(() -> weeklyReportService.getCurrentWeekReport(userId))
-                .isInstanceOf(DevpickException.class)
-                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
-                        .isEqualTo(ErrorCode.REPORT_NOT_FOUND));
+        WeeklyReportResponse response = weeklyReportService.getCurrentWeekReport(userId);
+
+        assertThat(response.reportId()).isEqualTo(reportId);
+        verify(weeklyReportRepository).save(any(WeeklyReport.class));
+        verify(historyRepository).save(any());
     }
 
     @Test
@@ -153,6 +164,7 @@ class WeeklyReportServiceTest {
     void getCurrentWeekReport_nullWeekDates_returnsNullInstants() {
         ReflectionTestUtils.setField(report, "weekStart", null);
         ReflectionTestUtils.setField(report, "weekEnd", null);
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
         given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
                 .willReturn(Optional.of(report));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
@@ -166,6 +178,7 @@ class WeeklyReportServiceTest {
     @Test
     @DisplayName("getCurrentWeekReport — weekStart/weekEnd가 Instant 타입으로 반환됨")
     void getCurrentWeekReport_weekStartIsInstantType() {
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
         given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
                 .willReturn(Optional.of(report));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
@@ -192,6 +205,7 @@ class WeeklyReportServiceTest {
         activities.add(activityWithChart);
         ReflectionTestUtils.setField(report, "activities", activities);
 
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
         given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
                 .willReturn(Optional.of(report));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
@@ -213,6 +227,7 @@ class WeeklyReportServiceTest {
                 .nextWeek("Spring Boot 기초부터 시작해보세요")
                 .build();
 
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
         given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
                 .willReturn(Optional.of(report));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));

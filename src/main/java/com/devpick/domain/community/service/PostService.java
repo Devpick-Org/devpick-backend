@@ -18,8 +18,11 @@ import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -59,8 +62,20 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
-    public PostListResponse getPosts(Pageable pageable) {
-        Page<Post> page = postRepository.findAllByOrderByCreatedAtDesc(pageable);
+    public PostListResponse getPosts(Pageable pageable, String query) {
+        Page<Post> page;
+        if (StringUtils.hasText(query)) {
+            String q = query.trim();
+            Pageable sorted = PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    pageable.getSort().isSorted()
+                            ? pageable.getSort()
+                            : Sort.by(Sort.Direction.DESC, "createdAt"));
+            page = postRepository.searchByTitleOrContentContaining(q, sorted);
+        } else {
+            page = postRepository.findAllByOrderByCreatedAtDesc(pageable);
+        }
         List<PostSummaryResponse> posts = page.getContent().stream()
                 .map(PostSummaryResponse::of)
                 .toList();

@@ -5,6 +5,7 @@ import com.devpick.domain.community.dto.AnswerListResponse;
 import com.devpick.domain.community.dto.AnswerResponse;
 import com.devpick.domain.community.dto.AnswerUpdateRequest;
 import com.devpick.domain.community.service.AnswerService;
+import com.devpick.domain.community.service.CommunityLikeService;
 import com.devpick.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -33,6 +34,7 @@ import java.util.UUID;
 public class AnswerController {
 
     private final AnswerService answerService;
+    private final CommunityLikeService communityLikeService;
 
     @Operation(summary = "답변 및 댓글 통합 조회", description = "게시글의 답변 목록과 각 답변에 달린 댓글을 함께 반환합니다.")
     @ApiResponses({
@@ -102,5 +104,37 @@ public class AnswerController {
             @Parameter(description = "게시글 ID (UUID)", required = true) @PathVariable UUID postId,
             @Parameter(description = "답변 ID (UUID)", required = true) @PathVariable UUID answerId) {
         return ApiResponse.ok(answerService.adoptAnswer(userId, postId, answerId));
+    }
+
+    @Operation(summary = "답변 좋아요", description = "답변에 좋아요를 추가합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "좋아요 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "답변 없음"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 좋아요함")
+    })
+    @PostMapping("/{answerId}/like")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<Void> addAnswerLike(
+            @AuthenticationPrincipal UUID userId,
+            @Parameter(description = "게시글 ID (UUID)", required = true) @PathVariable UUID postId,
+            @Parameter(description = "답변 ID (UUID)", required = true) @PathVariable UUID answerId) {
+        communityLikeService.addAnswerLike(userId, postId, answerId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "답변 좋아요 취소", description = "답변 좋아요를 취소합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "취소 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "좋아요 없음")
+    })
+    @DeleteMapping("/{answerId}/like")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeAnswerLike(
+            @AuthenticationPrincipal UUID userId,
+            @Parameter(description = "게시글 ID (UUID)", required = true) @PathVariable UUID postId,
+            @Parameter(description = "답변 ID (UUID)", required = true) @PathVariable UUID answerId) {
+        communityLikeService.removeAnswerLike(userId, postId, answerId);
     }
 }

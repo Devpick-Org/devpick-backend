@@ -166,10 +166,10 @@ class ReportControllerTest {
     }
 
     @Test
-    @DisplayName("GET /reports/weekly - 리포트 없으면 404 반환")
-    void getCurrentWeekReport_notFound_returns404() throws Exception {
+    @DisplayName("GET /reports/weekly - 사용자 없으면 404 반환")
+    void getCurrentWeekReport_userNotFound_returns404() throws Exception {
         given(weeklyReportService.getCurrentWeekReport(userId))
-                .willThrow(new DevpickException(ErrorCode.REPORT_NOT_FOUND));
+                .willThrow(new DevpickException(ErrorCode.USER_NOT_FOUND));
 
         mockMvc.perform(get("/reports/weekly"))
                 .andExpect(status().isNotFound())

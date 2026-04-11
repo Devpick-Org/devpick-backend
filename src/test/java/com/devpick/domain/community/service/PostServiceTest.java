@@ -34,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -114,11 +115,24 @@ class PostServiceTest {
         given(postRepository.findAllByOrderByCreatedAtDesc(any()))
                 .willReturn(new PageImpl<>(List.of(post)));
 
-        PostListResponse response = postService.getPosts(PageRequest.of(0, 20));
+        PostListResponse response = postService.getPosts(PageRequest.of(0, 20), null);
 
         assertThat(response.posts()).hasSize(1);
         assertThat(response.posts().get(0).title()).isEqualTo("Test Post");
         assertThat(response.totalElements()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("getPosts — query가 있으면 제목·본문 검색")
+    void getPosts_withQuery_usesSearchRepository() {
+        given(postRepository.searchByTitleOrContentContaining(eq("Spring"), any()))
+                .willReturn(new PageImpl<>(List.of(post)));
+
+        PostListResponse response = postService.getPosts(PageRequest.of(0, 20), "Spring");
+
+        assertThat(response.posts()).hasSize(1);
+        verify(postRepository).searchByTitleOrContentContaining(eq("Spring"), any());
+        verify(postRepository, never()).findAllByOrderByCreatedAtDesc(any());
     }
 
     @Test

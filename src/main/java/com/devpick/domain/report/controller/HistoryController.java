@@ -4,6 +4,7 @@ import com.devpick.domain.point.dto.BadgeResponse;
 import com.devpick.domain.point.dto.PointSummaryResponse;
 import com.devpick.domain.point.service.BadgeService;
 import com.devpick.domain.point.service.PointService;
+import com.devpick.domain.report.dto.ActivityPageResponse;
 import com.devpick.domain.report.dto.HistoryPageResponse;
 import com.devpick.domain.report.service.HistoryService;
 import com.devpick.global.common.exception.DevpickException;
@@ -59,6 +60,22 @@ public class HistoryController {
         validatePageParams(page, size);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return ApiResponse.ok(historyService.getHistory(userId, actionTypes, startDate, endDate, pageable));
+    }
+
+    @Operation(summary = "전체 활동 내역 조회",
+               description = "content_liked를 포함한 활동 내역을 최신순으로 반환합니다. (GET /history는 content_liked 제외)")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    @GetMapping("/activity")
+    public ApiResponse<ActivityPageResponse> getActivity(
+            @AuthenticationPrincipal UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        validatePageParams(page, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return ApiResponse.ok(historyService.getActivityHistory(userId, pageable));
     }
 
     @Operation(summary = "포인트 요약 조회", description = "누적 포인트, 이번 주 획득 포인트, 연속 로그인 일수를 조회합니다.")

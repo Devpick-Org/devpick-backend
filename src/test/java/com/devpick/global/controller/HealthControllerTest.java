@@ -27,4 +27,13 @@ class HealthControllerTest {
                 .andExpect(jsonPath("$.data.status").value("ok"))
                 .andExpect(jsonPath("$.data.service").value("devpick-backend"));
     }
+
+    @Test
+    @DisplayName("GET /health → 200 OK (별칭)")
+    void healthRoot_returnsOk() throws Exception {
+        mockMvc.perform(get("/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.status").value("ok"));
+    }
 }

@@ -1,5 +1,7 @@
 package com.devpick.domain.report.service;
 
+import com.devpick.domain.report.dto.ActivityItemResponse;
+import com.devpick.domain.report.dto.ActivityPageResponse;
 import com.devpick.domain.report.dto.HistoryItemResponse;
 import com.devpick.domain.report.dto.HistoryPageResponse;
 import com.devpick.domain.report.entity.History;
@@ -43,7 +45,7 @@ public class HistoryService {
         if (actionTypes != null && !actionTypes.isEmpty()) {
             idPage = historyRepository.findHistoryIdsByActionTypesAndDateRange(userId, actionTypes, start, end, pageable);
         } else {
-            idPage = historyRepository.findHistoryIdsByDateRange(userId, start, end, pageable);
+            idPage = historyRepository.findHistoryIdsByDateRangeExcludingContentLiked(userId, start, end, pageable);
         }
 
         if (idPage.isEmpty()) {
@@ -58,6 +60,32 @@ public class HistoryService {
                 .toList();
 
         return new HistoryPageResponse(
+                items,
+                idPage.getNumber(),
+                idPage.getSize(),
+                idPage.getTotalElements(),
+                idPage.getTotalPages()
+        );
+    }
+
+    /** 전체 활동 (content_liked 포함) — {@code GET /history/activity} */
+    @Transactional(readOnly = true)
+    public ActivityPageResponse getActivityHistory(UUID userId, Pageable pageable) {
+        userRepository.findByIdAndIsActiveTrue(userId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
+
+        Page<UUID> idPage = historyRepository.findHistoryIdsByDateRange(userId, null, null, pageable);
+
+        if (idPage.isEmpty()) {
+            return new ActivityPageResponse(List.of(), idPage.getNumber(), idPage.getSize(), 0, 0);
+        }
+
+        List<History> histories = historyRepository.findHistoriesWithAssociationsByIds(idPage.getContent());
+        List<ActivityItemResponse> items = histories.stream()
+                .map(h -> ActivityItemResponse.from(HistoryItemResponse.of(h)))
+                .toList();
+
+        return new ActivityPageResponse(
                 items,
                 idPage.getNumber(),
                 idPage.getSize(),

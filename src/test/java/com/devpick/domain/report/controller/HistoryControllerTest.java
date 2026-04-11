@@ -4,6 +4,7 @@ import com.devpick.domain.point.dto.BadgeResponse;
 import com.devpick.domain.point.dto.PointSummaryResponse;
 import com.devpick.domain.point.service.BadgeService;
 import com.devpick.domain.point.service.PointService;
+import com.devpick.domain.report.dto.ActivityPageResponse;
 import com.devpick.domain.report.dto.HistoryItemResponse;
 import com.devpick.domain.report.dto.HistoryPageResponse;
 import com.devpick.domain.report.service.HistoryService;
@@ -216,6 +217,18 @@ class HistoryControllerTest {
         mockMvc.perform(get("/history").param("page", "1").param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    @DisplayName("GET /history/activity — 활동 내역 조회 성공 시 200 반환")
+    void getActivity_success_returns200() throws Exception {
+        ActivityPageResponse activityPage = new ActivityPageResponse(List.of(), 0, 20, 0L, 0);
+        given(historyService.getActivityHistory(any(UUID.class), any())).willReturn(activityPage);
+
+        mockMvc.perform(get("/history/activity"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.items").isArray());
     }
 
     // ============================================================

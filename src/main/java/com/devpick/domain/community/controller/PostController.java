@@ -4,6 +4,7 @@ import com.devpick.domain.community.dto.PostCreateRequest;
 import com.devpick.domain.community.dto.PostDetailResponse;
 import com.devpick.domain.community.dto.PostListResponse;
 import com.devpick.domain.community.dto.PostUpdateRequest;
+import com.devpick.domain.community.service.CommunityLikeService;
 import com.devpick.domain.community.service.PostService;
 import com.devpick.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,6 +37,7 @@ import java.util.UUID;
 public class PostController {
 
     private final PostService postService;
+    private final CommunityLikeService communityLikeService;
 
     @Operation(summary = "게시글 작성", description = "새 질문/게시글을 작성합니다. 학습 히스토리(question_created)가 기록됩니다.")
     @ApiResponses({
@@ -51,17 +53,17 @@ public class PostController {
         return ApiResponse.ok(postService.createPost(userId, request));
     }
 
-    @Operation(summary = "게시글 목록 조회", description = "최신순으로 게시글 목록을 반환합니다.")
+    @Operation(summary = "게시글 목록 조회", description = "최신순으로 게시글 목록을 반환합니다. query가 있으면 제목·본문 부분 일치 검색합니다.")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
     })
     @GetMapping
     public ApiResponse<PostListResponse> getPosts(
+            @Parameter(description = "검색 키워드 (제목·본문)", example = "Spring") @RequestParam(required = false) String query,
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기", example = "20") @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return ApiResponse.ok(postService.getPosts(pageable));
+        return ApiResponse.ok(postService.getPosts(pageable, query));
     }
 
     @Operation(summary = "게시글 상세 조회", description = "특정 게시글의 상세 내용을 반환합니다.")
@@ -101,5 +103,35 @@ public class PostController {
             @AuthenticationPrincipal UUID userId,
             @Parameter(description = "게시글 ID (UUID)", required = true) @PathVariable UUID postId) {
         postService.deletePost(userId, postId);
+    }
+
+    @Operation(summary = "게시글 좋아요", description = "게시글에 좋아요를 추가합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "좋아요 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "게시글 없음"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 좋아요함")
+    })
+    @PostMapping("/{postId}/like")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<Void> addPostLike(
+            @AuthenticationPrincipal UUID userId,
+            @Parameter(description = "게시글 ID (UUID)", required = true) @PathVariable UUID postId) {
+        communityLikeService.addPostLike(userId, postId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "게시글 좋아요 취소", description = "게시글 좋아요를 취소합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "취소 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "좋아요 없음")
+    })
+    @DeleteMapping("/{postId}/like")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removePostLike(
+            @AuthenticationPrincipal UUID userId,
+            @Parameter(description = "게시글 ID (UUID)", required = true) @PathVariable UUID postId) {
+        communityLikeService.removePostLike(userId, postId);
     }
 }

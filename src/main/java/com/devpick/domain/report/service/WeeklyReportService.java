@@ -59,16 +59,13 @@ public class WeeklyReportService {
                 .toList();
     }
 
-    // DP-256: 이번 주 리포트 조회
+    // DP-256: 이번 주 리포트 조회 — 없으면 온디맨드 생성 (OpenAPI·프론트 기대와 일치)
     @Transactional
     public WeeklyReportResponse getCurrentWeekReport(UUID userId) {
         LocalDate weekStart = getWeekStart(LocalDate.now());
-        WeeklyReport report = weeklyReportRepository
-                .findWithActivitiesByUser_IdAndWeekStart(userId, weekStart)
-                .orElseThrow(() -> new DevpickException(ErrorCode.REPORT_NOT_FOUND));
-
+        WeeklyReportResponse response = generateOrGetReport(userId, weekStart);
         recordWeeklyReportViewed(userId);
-        return toResponse(report);
+        return response;
     }
 
     // DP-256: 특정 reportId로 리포트 조회

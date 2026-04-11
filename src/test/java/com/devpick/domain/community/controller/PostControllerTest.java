@@ -5,6 +5,7 @@ import com.devpick.domain.community.dto.PostDetailResponse;
 import com.devpick.domain.community.dto.PostListResponse;
 import com.devpick.domain.community.dto.PostSummaryResponse;
 import com.devpick.domain.community.dto.PostUpdateRequest;
+import com.devpick.domain.community.service.CommunityLikeService;
 import com.devpick.domain.community.service.PostService;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
@@ -52,6 +53,9 @@ class PostControllerTest {
 
     @Mock
     private PostService postService;
+
+    @Mock
+    private CommunityLikeService communityLikeService;
 
     @InjectMocks
     private PostController postController;
@@ -122,7 +126,7 @@ class PostControllerTest {
         PostSummaryResponse summary = new PostSummaryResponse(
                 postId, "Test Post", Level.JUNIOR, userId, "tester", Job.BACKEND, null, Instant.now());
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
-        given(postService.getPosts(any())).willReturn(listResponse);
+        given(postService.getPosts(any(), any())).willReturn(listResponse);
 
         mockMvc.perform(get("/posts"))
                 .andExpect(status().isOk())
@@ -138,7 +142,7 @@ class PostControllerTest {
         PostSummaryResponse summary = new PostSummaryResponse(
                 postId, "Test Post", Level.JUNIOR, userId, "tester", Job.FRONTEND, null, Instant.now());
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
-        given(postService.getPosts(any())).willReturn(listResponse);
+        given(postService.getPosts(any(), any())).willReturn(listResponse);
 
         mockMvc.perform(get("/posts"))
                 .andExpect(status().isOk())
@@ -151,7 +155,7 @@ class PostControllerTest {
         PostSummaryResponse summary = new PostSummaryResponse(
                 postId, "Test Post", Level.JUNIOR, userId, "tester", null, null, Instant.now());
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
-        given(postService.getPosts(any())).willReturn(listResponse);
+        given(postService.getPosts(any(), any())).willReturn(listResponse);
 
         mockMvc.perform(get("/posts"))
                 .andExpect(status().isOk())

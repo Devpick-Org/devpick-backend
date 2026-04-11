@@ -73,6 +73,24 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
             @Param("endDate") LocalDateTime endDate,
             Pageable pageable);
 
+    /** 학습 히스토리: content_liked 제외 (GET /history 기본) */
+    @Query(value = "SELECT h.id FROM History h " +
+                   "WHERE h.user.id = :userId " +
+                   "AND h.actionType <> 'content_liked' " +
+                   "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
+                   "AND (:endDate IS NULL OR h.createdAt <= :endDate) " +
+                   "ORDER BY h.createdAt DESC",
+           countQuery = "SELECT COUNT(h) FROM History h " +
+                        "WHERE h.user.id = :userId " +
+                        "AND h.actionType <> 'content_liked' " +
+                        "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
+                        "AND (:endDate IS NULL OR h.createdAt <= :endDate)")
+    Page<UUID> findHistoryIdsByDateRangeExcludingContentLiked(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
+
     // DP-293: 2단계 페이징 - 2단계: ID 목록으로 연관 엔티티 FETCH JOIN (최대 pageSize개)
     @Query("SELECT h FROM History h " +
            "LEFT JOIN FETCH h.content " +

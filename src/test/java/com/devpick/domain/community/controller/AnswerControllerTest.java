@@ -6,6 +6,7 @@ import com.devpick.domain.community.dto.AnswerResponse;
 import com.devpick.domain.community.dto.AnswerUpdateRequest;
 import com.devpick.domain.community.dto.AnswerWithCommentsResponse;
 import com.devpick.domain.community.service.AnswerService;
+import com.devpick.domain.community.service.CommunityLikeService;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.common.exception.GlobalExceptionHandler;
@@ -49,6 +50,9 @@ class AnswerControllerTest {
 
     @Mock
     private AnswerService answerService;
+
+    @Mock
+    private CommunityLikeService communityLikeService;
 
     @InjectMocks
     private AnswerController answerController;

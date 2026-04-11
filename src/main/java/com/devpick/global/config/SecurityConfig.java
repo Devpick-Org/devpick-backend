@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -16,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 import java.io.IOException;
@@ -46,12 +48,19 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/health").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/health", "/api/health").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/reports/weekly/share/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/internal/**").permitAll()
                         .requestMatchers("/dev/**").permitAll()
+                        // 공개 읽기: 게시글·타인 프로필·트렌드 (콘텐츠 피드/검색/상세는 @AuthenticationPrincipal 필요 → 인증 유지)
+                        .requestMatchers(HttpMethod.GET, "/trends/keywords").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/posts").permitAll()
+                        .requestMatchers(new RegexRequestMatcher("^/posts/[0-9a-fA-F\\-]{36}$", "GET")).permitAll()
+                        .requestMatchers(new RegexRequestMatcher("^/posts/[0-9a-fA-F\\-]{36}/answers$", "GET")).permitAll()
+                        .requestMatchers(new RegexRequestMatcher("^/posts/[0-9a-fA-F\\-]{36}/similar$", "GET")).permitAll()
+                        .requestMatchers(new RegexRequestMatcher("^/users/[0-9a-fA-F\\-]{36}/profile$", "GET")).permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
