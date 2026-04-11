@@ -53,6 +53,16 @@ docker compose down
 
 테스트 실패 시 원인 확인: `build/reports/tests/test/index.html`
 
+### 운영 API 베이스 URL (프론트·연동용)
+
+EC2에서 Nginx(TLS) 뒤 Spring Boot(8080)로 서비스할 때, 브라우저·프론트 env에 넣을 **공개 origin**은 아래와 같다. (sslip.io + Elastic IP 기준, 경로 제외.)
+
+```text
+https://3-39-96-126.sslip.io
+```
+
+IP·sslip 호스트가 바뀌면 Certbot·Nginx·프론트 설정을 같이 맞춘다. 상세는 [AGENTS.md](./AGENTS.md) §8.
+
 ---
 
 ## ⚠️ Claude Code 작업 필수 규칙

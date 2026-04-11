@@ -71,3 +71,49 @@
 | [CLAUDE.md](./CLAUDE.md) | 빌드, Sonar, PR, 보안 핫스팟 |
 | [devpick-api-spec.json](./devpick-api-spec.json) | Trace REST OpenAPI 정본 |
 | [docs/](./docs/) | 아키텍처·연동 메모 |
+
+---
+
+## 8. EC2 배포: 8080 오픈 · 프론트 연동 · 환경변수 (운영 맥락)
+
+### 8.1 보안 그룹에서 8080 열기
+
+1. AWS 콘솔 → **EC2** → 인스턴스 선택 → **보안** 탭 → 보안 그룹 링크 클릭  
+2. **인바운드 규칙 편집** → **규칙 추가**  
+   - 유형: **사용자 지정 TCP**  
+   - 포트 범위: **8080**  
+   - 소스: 프론트가 브라우저에서 접근하는 경우 보통 **`0.0.0.0/0`** (전체 공개) 또는 팀/사무실 IP만 허용  
+3. 저장  
+
+로컬에서 `curl http://퍼블릭IP:8080/actuator/health` 또는 `/health` 등으로 응답 오는지 확인한다.
+
+### 8.2 HTTP vs HTTPS · 프론트 base URL
+
+- 프론트 env의 **백엔드 base URL**은 브라우저가 호출할 수 있는 주소다.  
+- **운영(HTTPS, Nginx → Spring 8080, sslip.io + Elastic IP)** 에서 쓰는 공개 API 베이스는 아래 **한 줄**을 팀·프론트에 전달한다 (경로 없이 origin만).
+
+```text
+https://3-39-96-126.sslip.io
+```
+
+- **HTTPS만 쓰는 사이트**에서 `http://` API를 부르면 브라우저가 **Mixed Content**로 막을 수 있다. 위 주소는 HTTPS이므로 프론트도 HTTPS 배포 시 함께 맞춘다.  
+- EC2 **퍼블릭 IP가 바뀌면** sslip 호스트(`3-39-96-126` 부분)와 Let’s Encrypt 인증서·Nginx `server_name`도 같이 갱신해야 한다. **Elastic IP**로 공인 IP를 고정해 두었다.  
+- 백엔드의 **`FRONTEND_URL`** 은 OAuth 리다이렉트·CORS와 맞춰야 한다. 프론트가 배포된 실제 origin으로 맞춘다. `REPLACE_ME`면 OAuth·리다이렉트가 깨질 수 있다.
+
+### 8.3 운영 시크릿은 레포에 넣지 않는다
+
+**비밀번호·JWT·API 키는 AGENTS.md나 Git에 적지 않는다.** 실제 값은 EC2의 `~/devpick-backend/.env` / `~/devpick-ai/.env` 등에만 둔다.
+
+에이전트가 “운영 DB/Redis 키가 뭔지”를 알아야 할 때는 **변수 이름**만 참고한다:
+
+| 구분 | 변수 (이름만) |
+|------|----------------|
+| DB (Spring) | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` |
+| AI 레포 (Python) | `DATABASE_URL` (또는 위와 동일 RDS) |
+| Redis | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` |
+| 인증 | `JWT_SECRET` |
+| AI 내부 API | `AI_SERVER_INTERNAL_KEY` (백엔드 `AI_SERVER_INTERNAL_KEY`와 동일 값) |
+| AWS (Bedrock 등) | `AWS_REGION`, `BEDROCK_MODEL`, `BEDROCK_EMBEDDING_MODEL` |
+| 메일·OAuth | `RESEND_API_KEY`, `GITHUB_*`, `GOOGLE_*`, `FRONTEND_URL` |
+
+값 변경·유출 시에는 RDS 비밀번호·JWT·내부 키 순으로 **로테이션**한다.
