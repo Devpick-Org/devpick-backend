@@ -42,6 +42,8 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       AI_SERVER_URL: ${AI_SERVER_URL:-http://host.docker.internal:8000}
       AI_SERVER_INTERNAL_KEY: ${AI_SERVER_INTERNAL_KEY:-}
+    dns:
+      - 172.31.0.2  # AWS VPC DNS — ElastiCache 등 내부 hostname 해석용
     depends_on:
       postgres:
         condition: service_healthy
