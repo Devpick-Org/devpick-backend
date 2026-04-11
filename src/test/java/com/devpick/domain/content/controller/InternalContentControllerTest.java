@@ -51,7 +51,7 @@ class InternalContentControllerTest {
         return new NormalizedContentDto(
                 sourceName, "제목", null, canonicalUrl,
                 "2026-03-10T09:00:00Z", "미리보기", "본문", false, null, null, null, null, List.of(),
-                null, null, null, null
+                null, null, null, null, null, null, null, null
         );
     }
 

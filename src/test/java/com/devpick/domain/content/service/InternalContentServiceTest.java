@@ -79,6 +79,10 @@ class InternalContentServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
                 null
         );
     }
@@ -198,6 +202,10 @@ class InternalContentServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
                 null
         );
 
@@ -231,6 +239,10 @@ class InternalContentServiceTest {
                 null,
                 null,
                 List.of("java", "spring-boot", "unknown-tag"),
+                null,
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -290,6 +302,10 @@ class InternalContentServiceTest {
                 null,
                 null,
                 List.of("java"),
+                150,
+                null,
+                5000,
+                null,
                 true,
                 "<p>질문 본문</p>",
                 accepted,
@@ -357,6 +373,10 @@ class InternalContentServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
                 null
         );
 
@@ -370,5 +390,91 @@ class InternalContentServiceTest {
         internalContentService.ingest(List.of(dto));
 
         assertThat(captor.getValue().getIsOriginalVisible()).isFalse();
+    }
+
+    @Test
+    @DisplayName("SO score/viewCount 수신 → Content에 score, viewCount 저장")
+    void ingest_soScoreAndViewCount_savedCorrectly() {
+        NormalizedContentDto dto = new NormalizedContentDto(
+                "techblog",
+                "SO 질문",
+                null,
+                "https://stackoverflow.com/questions/2",
+                "2026-03-10T09:00:00Z",
+                "미리보기",
+                null,
+                true,
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                250,
+                null,
+                12000,
+                null,
+                true,
+                null,
+                null,
+                List.of()
+        );
+
+        given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
+                .willReturn(Optional.of(mockSource));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Content.class);
+        given(contentRepository.save(captor.capture()))
+                .willAnswer(inv -> inv.getArgument(0));
+
+        internalContentService.ingest(List.of(dto));
+
+        Content saved = captor.getValue();
+        assertThat(saved.getScore()).isEqualTo(250);
+        assertThat(saved.getViewCount()).isEqualTo(12000);
+        assertThat(saved.getLikes()).isNull();
+        assertThat(saved.getCommentsCount()).isNull();
+    }
+
+    @Test
+    @DisplayName("Velog likes/commentsCount 수신 → Content에 likes, commentsCount 저장")
+    void ingest_velogLikesAndComments_savedCorrectly() {
+        NormalizedContentDto dto = new NormalizedContentDto(
+                "techblog",
+                "Velog 게시글",
+                "author",
+                "https://velog.io/@author/post",
+                "2026-03-10T09:00:00Z",
+                "미리보기",
+                "본문",
+                true,
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                null,
+                87,
+                null,
+                23,
+                null,
+                null,
+                null,
+                List.of()
+        );
+
+        given(contentSourceRepository.findByNameAndIsActiveTrue("techblog"))
+                .willReturn(Optional.of(mockSource));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Content.class);
+        given(contentRepository.save(captor.capture()))
+                .willAnswer(inv -> inv.getArgument(0));
+
+        internalContentService.ingest(List.of(dto));
+
+        Content saved = captor.getValue();
+        assertThat(saved.getLikes()).isEqualTo(87);
+        assertThat(saved.getCommentsCount()).isEqualTo(23);
+        assertThat(saved.getScore()).isNull();
+        assertThat(saved.getViewCount()).isNull();
     }
 }
