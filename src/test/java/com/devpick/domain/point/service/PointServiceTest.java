@@ -179,7 +179,7 @@ class PointServiceTest {
 
         assertThat(response.totalPoints()).isEqualTo(150);
         assertThat(response.weeklyPoints()).isEqualTo(50);
-        assertThat(response.currentStreak()).isGreaterThanOrEqualTo(1);
+        assertThat(response.streak()).isGreaterThanOrEqualTo(1);
     }
 
     @Test
@@ -204,7 +204,7 @@ class PointServiceTest {
 
         PointSummaryResponse response = pointService.getSummary(userId);
 
-        assertThat(response.currentStreak()).isZero();
+        assertThat(response.streak()).isZero();
     }
 
     // ── getHistory ──────────────────────────────────────────────────
@@ -227,6 +227,23 @@ class PointServiceTest {
         assertThat(response.content().get(0).action()).isEqualTo("CONTENT_SCRAP");
         assertThat(response.totalElements()).isEqualTo(1L);
         assertThat(response.totalPages()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("getSummary — 응답 필드명이 streak (currentStreak 아님)")
+    void getSummary_responseFieldName_isStreak() {
+        ReflectionTestUtils.setField(user, "totalPoints", 100);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(pointLogRepository.sumPointsByUserIdAndEarnedAtBetween(
+                eq(userId), any(LocalDateTime.class), any(LocalDateTime.class))).willReturn(30);
+        given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId))
+                .willReturn(List.of());
+
+        PointSummaryResponse response = pointService.getSummary(userId);
+
+        assertThat(response.streak()).isZero();
+        assertThat(response.totalPoints()).isEqualTo(100);
+        assertThat(response.weeklyPoints()).isEqualTo(30);
     }
 
     @Test

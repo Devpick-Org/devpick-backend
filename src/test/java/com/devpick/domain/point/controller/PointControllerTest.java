@@ -87,7 +87,19 @@ class PointControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.totalPoints").value(500))
                 .andExpect(jsonPath("$.data.weeklyPoints").value(50))
-                .andExpect(jsonPath("$.data.currentStreak").value(3));
+                .andExpect(jsonPath("$.data.streak").value(3));
+    }
+
+    @Test
+    @DisplayName("GET /users/me/points - 응답 JSON 필드명이 streak이고 currentStreak 없음")
+    void getPoints_responseJsonFieldIsStreak() throws Exception {
+        PointSummaryResponse response = new PointSummaryResponse(200, 40, 5);
+        given(pointService.getSummary(userId)).willReturn(response);
+
+        mockMvc.perform(get("/users/me/points"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.streak").value(5))
+                .andExpect(jsonPath("$.data.currentStreak").doesNotExist());
     }
 
     @Test
