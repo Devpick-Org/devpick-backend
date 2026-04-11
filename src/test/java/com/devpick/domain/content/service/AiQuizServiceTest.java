@@ -102,7 +102,7 @@ class AiQuizServiceTest {
         AiQuizDocument.Question question = AiQuizDocument.Question.builder()
                 .id("q-1").type("multiple_choice").question("문제1")
                 .options(List.of(opt1, opt2))
-                .correctOptionId("opt-1").explanation("해설1").build();
+                .correctOptionId("opt-1").explanation("해설1").correctAnswer("").build();
 
         document = AiQuizDocument.builder()
                 .contentId(contentId.toString()).level(aiLevel).title("Spring 가이드")
@@ -115,7 +115,7 @@ class AiQuizServiceTest {
         // AllLevelsQuizResponse 구조에 맞는 AiQuizResult
         AiQuizResult.OptionResult optResult = new AiQuizResult.OptionResult("opt-1", "선택지1");
         AiQuizResult.QuestionResult qResult = new AiQuizResult.QuestionResult(
-                "q-1", "multiple_choice", "문제1", List.of(optResult), "opt-1", "해설1");
+                "q-1", "multiple_choice", "문제1", List.of(optResult), "opt-1", "해설1", "");
         AiQuizResult.LevelQuiz levelQuiz = new AiQuizResult.LevelQuiz(List.of(qResult), 1, 5);
         fastApiResult = new AiQuizResult(
                 contentId.toString(), "quiz-id-1", "Spring 가이드",

@@ -106,7 +106,7 @@ class AiSummaryServiceTest {
                 .coreSummary("핵심 요약")
                 .keyPoints(List.of("포인트1"))
                 .keywords(List.of("Spring"))
-                .difficulty("보통")
+                .difficulty("medium")
                 .nextRecommendation("다음 읽기")
                 .confidence(0.9)
                 .additionalQuestions(List.of("질문1"))
@@ -258,7 +258,7 @@ class AiSummaryServiceTest {
     void getSummary_redisCacheExpired_fallsBackToDynamoDb() throws JsonProcessingException {
         AiSummaryResponse expiredResponse = new AiSummaryResponse(
                 contentId.toString(), aiLevel, "핵심 요약", List.of("포인트1"), List.of("Spring"),
-                "보통", "다음 읽기", 0.9, List.of("질문1"),
+                "medium", "다음 읽기", 0.9, List.of("질문1"),
                 Instant.now().minus(8, ChronoUnit.DAYS),
                 Instant.now().minus(1, ChronoUnit.DAYS)
         );
@@ -282,14 +282,14 @@ class AiSummaryServiceTest {
     void getSummary_bothCachesExpired_callsFastApi() throws JsonProcessingException {
         AiSummaryResponse expiredRedisResponse = new AiSummaryResponse(
                 contentId.toString(), aiLevel, "핵심 요약", List.of(), List.of(),
-                "보통", "다음", 0.9, List.of(),
+                "medium", "다음", 0.9, List.of(),
                 Instant.now().minus(8, ChronoUnit.DAYS),
                 Instant.now().minus(1, ChronoUnit.DAYS)
         );
         AiSummaryDocument expiredDoc = AiSummaryDocument.builder()
                 .contentId(contentId.toString()).level(aiLevel)
                 .coreSummary("핵심 요약").keyPoints(List.of()).keywords(List.of())
-                .difficulty("보통").nextRecommendation("다음").confidence(0.9)
+                .difficulty("medium").nextRecommendation("다음").confidence(0.9)
                 .additionalQuestions(List.of())
                 .cachedAt(LocalDateTime.now().minusDays(8))
                 .expiresAt(LocalDateTime.now().minusDays(1))

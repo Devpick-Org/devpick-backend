@@ -197,7 +197,7 @@
           "coreSummary": { "type": "string" },
           "keyPoints": { "type": "array", "items": { "type": "string" } },
           "keywords": { "type": "array", "items": { "type": "string" } },
-          "difficulty": { "type": "string", "enum": ["쉬움", "보통", "어려움"] },
+          "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"], "description": "AI 서버와 동일 (easy/medium/hard)" },
           "nextRecommendation": { "type": "string" },
           "confidence": { "type": "number", "format": "double" },
           "additionalQuestions": { "type": "array", "items": { "type": "string" } },
@@ -241,9 +241,14 @@
                   }
                 },
                 "correctOptionId": { "type": "string", "description": "주관식은 빈 문자열." },
-                "explanation": { "type": "string", "description": "해설. 주관식은 자기 채점용 참고 텍스트." }
+                "explanation": { "type": "string", "description": "해설. 주관식은 자기 채점용 참고 텍스트." },
+                "correctAnswer": {
+                  "type": "string",
+                  "nullable": true,
+                  "description": "주관식(short_answer) 자동 채점용 모범 답. 객관식은 null 또는 빈 문자열. 구버전 캐시에는 없을 수 있음."
+                }
               },
-              "required": ["id", "type", "question", "options", "correctOptionId", "explanation"]
+              "required": ["id", "type", "question", "options", "correctOptionId", "explanation", "correctAnswer"]
             }
           },
           "passingCount": { "type": "integer" },

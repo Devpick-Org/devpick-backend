@@ -71,7 +71,7 @@ class AiQuizControllerTest {
 
         AiQuizResponse.Option opt = new AiQuizResponse.Option("opt-1", "선택지1");
         AiQuizResponse.Question question = new AiQuizResponse.Question(
-                "q-1", "multiple_choice", "문제1", List.of(opt), "opt-1", "해설1");
+                "q-1", "multiple_choice", "문제1", List.of(opt), "opt-1", "해설1", "");
 
         quizResponse = new AiQuizResponse(
                 contentId.toString(), "Spring 가이드", "JUNIOR",

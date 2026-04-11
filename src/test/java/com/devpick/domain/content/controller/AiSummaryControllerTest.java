@@ -65,7 +65,7 @@ class AiSummaryControllerTest {
 
         summaryResponse = new AiSummaryResponse(
                 contentId.toString(), "JUNIOR", "핵심 요약",
-                List.of("포인트1"), List.of("Spring"), "보통",
+                List.of("포인트1"), List.of("Spring"), "medium",
                 "다음 읽기", 0.9, List.of("질문1"),
                 Instant.now(), Instant.now().plusSeconds(7 * 24 * 3600)
         );

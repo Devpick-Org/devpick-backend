@@ -29,7 +29,9 @@ public record AiQuizResponse(
             String question,
             List<Option> options,
             String correctOptionId,
-            String explanation
+            String explanation,
+            /** 주관식 자동 채점용 모범 답. 객관식은 null 또는 빈 문자열. */
+            String correctAnswer
     ) {}
 
     public record Option(
@@ -47,7 +49,8 @@ public record AiQuizResponse(
                                 .map(o -> new Option(o.getId(), o.getText()))
                                 .toList(),
                         q.getCorrectOptionId(),
-                        q.getExplanation()
+                        q.getExplanation(),
+                        q.getCorrectAnswer()
                 ))
                 .toList();
 

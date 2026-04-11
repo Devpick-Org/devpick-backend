@@ -573,7 +573,7 @@ class AuthControllerTest {
 |------|------|
 | `src/main/java/com/devpick/CLAUDE.md` | 도메인/DB 구조 상세 |
 | `TRB.md` | 트러블슈팅 로그 전체 (TRB-001 ~ TRB-005) |
-| `docs/통신.md` | FastAPI ↔ Spring 서버 간 통신 스펙 (POST /internal/contents, /api/summary, /api/refine, /api/answer 계약) |
+| `docs/통신.md` | FastAPI ↔ Spring 서버 간 통신 스펙 (`POST /internal/contents`, Spring→FastAPI `POST /internal/*` + `X-Internal-Key`) |
 | `docs/proposal.md` | 캡스톤 제안서 초안 |
 | `hong.md` | 팀원 하영 온보딩 가이드 |
 | `.env.example` | 환경변수 목록 |

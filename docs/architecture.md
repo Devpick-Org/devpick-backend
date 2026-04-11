@@ -141,7 +141,7 @@ AiSummaryController.getSummary()
          confidence, additionalQuestions
        }
 
-⑤ AiSummaryRepository.save(doc)       [MongoDB, expiresAt = now+7일]
+⑤ AiSummaryRepository.save(doc)       [DynamoDB, TTL expires_at]
    Redis.set("summary:{id}:{level}")   [TTL 7일]
    HistoryRepository.save(ai_summary_viewed)
    PointService.earn(AI_SUMMARY_VIEW)
@@ -173,7 +173,7 @@ AiSummaryController.getSummary()
          passingCount, estimatedMinutes
        }
 
-⑥ AiQuizRepository.save(doc)          [MongoDB, expiresAt = now+7일]
+⑥ AiQuizRepository.save(doc)          [DynamoDB, TTL expires_at]
    Redis.set("quiz:{id}:{level}")      [TTL 7일]
 ```
 

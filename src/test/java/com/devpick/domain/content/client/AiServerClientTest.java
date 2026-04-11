@@ -77,7 +77,7 @@ class AiServerClientTest {
 
     private static AiQuizResult sampleQuizResult() {
         AiQuizResult.QuestionResult q = new AiQuizResult.QuestionResult(
-                "q1", "multiple_choice", "Q?", List.of(), "A", "exp");
+                "q1", "multiple_choice", "Q?", List.of(), "A", "exp", "");
         AiQuizResult.LevelQuiz lq = new AiQuizResult.LevelQuiz(List.of(q), 1, 5);
         return new AiQuizResult("cid", "qid", "title", lq, lq, lq, lq, "2024-01-01T00:00:00Z");
     }
