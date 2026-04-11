@@ -47,8 +47,8 @@ public class ContentTagService {
 
     /**
      * tagNames 중 tags 테이블에 존재하는 태그만 content_tags에 저장한다.
+     * 호출 측 트랜잭션에 참여한다 (자기호출 프록시 우회 방지를 위해 @Transactional 미선언).
      */
-    @Transactional
     public void save(Content content, List<String> tagNames) {
         if (tagNames == null || tagNames.isEmpty()) return;
         List<Tag> matched = tagRepository.findByNameIgnoreCaseIn(tagNames);
