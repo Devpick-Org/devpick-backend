@@ -20,4 +20,4 @@ RUN chown devpick:devpick app.jar
 USER devpick
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=docker", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
