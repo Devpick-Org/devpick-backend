@@ -26,6 +26,9 @@ aws:
 
 resend:
   api-key: ${RESEND_API_KEY}
+# Brevo 발신에 쓸 이메일(Brevo에서 검증된 발신자). 기본: parkhyun9859@gmail.com
+brevo:
+  sender-email: ${BREVO_SENDER_EMAIL:parkhyun9859@gmail.com}
 
 jwt:
   secret: ${JWT_SECRET}

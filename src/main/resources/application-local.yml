@@ -55,6 +55,8 @@ aws:
 
 resend:
   api-key: ${RESEND_API_KEY:local-dummy-key}
+brevo:
+  sender-email: ${BREVO_SENDER_EMAIL:parkhyun9859@gmail.com}
 
 logging:
   level:
