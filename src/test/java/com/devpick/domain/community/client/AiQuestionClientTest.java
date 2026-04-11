@@ -42,7 +42,7 @@ class AiQuestionClientTest {
     void setUp() {
         ReflectionTestUtils.setField(aiQuestionClient, "aiServerUrl", "http://localhost:8000");
         ReflectionTestUtils.setField(aiQuestionClient, "internalKey", "test-internal-key");
-        request = new QuestionRefineRequest("제목", "본문", Level.JUNIOR);
+        request = new QuestionRefineRequest("제목", "본문", Level.JUNIOR, null);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

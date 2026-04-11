@@ -68,13 +68,14 @@ class SimilarQuestionClientTest {
     @DisplayName("정상 응답 시 UUID 목록을 반환한다")
     void searchSimilar_success_returnsUuidList() {
         UUID similarId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
         SimilarQuestionClient.SimilarQuestionItem item =
                 new SimilarQuestionClient.SimilarQuestionItem(similarId.toString(), 0.95f);
         SimilarQuestionClient.SimilarQuestionFastApiResponse fakeResponse =
                 new SimilarQuestionClient.SimilarQuestionFastApiResponse(List.of(item), 1);
         mockWebClientChain(fakeResponse);
 
-        List<UUID> result = similarQuestionClient.searchSimilar(postId, "Spring 질문", 5);
+        List<UUID> result = similarQuestionClient.searchSimilar(postId, userId, "Spring 질문", 5);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0)).isEqualTo(similarId);
@@ -87,7 +88,7 @@ class SimilarQuestionClientTest {
                 new SimilarQuestionClient.SimilarQuestionFastApiResponse(List.of(), 0);
         mockWebClientChain(fakeResponse);
 
-        List<UUID> result = similarQuestionClient.searchSimilar(postId, "Spring 질문", 5);
+        List<UUID> result = similarQuestionClient.searchSimilar(postId, null, "Spring 질문", 5);
 
         assertThat(result).isEmpty();
     }
@@ -97,7 +98,7 @@ class SimilarQuestionClientTest {
     void searchSimilar_nullResponse_throwsAiServerError() {
         mockWebClientChain(null);
 
-        assertThatThrownBy(() -> similarQuestionClient.searchSimilar(postId, "Spring 질문", 5))
+        assertThatThrownBy(() -> similarQuestionClient.searchSimilar(postId, null, "Spring 질문", 5))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.AI_SERVER_ERROR));
@@ -108,7 +109,7 @@ class SimilarQuestionClientTest {
     void searchSimilar_webClientException_throwsAiServerError() {
         mockWebClientChain(WebClientResponseException.create(500, "Internal Server Error", null, null, null));
 
-        assertThatThrownBy(() -> similarQuestionClient.searchSimilar(postId, "Spring 질문", 5))
+        assertThatThrownBy(() -> similarQuestionClient.searchSimilar(postId, null, "Spring 질문", 5))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.AI_SERVER_ERROR));

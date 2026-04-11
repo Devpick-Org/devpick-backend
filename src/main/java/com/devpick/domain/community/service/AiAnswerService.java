@@ -3,8 +3,10 @@ package com.devpick.domain.community.service;
 import com.devpick.domain.community.client.AiAnswerClient;
 import com.devpick.domain.community.dto.AiAnswerResponse;
 import com.devpick.domain.community.entity.AiAnswer;
+import com.devpick.domain.community.entity.AiQuestion;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.repository.AiAnswerRepository;
+import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -19,6 +21,7 @@ import java.util.UUID;
 public class AiAnswerService {
 
     private final AiAnswerRepository aiAnswerRepository;
+    private final AiQuestionRepository aiQuestionRepository;
     private final PostRepository postRepository;
     private final AiAnswerClient aiAnswerClient;
 
@@ -30,7 +33,9 @@ public class AiAnswerService {
         return aiAnswerRepository.findByPost_Id(postId)
                 .map(AiAnswerResponse::of)
                 .orElseGet(() -> {
-                    String content = aiAnswerClient.generateAnswer(post);
+                    // refine 결과가 있으면 refined 데이터를 사용, 없으면 original 그대로 전달
+                    AiQuestion aiQuestion = aiQuestionRepository.findByPost_Id(postId).orElse(null);
+                    String content = aiAnswerClient.generateAnswer(post, aiQuestion);
                     AiAnswer saved = aiAnswerRepository.save(AiAnswer.builder()
                             .post(post)
                             .content(content)

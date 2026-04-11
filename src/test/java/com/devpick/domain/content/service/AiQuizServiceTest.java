@@ -71,6 +71,7 @@ class AiQuizServiceTest {
     private UUID userId;
     private UUID contentId;
     private String level;
+    private String aiLevel;
     private Content content;
     private User user;
     private AiQuizDocument document;
@@ -82,12 +83,15 @@ class AiQuizServiceTest {
         userId = UUID.randomUUID();
         contentId = UUID.randomUUID();
         level = "JUNIOR";
+        aiLevel = "junior";  // AiSummaryService.toAiServerLevel("JUNIOR")
 
         ContentSource source = ContentSource.builder()
                 .name("Velog").url("https://velog.io").collectMethod("graphql").build();
         content = Content.builder()
                 .source(source).title("Spring 가이드")
-                .canonicalUrl("https://velog.io/@test/spring").build();
+                .canonicalUrl("https://velog.io/@test/spring")
+                .originalContent("Spring Framework 본문 내용입니다.")
+                .build();
 
         user = User.builder()
                 .email("test@devpick.kr").nickname("tester")
@@ -96,21 +100,27 @@ class AiQuizServiceTest {
         AiQuizDocument.Option opt1 = AiQuizDocument.Option.builder().id("opt-1").text("선택지1").build();
         AiQuizDocument.Option opt2 = AiQuizDocument.Option.builder().id("opt-2").text("선택지2").build();
         AiQuizDocument.Question question = AiQuizDocument.Question.builder()
-                .id("q-1").question("문제1").options(List.of(opt1, opt2))
+                .id("q-1").type("multiple_choice").question("문제1")
+                .options(List.of(opt1, opt2))
                 .correctOptionId("opt-1").explanation("해설1").build();
 
         document = AiQuizDocument.builder()
-                .contentId(contentId.toString()).level(level).title("Spring 가이드")
+                .contentId(contentId.toString()).level(aiLevel).title("Spring 가이드")
                 .questions(List.of(question)).passingCount(1).estimatedMinutes(5)
                 .cachedAt(LocalDateTime.now()).expiresAt(LocalDateTime.now().plusDays(7))
                 .build();
 
         quizResponse = AiQuizResponse.of(document, null);
 
+        // AllLevelsQuizResponse 구조에 맞는 AiQuizResult
         AiQuizResult.OptionResult optResult = new AiQuizResult.OptionResult("opt-1", "선택지1");
         AiQuizResult.QuestionResult qResult = new AiQuizResult.QuestionResult(
-                "q-1", "문제1", List.of(optResult), "opt-1", "해설1");
-        fastApiResult = new AiQuizResult(List.of(qResult), 1, 5);
+                "q-1", "multiple_choice", "문제1", List.of(optResult), "opt-1", "해설1");
+        AiQuizResult.LevelQuiz levelQuiz = new AiQuizResult.LevelQuiz(List.of(qResult), 1, 5);
+        fastApiResult = new AiQuizResult(
+                contentId.toString(), "quiz-id-1", "Spring 가이드",
+                levelQuiz, levelQuiz, levelQuiz, levelQuiz,
+                "2024-01-01T00:00:00Z");
 
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOps);
     }
@@ -154,13 +164,13 @@ class AiQuizServiceTest {
     }
 
     @Test
-    @DisplayName("getQuiz — Redis 미스, MongoDB 히트 시 FastAPI 미호출")
-    void getQuiz_mongodbCacheHit_returnsCached() throws JsonProcessingException {
+    @DisplayName("getQuiz — Redis 미스, DynamoDB 히트 시 FastAPI 미호출 (aiLevel 키 사용)")
+    void getQuiz_dynamoDbCacheHit_returnsCached() throws JsonProcessingException {
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
         given(quizAttemptRepository.findTopByUser_IdAndContent_IdOrderByCreatedAtDesc(userId, contentId))
                 .willReturn(Optional.empty());
         given(valueOps.get(anyString())).willReturn(null);
-        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), level))
+        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
                 .willReturn(Optional.of(document));
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
 
@@ -171,21 +181,22 @@ class AiQuizServiceTest {
     }
 
     @Test
-    @DisplayName("getQuiz — 캐시 미스 시 FastAPI 호출 후 저장")
+    @DisplayName("getQuiz — 캐시 미스 시 FastAPI /internal/quiz 호출 후 저장")
     void getQuiz_cacheMiss_callsFastApiAndSaves() throws JsonProcessingException {
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
         given(quizAttemptRepository.findTopByUser_IdAndContent_IdOrderByCreatedAtDesc(userId, contentId))
                 .willReturn(Optional.empty());
         given(valueOps.get(anyString())).willReturn(null);
-        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), level)).willReturn(Optional.empty());
-        given(aiServerClient.fetchQuiz(contentId, level)).willReturn(fastApiResult);
+        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
+                .willReturn(Optional.empty());
+        given(aiServerClient.fetchQuiz(eq(contentId), anyString())).willReturn(fastApiResult);
         given(aiQuizRepository.save(any())).willReturn(document);
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
 
         AiQuizResponse response = aiQuizService.getQuiz(userId, contentId, level);
 
         assertThat(response.title()).isEqualTo("Spring 가이드");
-        verify(aiServerClient).fetchQuiz(contentId, level);
+        verify(aiServerClient).fetchQuiz(eq(contentId), anyString());
         verify(aiQuizRepository).save(any(AiQuizDocument.class));
     }
 
@@ -208,8 +219,9 @@ class AiQuizServiceTest {
         given(quizAttemptRepository.findTopByUser_IdAndContent_IdOrderByCreatedAtDesc(userId, contentId))
                 .willReturn(Optional.empty());
         given(valueOps.get(anyString())).willReturn(null);
-        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), level)).willReturn(Optional.empty());
-        given(aiServerClient.fetchQuiz(contentId, level))
+        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
+                .willReturn(Optional.empty());
+        given(aiServerClient.fetchQuiz(eq(contentId), anyString()))
                 .willThrow(new DevpickException(ErrorCode.AI_SERVER_ERROR));
 
         assertThatThrownBy(() -> aiQuizService.getQuiz(userId, contentId, level))
@@ -280,10 +292,10 @@ class AiQuizServiceTest {
     }
 
     @Test
-    @DisplayName("getQuiz — Redis 캐시 만료 → MongoDB fallback, attempt 이력 반영")
-    void getQuiz_redisCacheExpired_fallsBackToMongodb() throws JsonProcessingException {
+    @DisplayName("getQuiz — Redis 캐시 만료 → DynamoDB fallback, attempt 이력 반영")
+    void getQuiz_redisCacheExpired_fallsBackToDynamoDb() throws JsonProcessingException {
         AiQuizResponse expiredResponse = new AiQuizResponse(
-                contentId.toString(), "Spring 가이드", level, List.of(),
+                contentId.toString(), "Spring 가이드", aiLevel, List.of(),
                 1, 5, Instant.now().minus(8, ChronoUnit.DAYS), Instant.now().minus(1, ChronoUnit.DAYS),
                 false, null, null, null
         );
@@ -296,7 +308,7 @@ class AiQuizServiceTest {
                 .willReturn(Optional.of(attempt));
         given(valueOps.get(anyString())).willReturn("{\"expired\":true}");
         given(objectMapper.readValue(anyString(), eq(AiQuizResponse.class))).willReturn(expiredResponse);
-        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), level))
+        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
                 .willReturn(Optional.of(document));
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
 
@@ -306,5 +318,22 @@ class AiQuizServiceTest {
         assertThat(response.lastPassed()).isFalse();
         assertThat(response.lastScore()).isEqualTo(2);
         verify(aiServerClient, never()).fetchQuiz(any(), any());
+    }
+
+    @Test
+    @DisplayName("getQuiz — 퀴즈 응답에 type 필드가 포함된다")
+    void getQuiz_responseContainsTypeField() throws JsonProcessingException {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(quizAttemptRepository.findTopByUser_IdAndContent_IdOrderByCreatedAtDesc(userId, contentId))
+                .willReturn(Optional.empty());
+        given(valueOps.get(anyString())).willReturn(null);
+        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
+                .willReturn(Optional.of(document));
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        AiQuizResponse response = aiQuizService.getQuiz(userId, contentId, level);
+
+        assertThat(response.questions()).hasSize(1);
+        assertThat(response.questions().get(0).type()).isEqualTo("multiple_choice");
     }
 }

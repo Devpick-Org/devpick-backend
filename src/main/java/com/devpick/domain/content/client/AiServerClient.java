@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -22,16 +23,28 @@ public class AiServerClient {
     @Value("${ai.server.url:http://localhost:8000}")
     private String aiServerUrl;
 
+    @Value("${ai.server.internal-key:}")
+    private String internalKey;
+
     /**
-     * 레벨별 온디맨드 요약 — {@code POST /api/summary} 호출.
-     * <p>현재 devpick-ai에는 해당 공개 경로가 없고, 배치용 {@code POST /internal/summaries}(4레벨 동시)만 존재한다.
-     * 계약 확정 전까지 캐시 미스 시 FastAPI 연동이 실패할 수 있으므로 {@code docs/통신.md}를 참고한다.
+     * 4레벨 동시 요약 — {@code POST /internal/summaries} 호출.
+     * text가 null이거나 비어 있으면 AI_SERVER_ERROR를 던진다.
      */
-    public AiSummaryResult fetchSummary(UUID contentId, String level) {
+    public AiSummaryResult fetchSummary(UUID contentId, String text, String thumbnailUrl) {
+        if (text == null || text.isBlank()) {
+            throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
+        }
         try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("content_id", contentId.toString());
+            body.put("text", text);
+            if (thumbnailUrl != null) {
+                body.put("thumbnail_url", thumbnailUrl);
+            }
             AiSummaryResult result = webClient.post()
-                    .uri(aiServerUrl + "/api/summary")
-                    .bodyValue(Map.of("content_id", contentId.toString(), "level", level))
+                    .uri(aiServerUrl + "/internal/summaries")
+                    .header("X-Internal-Key", internalKey)
+                    .bodyValue(body)
                     .retrieve()
                     .bodyToMono(AiSummaryResult.class)
                     .block();
@@ -45,12 +58,22 @@ public class AiServerClient {
         }
     }
 
-    /** 레벨별 퀴즈 — {@code POST /api/quiz} 호출. devpick-ai에 해당 엔드포인트가 없으면 연동 실패 가능. */
-    public AiQuizResult fetchQuiz(UUID contentId, String level) {
+    /**
+     * 4레벨 동시 퀴즈 생성 — {@code POST /internal/quiz} 호출.
+     * text가 null이거나 비어 있으면 AI_SERVER_ERROR를 던진다.
+     */
+    public AiQuizResult fetchQuiz(UUID contentId, String text) {
+        if (text == null || text.isBlank()) {
+            throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
+        }
         try {
             AiQuizResult result = webClient.post()
-                    .uri(aiServerUrl + "/api/quiz")
-                    .bodyValue(Map.of("content_id", contentId.toString(), "level", level))
+                    .uri(aiServerUrl + "/internal/quiz")
+                    .header("X-Internal-Key", internalKey)
+                    .bodyValue(Map.of(
+                            "content_id", contentId.toString(),
+                            "text", text
+                    ))
                     .retrieve()
                     .bodyToMono(AiQuizResult.class)
                     .block();

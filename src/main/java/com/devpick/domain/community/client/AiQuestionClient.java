@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,13 +33,17 @@ public class AiQuestionClient {
      */
     public QuestionRefineResponse refine(QuestionRefineRequest request) {
         try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("title", request.title());
+            body.put("content", request.content());
+            if (request.postId() != null) {
+                body.put("question_id", request.postId().toString());
+            }
+
             RefineFastApiResponse response = webClient.post()
                     .uri(aiServerUrl + "/internal/refine")
                     .header("X-Internal-Key", internalKey)
-                    .bodyValue(Map.of(
-                            "title", request.title(),
-                            "content", request.content()
-                    ))
+                    .bodyValue(body)
                     .retrieve()
                     .bodyToMono(RefineFastApiResponse.class)
                     .block();

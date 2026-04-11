@@ -56,20 +56,23 @@ public class AiQuizService {
         var content = contentRepository.findByIdAndIsAvailableTrue(contentId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
 
+        // AI 서버가 DynamoDB에 저장하는 level 키 (beginner, junior, mid, senior)
+        String aiLevel = AiSummaryService.toAiServerLevel(level);
+
         // 이전 시도 이력 조회 (항상 fresh)
         QuizAttempt lastAttempt = quizAttemptRepository
                 .findTopByUser_IdAndContent_IdOrderByCreatedAtDesc(userId, contentId)
                 .orElse(null);
 
         // 1. Redis 캐시 조회 (퀴즈 콘텐츠만 캐시 — 유저별 이력은 별도 조회)
-        String redisKey = buildRedisKey(contentId, level);
+        String redisKey = buildRedisKey(contentId, aiLevel);
         AiQuizResponse cached = getFromRedis(redisKey);
         if (cached != null && cached.expiresAt() != null && cached.expiresAt().isAfter(Instant.now())) {
             return mergeWithAttempt(cached, lastAttempt);
         }
 
-        // 2. MongoDB 캐시 조회
-        Optional<AiQuizDocument> docOpt = aiQuizRepository.findByContentIdAndLevel(contentId.toString(), level);
+        // 2. DynamoDB 캐시 조회
+        Optional<AiQuizDocument> docOpt = aiQuizRepository.findByContentIdAndLevel(contentId.toString(), aiLevel);
         if (docOpt.isPresent() && docOpt.get().getExpiresAt() != null
                 && docOpt.get().getExpiresAt().isAfter(LocalDateTime.now())) {
             AiQuizDocument doc = docOpt.get();
@@ -77,9 +80,10 @@ public class AiQuizService {
             return AiQuizResponse.of(doc, lastAttempt);
         }
 
-        // 3. FastAPI 호출
-        AiQuizResult result = aiServerClient.fetchQuiz(contentId, level);
-        AiQuizDocument doc = buildDocument(contentId, content.getTitle(), level, result);
+        // 3. FastAPI /internal/quiz 호출 (4레벨 동시 생성)
+        AiQuizResult result = aiServerClient.fetchQuiz(contentId, content.getOriginalContent());
+        // 요청된 레벨만 저장 (나머지 레벨은 파이프라인에서 처리)
+        AiQuizDocument doc = buildDocument(contentId, content.getTitle(), aiLevel, result.levelQuiz(aiLevel));
         aiQuizRepository.save(doc);
 
         saveToRedis(redisKey, AiQuizResponse.of(doc, null));
@@ -140,16 +144,17 @@ public class AiQuizService {
         );
     }
 
-    private String buildRedisKey(UUID contentId, String level) {
-        return "quiz:" + contentId + ":" + level;
+    private String buildRedisKey(UUID contentId, String aiLevel) {
+        return "quiz:" + contentId + ":" + aiLevel;
     }
 
-    private AiQuizDocument buildDocument(UUID contentId, String title, String level, AiQuizResult result) {
+    private AiQuizDocument buildDocument(UUID contentId, String title, String aiLevel, AiQuizResult.LevelQuiz levelQuiz) {
         LocalDateTime now = LocalDateTime.now();
 
-        List<AiQuizDocument.Question> questions = result.questions().stream()
+        List<AiQuizDocument.Question> questions = levelQuiz.questions().stream()
                 .map(q -> AiQuizDocument.Question.builder()
                         .id(q.id())
+                        .type(q.type())
                         .question(q.question())
                         .options(q.options().stream()
                                 .map(o -> AiQuizDocument.Option.builder()
@@ -164,11 +169,11 @@ public class AiQuizService {
 
         return AiQuizDocument.builder()
                 .contentId(contentId.toString())
-                .level(level)
+                .level(aiLevel)
                 .title(title)
                 .questions(questions)
-                .passingCount(result.passingCount())
-                .estimatedMinutes(result.estimatedMinutes())
+                .passingCount(levelQuiz.passingCount())
+                .estimatedMinutes(levelQuiz.estimatedMinutes())
                 .cachedAt(now)
                 .expiresAt(now.plusDays(CACHE_TTL_DAYS))
                 .build();

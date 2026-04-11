@@ -85,6 +85,8 @@ public class AiQuizDocument {
     public static class Question {
 
         private String id;
+        /** "multiple_choice" 또는 "short_answer" */
+        private String type;
         private String question;
         private List<Option> options;
         private String correctOptionId;
@@ -93,6 +95,11 @@ public class AiQuizDocument {
         @DynamoDbAttribute("id")
         public String getId() {
             return id;
+        }
+
+        @DynamoDbAttribute("type")
+        public String getType() {
+            return type;
         }
 
         @DynamoDbAttribute("question")
