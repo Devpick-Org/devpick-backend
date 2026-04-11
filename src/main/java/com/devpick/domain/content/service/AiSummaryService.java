@@ -144,13 +144,23 @@ public class AiSummaryService {
     }
 
     public Optional<String> findCachedCoreSummary(UUID contentId, String level) {
-        String aiLevel = toAiServerLevel(level);
-        AiSummaryResponse cached = getFromRedis(buildRedisKey(contentId, aiLevel));
-        if (cached != null) {
-            return Optional.ofNullable(cached.coreSummary());
+        try {
+            String aiLevel = toAiServerLevel(level);
+            AiSummaryResponse cached = getFromRedis(buildRedisKey(contentId, aiLevel));
+            if (cached != null) {
+                return Optional.ofNullable(cached.coreSummary());
+            }
+            return aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel)
+                    .map(AiSummaryDocument::getCoreSummary);
+        } catch (Exception e) {
+            log.warn(
+                    "findCachedCoreSummary 실패 — 피드는 preview로 계속: contentId={}, level={}, msg={}",
+                    contentId,
+                    level,
+                    e.getMessage()
+            );
+            return Optional.empty();
         }
-        return aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel)
-                .map(AiSummaryDocument::getCoreSummary);
     }
 
     private void recordHistory(UUID userId, UUID contentId) {
