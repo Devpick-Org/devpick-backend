@@ -11,6 +11,8 @@ import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.common.exception.GlobalExceptionHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -26,7 +29,10 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,7 +48,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ReportControllerTest {
 
     private MockMvc mockMvc;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     @Mock
     private WeeklyReportService weeklyReportService;
@@ -60,6 +68,7 @@ class ReportControllerTest {
                 .standaloneSetup(reportController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
+                .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
                 .build();
 
         userId = UUID.randomUUID();
@@ -79,10 +88,13 @@ class ReportControllerTest {
                 List.of(new ChartDataResponse.TagActivity("Java", 5))
         );
 
+        Instant weekStartInstant = LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant weekEndInstant = LocalDate.now().with(DayOfWeek.MONDAY).plusDays(6).atStartOfDay().toInstant(ZoneOffset.UTC);
+
         reportResponse = new WeeklyReportResponse(
                 reportId,
-                LocalDate.now().with(java.time.DayOfWeek.MONDAY),
-                LocalDate.now().with(java.time.DayOfWeek.MONDAY).plusDays(6),
+                weekStartInstant,
+                weekEndInstant,
                 "generated",
                 false,
                 List.of(activity),
@@ -101,8 +113,8 @@ class ReportControllerTest {
     void getReportList_success_returns200() throws Exception {
         ReportSummaryResponse summary = new ReportSummaryResponse(
                 reportId,
-                LocalDate.now().with(java.time.DayOfWeek.MONDAY),
-                LocalDate.now().with(java.time.DayOfWeek.MONDAY).plusDays(6),
+                LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay().toInstant(ZoneOffset.UTC),
+                LocalDate.now().with(DayOfWeek.MONDAY).plusDays(6).atStartOfDay().toInstant(ZoneOffset.UTC),
                 "generated"
         );
         given(weeklyReportService.getReportList(userId)).willReturn(List.of(summary));
@@ -140,8 +152,8 @@ class ReportControllerTest {
         );
         WeeklyReportResponse responseWithInsight = new WeeklyReportResponse(
                 reportId,
-                LocalDate.now().with(java.time.DayOfWeek.MONDAY),
-                LocalDate.now().with(java.time.DayOfWeek.MONDAY).plusDays(6),
+                LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay().toInstant(ZoneOffset.UTC),
+                LocalDate.now().with(DayOfWeek.MONDAY).plusDays(6).atStartOfDay().toInstant(ZoneOffset.UTC),
                 "generated", false, reportResponse.activities(), reportResponse.chartData(), insight
         );
         given(weeklyReportService.getCurrentWeekReport(userId)).willReturn(responseWithInsight);
@@ -211,6 +223,34 @@ class ReportControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.reportId").value(reportId.toString()))
                 .andExpect(jsonPath("$.data.chartData").exists());
+    }
+
+    @Test
+    @DisplayName("GET /reports/weekly/list - weekStart가 ISO 8601 UTC 형식(Z suffix)으로 직렬화됨")
+    void getReportList_weekStartIsIso8601Format() throws Exception {
+        Instant weekStartInstant = LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay().toInstant(ZoneOffset.UTC);
+        ReportSummaryResponse summary = new ReportSummaryResponse(
+                reportId,
+                weekStartInstant,
+                weekStartInstant.plusSeconds(6 * 24 * 60 * 60),
+                "generated"
+        );
+        given(weeklyReportService.getReportList(userId)).willReturn(List.of(summary));
+
+        mockMvc.perform(get("/reports/weekly/list"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].weekStart").value(org.hamcrest.Matchers.endsWith("Z")));
+    }
+
+    @Test
+    @DisplayName("GET /reports/weekly - weekStart가 ISO 8601 UTC 형식(Z suffix)으로 직렬화됨")
+    void getCurrentWeekReport_weekStartIsIso8601Format() throws Exception {
+        given(weeklyReportService.getCurrentWeekReport(userId)).willReturn(reportResponse);
+
+        mockMvc.perform(get("/reports/weekly"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.weekStart").value(org.hamcrest.Matchers.endsWith("Z")))
+                .andExpect(jsonPath("$.data.weekEnd").value(org.hamcrest.Matchers.endsWith("Z")));
     }
 
     @Test

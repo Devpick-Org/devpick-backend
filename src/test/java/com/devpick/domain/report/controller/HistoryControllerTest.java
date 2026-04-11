@@ -233,7 +233,7 @@ class HistoryControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.totalPoints").value(1250))
                 .andExpect(jsonPath("$.data.weeklyPoints").value(320))
-                .andExpect(jsonPath("$.data.currentStreak").value(5));
+                .andExpect(jsonPath("$.data.streak").value(5));
     }
 
     @Test
