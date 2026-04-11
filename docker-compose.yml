@@ -1,3 +1,5 @@
+# EC2/배포: PostgreSQL + 앱만. Redis는 AWS ElastiCache 사용 — .env 에 REDIS_HOST 등 설정.
+# 로컬에서 Docker Redis 컨테이너를 쓰려면: docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 services:
   postgres:
     image: postgres:16-alpine
@@ -14,30 +16,21 @@ services:
       interval: 5s
       retries: 10
 
-  redis:
-    image: redis:7-alpine
-    command: redis-server --requirepass ${REDIS_PASSWORD}
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 5s
-      retries: 10
-
   app:
     build: .
     ports:
       - "8080:8080"
     environment:
+      SPRING_PROFILES_ACTIVE: docker,elasticache
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: devpick
       DB_USERNAME: devpick
       DB_PASSWORD: ${DB_PASSWORD}
       AWS_REGION: ${AWS_REGION:-ap-northeast-2}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_TOKEN_EXPIRY: 3600000
       JWT_REFRESH_TOKEN_EXPIRY: 604800000
@@ -50,8 +43,6 @@ services:
       AI_SERVER_URL: http://host.docker.internal:8000
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"

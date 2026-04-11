@@ -1,0 +1,9 @@
+# ElastiCache Redis — 클러스터 모드(구성 엔드포인트 clustercfg.*) 전용
+# EC2 배포 시 SPRING_PROFILES_ACTIVE 에 elasticache 포함 (예: docker,elasticache)
+spring:
+  data:
+    redis:
+      cluster:
+        nodes:
+          - "${REDIS_HOST}:${REDIS_PORT}"
+      password: ${REDIS_PASSWORD:}

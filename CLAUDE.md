@@ -31,14 +31,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 로컬 인프라 (Docker Compose)
 
 ```bash
-# PostgreSQL + Redis + Spring Boot 앱 전체 기동
-DB_PASSWORD=... REDIS_PASSWORD=... JWT_SECRET=... \
+# EC2/운영: PostgreSQL + 앱만, Redis는 ElastiCache (.env에 REDIS_HOST 등, 구성 엔드포인트 clustercfg.*)
+#   compose가 SPRING_PROFILES_ACTIVE=docker,elasticache 로 클러스터 Redis 연결(application-elasticache.yml)
+# 로컬에서 Docker Redis까지 쓸 때: docker-compose.local.yml 병합 (profile docker 만 — standalone Redis)
+DB_PASSWORD=... REDIS_HOST=... JWT_SECRET=... \
   RESEND_API_KEY=... GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=... \
   GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... \
   docker compose up -d
 
-# DB/캐시만 기동 (앱은 로컬에서 직접 실행할 때)
-docker compose up -d postgres redis
+# 로컬: Postgres + Docker Redis + 앱 (ElastiCache 없이)
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+
+# DB/캐시만 (앱은 로컬에서 직접 실행할 때) — Redis 컨테이너 포함
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres redis
 
 # 종료
 docker compose down
