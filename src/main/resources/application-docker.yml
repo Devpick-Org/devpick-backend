@@ -15,11 +15,6 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-  data:
-    redis:
-      host: ${REDIS_HOST:redis}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD}
 
 aws:
   region: ${AWS_REGION:ap-northeast-2}
@@ -56,3 +51,15 @@ cors:
 logging:
   level:
     com.devpick: INFO
+
+---
+# Docker Redis 컨테이너(로컬 compose) 전용 — elasticache 프로필이 없을 때만 적용 (EC2는 application-elasticache.yml 클러스터)
+spring:
+  config:
+    activate:
+      on-profile: "docker & !elasticache"
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
