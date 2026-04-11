@@ -7,3 +7,5 @@ spring:
         nodes:
           - "${REDIS_HOST}:${REDIS_PORT}"
       password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL:true}
