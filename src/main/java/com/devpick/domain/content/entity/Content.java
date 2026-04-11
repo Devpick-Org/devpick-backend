@@ -67,6 +67,13 @@ public class Content extends BaseTimeEntity {
     @Column(name = "takedown_requested_at")
     private LocalDateTime takedownRequestedAt;
 
+    // AI 요약 완료 후 저장되는 분류 정보 (AI 레포 save_ai_metadata()가 직접 UPDATE)
+    @Column(name = "tags", columnDefinition = "TEXT")
+    private String tags;     // JSON 배열 문자열 예: ["Spring Boot","JPA"]
+
+    @Column(name = "category", length = 100)
+    private String category;
+
     // 소스별 참여 지표 (null for RSS sources)
     @Column(name = "score")
     private Integer score;         // SO 전용: 추천 순점수 (upvote - downvote, 음수 가능)

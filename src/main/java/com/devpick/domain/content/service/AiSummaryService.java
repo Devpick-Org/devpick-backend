@@ -43,6 +43,7 @@ public class AiSummaryService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final PointService pointService;
+    private final ContentTagService contentTagService;
 
     @Transactional
     public AiSummaryResponse getSummary(UUID userId, UUID contentId, String level) {
@@ -76,6 +77,9 @@ public class AiSummaryService {
         AiSummaryDocument doc = buildDocument(contentId, aiLevel, result.levelSummary(aiLevel), result.common());
         aiSummaryRepository.save(doc);
 
+        // content_tags가 아직 없을 때만 AI 생성 tags로 채운다 (최초 요약 시 1회)
+        contentTagService.saveIfAbsent(content, result.common().tags());
+
         AiSummaryResponse response = AiSummaryResponse.of(doc);
         saveToRedis(redisKey, response);
         recordHistory(userId, contentId);
@@ -97,6 +101,9 @@ public class AiSummaryService {
         AiSummaryResult result = aiServerClient.fetchSummary(contentId, content.getOriginalContent(), content.getThumbnailUrl());
         AiSummaryDocument doc = buildDocument(contentId, aiLevel, result.levelSummary(aiLevel), result.common());
         aiSummaryRepository.save(doc);
+
+        // 재시도 시 기존 content_tags 교체
+        contentTagService.replace(content, result.common().tags());
 
         AiSummaryResponse response = AiSummaryResponse.of(doc);
         saveToRedis(buildRedisKey(contentId, aiLevel), response);
