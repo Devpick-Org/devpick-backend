@@ -24,9 +24,12 @@ public record ContentDetailResponse(
         List<String> tags,
         boolean isScrapped,
         boolean isLiked,
-        // Stack Overflow 전용 필드 (비-SO 소스는 null)
-        Integer score,
-        Integer viewCount,
+        // 소스별 참여 지표 (null for RSS sources)
+        Integer score,         // SO 전용: 추천 순점수
+        Integer likes,         // Velog 전용: 좋아요 수
+        Integer viewCount,     // SO 전용: 조회수
+        Integer commentsCount, // Velog 전용: 댓글 수
+        // Stack Overflow 전용 구조화 필드 (비-SO 소스는 null)
         Boolean isAnswered,
         String questionContent,
         StackOverflowAnswerDto acceptedAnswer,
@@ -54,7 +57,9 @@ public record ContentDetailResponse(
                 isScrapped,
                 isLiked,
                 content.getScore(),
+                content.getLikes(),
                 content.getViewCount(),
+                content.getCommentsCount(),
                 content.getIsAnswered(),
                 content.getQuestionContent(),
                 content.getAcceptedAnswer(),
