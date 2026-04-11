@@ -1,11 +1,14 @@
 name: Backend CD
 
 # develop 머지 시 스테이징 배포, main 머지 시 프로덕션 배포
+# developV2 는 EC2 SSH 배포(deploy.yml)를 쓰므로 GHCR CD 는 실행하지 않되,
+# 동일 브랜치 푸시 시 "0 jobs / workflow file issue" 실패를 막기 위해 no-op job 을 둔다.
 on:
   push:
     branches:
       - develop
       - main
+      - developV2
 
 env:
   REGISTRY: ghcr.io
@@ -14,6 +17,7 @@ env:
 jobs:
   build-and-push:
     name: Build & Push Docker Image
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -61,6 +65,16 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  develop-v2-cd-skip:
+    name: Skip GHCR CD on developV2
+    if: github.ref == 'refs/heads/developV2'
+    runs-on: ubuntu-latest
+    steps:
+      - name: EC2 배포는 deploy.yml 사용
+        run: |
+          echo "developV2 브랜치는 GHCR Backend CD 대신 .github/workflows/deploy.yml(EC2 SSH)로 배포합니다."
+          echo "이 워크플로는 실패하지 않도록 no-op 으로 종료합니다."
 
   deploy-staging:
     name: Deploy to Staging
