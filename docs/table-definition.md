@@ -700,6 +700,7 @@ questions 내부 구조:
 - `options`: List<{id, text}>
 - `correct_option_id`: String
 - `explanation`: String
+- `correct_answer`: String (주관식 단답 자동 채점용; 객관식은 빈 문자열)
 
 연결:
 

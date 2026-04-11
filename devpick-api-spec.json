@@ -197,7 +197,7 @@
           "coreSummary": { "type": "string" },
           "keyPoints": { "type": "array", "items": { "type": "string" } },
           "keywords": { "type": "array", "items": { "type": "string" } },
-          "difficulty": { "type": "string", "enum": ["쉬움", "보통", "어려움"] },
+          "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"], "description": "AI 서버와 동일 (easy/medium/hard)" },
           "nextRecommendation": { "type": "string" },
           "confidence": { "type": "number", "format": "double" },
           "additionalQuestions": { "type": "array", "items": { "type": "string" } },

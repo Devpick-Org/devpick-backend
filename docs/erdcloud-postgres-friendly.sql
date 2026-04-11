@@ -3,7 +3,7 @@
 -- 1) UUID -> VARCHAR(36)
 -- 2) JSONB -> TEXT
 -- 3) PRIMARY KEY declared as table-level constraints
--- 4) MongoDB collections excluded
+-- 4) DynamoDB tables excluded
 
 CREATE TABLE users (
     id VARCHAR(36) NOT NULL,

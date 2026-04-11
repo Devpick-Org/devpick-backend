@@ -1,6 +1,6 @@
 -- Devpick PostgreSQL DDL for ERDCloud Import
 -- Import target: PostgreSQL
--- Scope: RDB tables only (MongoDB collections excluded)
+-- Scope: RDB tables only (DynamoDB tables excluded)
 
 CREATE TABLE users (
     id UUID PRIMARY KEY,

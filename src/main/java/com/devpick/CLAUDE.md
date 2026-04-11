@@ -82,75 +82,37 @@ ai_quiz_completed    — AI 퀴즈 통과 (학습 기록 O)
 
 ---
 
-## 3. MongoDB 컬렉션 (3개)
+## 3. DynamoDB 테이블 (AI 문서·RAG)
 
-### ai_quizzes
-```json
-{
-  "_id": "ObjectId",
-  "content_id": "UUID",
-  "level": "BEGINNER | JUNIOR | MIDDLE | SENIOR",
-  "title": "퀴즈 제목",
-  "questions": [
-    {
-      "id": "q1",
-      "question": "질문 텍스트",
-      "options": [{"id": "o1", "text": "선택지"}],
-      "correct_option_id": "o1",
-      "explanation": "해설"
-    }
-  ],
-  "passing_count": 3,
-  "estimated_minutes": 5,
-  "cached_at": "2026-03-29T00:00:00",
-  "expires_at": "2026-04-05T00:00:00"
-}
-```
-인덱스: `content_id + level` 복합 (UNIQUE)
+> PK/SK·TTL·속성 전체: **[docs/table-definition.md](../../../../docs/table-definition.md)** §4. 코드: `AiSummaryDocument`, `AiQuizDocument`, `WeeklyReportInsightDocument` 등.
 
 ### ai_summaries
-```json
-{
-  "_id": "ObjectId",
-  "content_id": "UUID",
-  "level": "입문 | 주니어 | 미들 | 시니어",
-  "core_summary": "핵심 요약 3~6문장",
-  "key_points": ["포인트1", "포인트2"],
-  "keywords": ["키워드1", "키워드2"],
-  "difficulty": "쉬움 | 보통 | 어려움",
-  "next_recommendation": "다음 읽을 글 1문장",
-  "confidence": 0.92,
-  "additional_questions": ["질문1"],
-  "cached_at": "2026-02-24T00:00:00Z",
-  "expires_at": "2026-03-03T00:00:00Z"
-}
-```
-인덱스: `content_id + level` 복합
+
+| 항목 | 설명 |
+|------|------|
+| 키 | `content_id`(Hash) + `level`(Range) |
+| difficulty | AI와 동일: `easy` \| `medium` \| `hard` (OpenAPI·저장값 일치) |
+| 기타 | `core_summary`, `key_points`, `keywords`, `next_recommendation`, `confidence`, `additional_questions`, `cached_at`, `expires_at`(TTL) |
+
+### ai_quizzes
+
+| 항목 | 설명 |
+|------|------|
+| 키 | `content_id`(Hash) + `level`(Range) |
+| `title` | 저장 시 콘텐츠 제목(글 제목) 사용 |
+| `questions[]` | `id`, `type`, `question`, `options`, `correct_option_id`, `explanation`, **`correct_answer`**(주관식 단답; 객관식은 `""`) |
+| 기타 | `passing_count`, `estimated_minutes`, `cached_at`, `expires_at`(TTL) |
 
 ### weekly_report_insights
-```json
-{
-  "_id": "ObjectId",
-  "report_id": "UUID",
-  "user_id": "UUID",
-  "well_done": "이번 주 React 글을 집중적으로 읽었어요",
-  "lacking": "백엔드 학습이 부족했어요",
-  "next_week": "Spring Boot 기초부터 시작해보세요",
-  "generated_at": "2026-02-24T00:00:00Z"
-}
-```
 
-### event_logs
-```json
-{
-  "_id": "ObjectId",
-  "user_id": "UUID",
-  "event_type": "content_opened",
-  "properties": { "content_id": "UUID", "tags": ["React"] },
-  "created_at": "2026-02-24T00:00:00Z"
-}
-```
-인덱스: `user_id`, `event_type`, `created_at`
+| 항목 | 설명 |
+|------|------|
+| 키 | `report_id`(Hash) |
+| 속성 | `user_id`, `well_done`, `lacking`, `next_week`, `generated_at` |
+
+### rag_documents / rag_questions
+
+RAG 청크·임베딩 메타데이터. 상세는 `docs/table-definition.md` §4.4~4.5.
 
 ---
 
@@ -168,9 +130,9 @@ ai_quiz_completed    — AI 퀴즈 통과 (학습 기록 O)
 
 **캐시 미스 처리 흐름:**
 ```
-캐시 미스 → MongoDB fallback (이전 결과 있으면 재사용)
+캐시 미스 → DynamoDB 조회 (이전 결과 있으면 재사용)
          → 없으면 FastAPI 호출
-         → Redis + MongoDB 동시 저장
+         → Redis + DynamoDB 저장
 ```
 
 **캐시 무효화:** 콘텐츠 업데이트 시 4개 레벨(입문/주니어/미들/시니어) 캐시 삭제
@@ -219,7 +181,7 @@ Stack Overflow API / Velog GraphQL / RSS
 
 ## 8. 이벤트 타입 전체 목록
 
-PRD 9번 기반 — MongoDB event_logs에 저장
+PRD 9번 기반 — 학습 행동은 PostgreSQL `history` 등으로 기록 (별도 MongoDB `event_logs` 컬렉션 없음)
 
 | 이벤트 | properties |
 |--------|------------|
