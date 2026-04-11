@@ -22,10 +22,10 @@ services:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: docker,elasticache
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: devpick
-      DB_USERNAME: devpick
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-devpick}
+      DB_USERNAME: ${DB_USERNAME:-devpick}
       DB_PASSWORD: ${DB_PASSWORD}
       AWS_REGION: ${AWS_REGION:-ap-northeast-2}
       REDIS_HOST: ${REDIS_HOST}
