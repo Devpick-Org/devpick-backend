@@ -40,7 +40,8 @@ class CorsConfigTest {
         assertThat(config.getAllowedOrigins()).containsExactlyInAnyOrder(
                 "http://localhost:3000",
                 "https://devpick.kr",
-                "https://www.devpick.kr"
+                "https://www.devpick.kr",
+                "https://trace-web.netlify.app"
         );
     }
 
