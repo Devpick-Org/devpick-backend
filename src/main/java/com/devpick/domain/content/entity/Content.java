@@ -67,12 +67,20 @@ public class Content extends BaseTimeEntity {
     @Column(name = "takedown_requested_at")
     private LocalDateTime takedownRequestedAt;
 
-    // Stack Overflow 전용 필드 (비-SO 소스는 null)
+    // 소스별 참여 지표 (null for RSS sources)
     @Column(name = "score")
-    private Integer score;
+    private Integer score;         // SO 전용: 추천 순점수 (upvote - downvote, 음수 가능)
+
+    @Column(name = "likes")
+    private Integer likes;         // Velog 전용: 좋아요 수
 
     @Column(name = "view_count")
-    private Integer viewCount;
+    private Integer viewCount;     // SO 전용: 조회수
+
+    @Column(name = "comments_count")
+    private Integer commentsCount; // Velog 전용: 댓글 수
+
+    // Stack Overflow 전용 구조화 필드
 
     @Column(name = "is_answered")
     private Boolean isAnswered;

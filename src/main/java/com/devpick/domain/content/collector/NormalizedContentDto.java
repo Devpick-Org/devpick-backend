@@ -26,6 +26,12 @@ public record NormalizedContentDto(
         @JsonProperty("thumbnail_height") Integer thumbnailHeight,
         @JsonProperty("license_type") String licenseType,
         List<String> tags,
+        // 소스별 참여 지표 (null for RSS sources)
+        Integer score,                                            // SO 전용: 추천 순점수 (음수 가능)
+        Integer likes,                                            // Velog 전용: 좋아요 수
+        @JsonProperty("view_count") Integer viewCount,           // SO 전용: 조회수
+        @JsonProperty("comments_count") Integer commentsCount,   // Velog 전용: 댓글 수
+        // Stack Overflow 전용 필드
         @JsonProperty("is_answered") Boolean isAnswered,
         @JsonProperty("question_content") String questionContent,
         @JsonProperty("accepted_answer") StackOverflowAnswerDto acceptedAnswer,
