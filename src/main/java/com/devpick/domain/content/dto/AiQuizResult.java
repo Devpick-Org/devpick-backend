@@ -31,7 +31,8 @@ public record AiQuizResult(
             @JsonProperty("question") String question,
             @JsonProperty("options") List<OptionResult> options,
             @JsonProperty("correct_option_id") String correctOptionId,
-            @JsonProperty("explanation") String explanation
+            @JsonProperty("explanation") String explanation,
+            @JsonProperty("correct_answer") String correctAnswer
     ) {}
 
     public record OptionResult(

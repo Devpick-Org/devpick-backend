@@ -164,6 +164,7 @@ public class AiQuizService {
                                 .toList())
                         .correctOptionId(q.correctOptionId())
                         .explanation(q.explanation())
+                        .correctAnswer(q.correctAnswer() != null ? q.correctAnswer() : "")
                         .build())
                 .toList();
 

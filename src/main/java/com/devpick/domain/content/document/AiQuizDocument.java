@@ -91,6 +91,7 @@ public class AiQuizDocument {
         private List<Option> options;
         private String correctOptionId;
         private String explanation;
+        private String correctAnswer;
 
         @DynamoDbAttribute("id")
         public String getId() {
@@ -120,6 +121,11 @@ public class AiQuizDocument {
         @DynamoDbAttribute("explanation")
         public String getExplanation() {
             return explanation;
+        }
+
+        @DynamoDbAttribute("correct_answer")
+        public String getCorrectAnswer() {
+            return correctAnswer;
         }
     }
 
