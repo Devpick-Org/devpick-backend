@@ -146,6 +146,21 @@ class WeeklyReportServiceTest {
     }
 
     @Test
+    @DisplayName("getCurrentWeekReport — weekStart/weekEnd가 null이면 Instant null 반환")
+    void getCurrentWeekReport_nullWeekDates_returnsNullInstants() {
+        ReflectionTestUtils.setField(report, "weekStart", null);
+        ReflectionTestUtils.setField(report, "weekEnd", null);
+        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
+                .willReturn(Optional.of(report));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+
+        WeeklyReportResponse response = weeklyReportService.getCurrentWeekReport(userId);
+
+        assertThat(response.weekStart()).isNull();
+        assertThat(response.weekEnd()).isNull();
+    }
+
+    @Test
     @DisplayName("getCurrentWeekReport — weekStart/weekEnd가 Instant 타입으로 반환됨")
     void getCurrentWeekReport_weekStartIsInstantType() {
         given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
@@ -337,6 +352,20 @@ class WeeklyReportServiceTest {
         assertThat(result.get(0).weekStart()).isInstanceOf(Instant.class);
         assertThat(result.get(0).weekEnd()).isInstanceOf(Instant.class);
         assertThat(result.get(0).weekStart()).isEqualTo(weekStart.atStartOfDay().toInstant(ZoneOffset.UTC));
+    }
+
+    @Test
+    @DisplayName("getReportList — weekStart/weekEnd가 null이면 Instant null 반환")
+    void getReportList_nullWeekDates_returnsNullInstants() {
+        ReflectionTestUtils.setField(report, "weekStart", null);
+        ReflectionTestUtils.setField(report, "weekEnd", null);
+        given(weeklyReportRepository.findByUserIdOrderByWeekStartDesc(userId))
+                .willReturn(List.of(report));
+
+        List<ReportSummaryResponse> result = weeklyReportService.getReportList(userId);
+
+        assertThat(result.get(0).weekStart()).isNull();
+        assertThat(result.get(0).weekEnd()).isNull();
     }
 
     @Test
