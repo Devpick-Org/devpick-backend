@@ -1,6 +1,7 @@
 package com.devpick.domain.community.dto;
 
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 
 import java.time.Instant;
@@ -13,6 +14,7 @@ public record PostSummaryResponse(
         Level level,
         UUID authorId,
         String authorNickname,
+        Job authorJob,
         String authorProfileImage,
         Instant createdAt
 ) {
@@ -23,6 +25,7 @@ public record PostSummaryResponse(
                 post.getLevel(),
                 post.getUser().getId(),
                 post.getUser().getNickname(),
+                post.getUser().getJob(),
                 post.getUser().getProfileImage(),
                 post.getCreatedAt() != null ? post.getCreatedAt().toInstant(ZoneOffset.UTC) : null
         );

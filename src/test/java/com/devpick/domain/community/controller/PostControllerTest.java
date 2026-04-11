@@ -6,6 +6,7 @@ import com.devpick.domain.community.dto.PostListResponse;
 import com.devpick.domain.community.dto.PostSummaryResponse;
 import com.devpick.domain.community.dto.PostUpdateRequest;
 import com.devpick.domain.community.service.PostService;
+import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -119,7 +120,7 @@ class PostControllerTest {
     @DisplayName("GET /posts - 목록 조회 성공 시 200과 목록 반환")
     void getPosts_success_returns200() throws Exception {
         PostSummaryResponse summary = new PostSummaryResponse(
-                postId, "Test Post", Level.JUNIOR, userId, "tester", null, Instant.now());
+                postId, "Test Post", Level.JUNIOR, userId, "tester", Job.BACKEND, null, Instant.now());
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
         given(postService.getPosts(any())).willReturn(listResponse);
 
@@ -127,7 +128,34 @@ class PostControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.posts[0].title").value("Test Post"))
+                .andExpect(jsonPath("$.data.posts[0].authorJob").value("BACKEND"))
                 .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /posts - 목록 응답에 authorJob 필드 포함")
+    void getPosts_responseIncludesAuthorJob() throws Exception {
+        PostSummaryResponse summary = new PostSummaryResponse(
+                postId, "Test Post", Level.JUNIOR, userId, "tester", Job.FRONTEND, null, Instant.now());
+        PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
+        given(postService.getPosts(any())).willReturn(listResponse);
+
+        mockMvc.perform(get("/posts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.posts[0].authorJob").value("FRONTEND"));
+    }
+
+    @Test
+    @DisplayName("GET /posts - authorJob이 null이어도 정상 반환")
+    void getPosts_nullAuthorJob_returns200() throws Exception {
+        PostSummaryResponse summary = new PostSummaryResponse(
+                postId, "Test Post", Level.JUNIOR, userId, "tester", null, null, Instant.now());
+        PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
+        given(postService.getPosts(any())).willReturn(listResponse);
+
+        mockMvc.perform(get("/posts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.posts[0].authorJob").doesNotExist());
     }
 
     @Test
