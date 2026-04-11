@@ -1,5 +1,6 @@
 package com.devpick.domain.report.service;
 
+import com.devpick.domain.report.client.AiReportClient;
 import com.devpick.domain.report.document.ReportInsightDocument;
 import com.devpick.domain.report.dto.ChartDataResponse;
 import com.devpick.domain.report.dto.ReportInsightResponse;
@@ -47,6 +48,7 @@ public class WeeklyReportService {
     private final HistoryRepository historyRepository;
     private final UserRepository userRepository;
     private final ReportInsightRepository reportInsightRepository;
+    private final AiReportClient aiReportClient;
     private final ObjectMapper objectMapper;
 
     // DP-256: 리포트 목록 조회 (드롭다운용 최소 필드)
@@ -178,7 +180,57 @@ public class WeeklyReportService {
                 .build();
 
         report.getActivities().add(activity);
-        return weeklyReportRepository.save(report);
+        WeeklyReport saved = weeklyReportRepository.save(report);
+
+        // AI 인사이트 생성 요청 (비동기 — 실패해도 리포트 생성에 영향 없음)
+        requestAiInsightAsync(user, saved, weekStart, weekEnd, activity);
+
+        return saved;
+    }
+
+    private void requestAiInsightAsync(User user, WeeklyReport report, LocalDate weekStart, LocalDate weekEnd, ReportActivity activity) {
+        try {
+            List<ChartDataResponse.TagActivity> tagActivities = parseJson(
+                    activity.getTagActivities(),
+                    new TypeReference<List<ChartDataResponse.TagActivity>>() {});
+            List<ChartDataResponse.DailyActivity> dailyActivities = parseJson(
+                    activity.getDailyActivities(),
+                    new TypeReference<List<ChartDataResponse.DailyActivity>>() {});
+
+            List<Map<String, Object>> topTagsMaps = parseJson(
+                    activity.getTopTags(),
+                    new TypeReference<List<Map<String, Object>>>() {});
+            List<Map<String, Object>> dailyMaps = dailyActivities.stream()
+                    .map(d -> Map.<String, Object>of("day_of_week", d.dayOfWeek(), "count", d.count()))
+                    .toList();
+            List<Map<String, Object>> tagMaps = tagActivities.stream()
+                    .map(t -> Map.<String, Object>of("tag_name", t.tagName(), "count", t.count()))
+                    .toList();
+
+            AiReportClient.ActivityData activityData = new AiReportClient.ActivityData(
+                    activity.getContentsRead(),
+                    activity.getQuestionsCreated(),
+                    activity.getScrapsCount(),
+                    topTagsMaps,
+                    dailyMaps,
+                    tagMaps,
+                    List.of(),
+                    List.of(),
+                    List.of()
+            );
+
+            AiReportClient.InsightRequest insightRequest = new AiReportClient.InsightRequest(
+                    report.getId().toString(),
+                    user.getId().toString(),
+                    weekStart.toString(),
+                    weekEnd.toString(),
+                    activityData
+            );
+
+            aiReportClient.requestInsight(insightRequest);
+        } catch (Exception e) {
+            log.warn("[WeeklyReport] AI 인사이트 요청 실패 reportId={}: {}", report.getId(), e.getMessage());
+        }
     }
 
     // topTags용: {"tag": name, "count": count} 형식, limit 3

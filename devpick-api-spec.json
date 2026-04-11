@@ -207,19 +207,31 @@
       },
       "AiQuizResponse": {
         "type": "object",
+        "description": "퀴즈 본문. DynamoDB 저장 시 level SK는 beginner/junior/mid/senior 형태이며, 응답의 level은 저장된 값과 동일할 수 있다. 쿼리 ?level=JUNIOR 등은 내부에서 junior 등으로 정규화된다.",
         "properties": {
           "contentId": { "type": "string", "format": "uuid" },
           "title": { "type": "string" },
-          "level": { "type": "string", "enum": ["BEGINNER", "JUNIOR", "MIDDLE", "SENIOR"] },
+          "level": {
+            "type": "string",
+            "description": "요청 레벨과 대응하는 저장 키. 예: JUNIOR 요청 → junior. (DynamoDB SK와 정렬)",
+            "example": "junior"
+          },
           "questions": {
             "type": "array",
+            "description": "문항 순서 고정: 객관식 2문항(q1,q2) → 주관식 1문항(q3).",
             "items": {
               "type": "object",
               "properties": {
-                "id": { "type": "string" },
+                "id": { "type": "string", "example": "q1" },
+                "type": {
+                  "type": "string",
+                  "enum": ["multiple_choice", "short_answer"],
+                  "description": "객관식(5지선다) 또는 주관식. 렌더링 분기에 사용."
+                },
                 "question": { "type": "string" },
                 "options": {
                   "type": "array",
+                  "description": "주관식은 빈 배열일 수 있음.",
                   "items": {
                     "type": "object",
                     "properties": {
@@ -228,9 +240,10 @@
                     }
                   }
                 },
-                "correctOptionId": { "type": "string" },
-                "explanation": { "type": "string" }
-              }
+                "correctOptionId": { "type": "string", "description": "주관식은 빈 문자열." },
+                "explanation": { "type": "string", "description": "해설. 주관식은 자기 채점용 참고 텍스트." }
+              },
+              "required": ["id", "type", "question", "options", "correctOptionId", "explanation"]
             }
           },
           "passingCount": { "type": "integer" },
@@ -245,10 +258,11 @@
       },
       "QuizSubmitRequest": {
         "type": "object",
+        "description": "퀴즈 제출. 주관식은 프론트 자기 채점 후 맞음/틀림을 반영한 score·passed를 전달한다.",
         "required": ["level", "score", "totalQuestions", "passed"],
         "properties": {
           "level": { "type": "string", "enum": ["BEGINNER", "JUNIOR", "MIDDLE", "SENIOR"] },
-          "score": { "type": "integer" },
+          "score": { "type": "integer", "description": "맞춘 문항 수 등 프론트 계산 결과" },
           "totalQuestions": { "type": "integer" },
           "passed": { "type": "boolean" }
         }
@@ -322,7 +336,13 @@
         "properties": {
           "title": { "type": "string", "maxLength": 500 },
           "content": { "type": "string" },
-          "level": { "$ref": "#/components/schemas/Level" }
+          "level": { "$ref": "#/components/schemas/Level" },
+          "postId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "기존 게시글에 대해 refine할 때 전달. 있으면 refine 결과가 ai_questions에 저장되어 AI 답변 생성 시 refined 문구가 사용된다."
+          }
         }
       },
       "QuestionRefineResponse": {
@@ -1143,7 +1163,7 @@
       "get": {
         "tags": ["AI Summary"],
         "summary": "레벨별 AI 요약 조회",
-        "description": "Redis 캐시(7일) → MongoDB fallback → FastAPI 호출 순서로 처리됩니다. 조회 시 ai_summary_viewed 히스토리가 기록됩니다.",
+        "description": "Redis 캐시(7일) → DynamoDB(ai_summaries) → FastAPI POST /internal/summaries 순서. 조회 시 ai_summary_viewed 히스토리가 기록됩니다.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "contentId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
@@ -1208,7 +1228,7 @@
       "get": {
         "tags": ["AI Quiz"],
         "summary": "AI 퀴즈 조회",
-        "description": "Redis 캐시(7일) → MongoDB fallback → FastAPI 호출 순서로 처리됩니다.",
+        "description": "Redis 캐시(7일) → DynamoDB(ai_quizzes) → FastAPI POST /internal/quiz 순서. 레벨 쿼리는 DynamoDB SK(beginner/junior/mid/senior)와 매핑된다. 각 문항에 type(multiple_choice|short_answer)이 포함된다.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "contentId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
@@ -1333,7 +1353,7 @@
       "post": {
         "tags": ["Community"],
         "summary": "AI 질문 개선",
-        "description": "FastAPI를 통해 질문 제목/내용을 개선합니다.",
+        "description": "FastAPI POST /internal/refine로 질문 제목/내용을 개선한다. 요청에 postId가 있으면 refine 결과를 DB(ai_questions)에 저장해 이후 AI 답변 생성 시 refined 문구를 사용한다.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,

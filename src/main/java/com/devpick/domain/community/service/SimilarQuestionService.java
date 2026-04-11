@@ -32,7 +32,8 @@ public class SimilarQuestionService {
                 .orElseThrow(() -> new DevpickException(ErrorCode.COMMUNITY_POST_NOT_FOUND));
 
         String searchText = post.getTitle() + " " + post.getContent();
-        List<UUID> similarIds = similarQuestionClient.searchSimilar(postId, searchText, 5);
+        UUID userId = post.getUser() != null ? post.getUser().getId() : null;
+        List<UUID> similarIds = similarQuestionClient.searchSimilar(postId, userId, searchText, 5);
 
         if (similarIds.isEmpty()) {
             return new SimilarPostListResponse(List.of());

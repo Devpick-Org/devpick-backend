@@ -8,6 +8,7 @@ import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.ContentSource;
 import com.devpick.domain.content.repository.AiSummaryRepository;
 import com.devpick.domain.content.repository.ContentRepository;
+import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
@@ -67,10 +68,13 @@ class AiSummaryServiceTest {
     private ObjectMapper objectMapper;
     @Mock
     private ValueOperations<String, String> valueOps;
+    @Mock
+    private PointService pointService;
 
     private UUID userId;
     private UUID contentId;
     private String level;
+    private String aiLevel;   // DynamoDB 키 ("junior")
     private Content content;
     private User user;
     private AiSummaryDocument document;
@@ -82,12 +86,15 @@ class AiSummaryServiceTest {
         userId = UUID.randomUUID();
         contentId = UUID.randomUUID();
         level = "JUNIOR";
+        aiLevel = "junior";  // AiSummaryService.toAiServerLevel("JUNIOR")
 
         ContentSource source = ContentSource.builder()
                 .name("Velog").url("https://velog.io").collectMethod("graphql").build();
         content = Content.builder()
                 .source(source).title("Spring 가이드")
-                .canonicalUrl("https://velog.io/@test/spring").build();
+                .canonicalUrl("https://velog.io/@test/spring")
+                .originalContent("Spring Framework 본문 내용입니다.")
+                .build();
 
         user = User.builder()
                 .email("test@devpick.kr").nickname("tester")
@@ -95,7 +102,7 @@ class AiSummaryServiceTest {
 
         document = AiSummaryDocument.builder()
                 .contentId(contentId.toString())
-                .level(level)
+                .level(aiLevel)
                 .coreSummary("핵심 요약")
                 .keyPoints(List.of("포인트1"))
                 .keywords(List.of("Spring"))
@@ -109,9 +116,15 @@ class AiSummaryServiceTest {
 
         summaryResponse = AiSummaryResponse.of(document);
 
+        // AllLevelsSummaryResponse 구조에 맞는 AiSummaryResult
+        AiSummaryResult.CommonSummary common = new AiSummaryResult.CommonSummary(
+                "한 줄 요약", List.of("Spring"), "Backend", List.of("Java"), "medium");
+        AiSummaryResult.LevelSummary levelSummary = new AiSummaryResult.LevelSummary(
+                "핵심 요약", List.of("포인트1"), List.of("질문1"), "다음 읽기", 0.9);
         fastApiResult = new AiSummaryResult(
-                "핵심 요약", List.of("포인트1"), List.of("Spring"),
-                "보통", "다음 읽기", 0.9, List.of("질문1"));
+                contentId.toString(), common,
+                levelSummary, levelSummary, levelSummary, levelSummary,
+                "2024-01-01T00:00:00Z", null);
 
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOps);
     }
@@ -126,39 +139,61 @@ class AiSummaryServiceTest {
         AiSummaryResponse response = aiSummaryService.getSummary(userId, contentId, level);
 
         assertThat(response.coreSummary()).isEqualTo("핵심 요약");
-        verify(aiServerClient, never()).fetchSummary(any(), any());
+        verify(aiServerClient, never()).fetchSummary(any(), any(), any());
         verify(aiSummaryRepository, never()).findByContentIdAndLevel(any(), any());
     }
 
     @Test
-    @DisplayName("getSummary — Redis 미스, MongoDB 히트 시 FastAPI 미호출")
-    void getSummary_mongodbCacheHit_returnsCached() throws JsonProcessingException {
+    @DisplayName("getSummary — Redis 미스, DynamoDB 히트 시 FastAPI 미호출 (level은 정규화된 값 사용)")
+    void getSummary_dynamoDbCacheHit_returnsCached() throws JsonProcessingException {
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
         given(valueOps.get(anyString())).willReturn(null);
-        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
                 .willReturn(Optional.of(document));
 
         AiSummaryResponse response = aiSummaryService.getSummary(userId, contentId, level);
 
         assertThat(response.coreSummary()).isEqualTo("핵심 요약");
-        verify(aiServerClient, never()).fetchSummary(any(), any());
+        verify(aiServerClient, never()).fetchSummary(any(), any(), any());
     }
 
     @Test
-    @DisplayName("getSummary — 캐시 미스 시 FastAPI 호출 후 저장")
+    @DisplayName("getSummary — 캐시 미스 시 FastAPI /internal/summaries 호출 후 저장")
     void getSummary_cacheMiss_callsFastApiAndSaves() throws JsonProcessingException {
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
         given(valueOps.get(anyString())).willReturn(null);
-        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level)).willReturn(Optional.empty());
-        given(aiServerClient.fetchSummary(contentId, level)).willReturn(fastApiResult);
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
+                .willReturn(Optional.empty());
+        given(aiServerClient.fetchSummary(eq(contentId), anyString(), any())).willReturn(fastApiResult);
         given(aiSummaryRepository.save(any())).willReturn(document);
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
 
         AiSummaryResponse response = aiSummaryService.getSummary(userId, contentId, level);
 
         assertThat(response.coreSummary()).isEqualTo("핵심 요약");
-        verify(aiServerClient).fetchSummary(contentId, level);
+        verify(aiServerClient).fetchSummary(eq(contentId), anyString(), any());
         verify(aiSummaryRepository).save(any(AiSummaryDocument.class));
+    }
+
+    @Test
+    @DisplayName("getSummary — originalContent가 비어 있으면 AI_SERVER_ERROR 예외")
+    void getSummary_noOriginalContent_throwsException() {
+        Content contentNoText = Content.builder()
+                .source(ContentSource.builder().name("Velog").url("https://velog.io").collectMethod("graphql").build())
+                .title("Spring 가이드")
+                .canonicalUrl("https://velog.io/@test/spring2")
+                .build();
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(contentNoText));
+        given(valueOps.get(anyString())).willReturn(null);
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
+                .willReturn(Optional.empty());
+        given(aiServerClient.fetchSummary(any(), any(), any()))
+                .willThrow(new DevpickException(ErrorCode.AI_SERVER_ERROR));
+
+        assertThatThrownBy(() -> aiSummaryService.getSummary(userId, contentId, level))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AI_SERVER_ERROR));
     }
 
     @Test
@@ -170,7 +205,7 @@ class AiSummaryServiceTest {
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.CONTENT_NOT_FOUND));
-        verify(aiServerClient, never()).fetchSummary(any(), any());
+        verify(aiServerClient, never()).fetchSummary(any(), any(), any());
     }
 
     @Test
@@ -178,8 +213,9 @@ class AiSummaryServiceTest {
     void getSummary_aiServerError_throwsException() throws JsonProcessingException {
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
         given(valueOps.get(anyString())).willReturn(null);
-        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level)).willReturn(Optional.empty());
-        given(aiServerClient.fetchSummary(contentId, level))
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
+                .willReturn(Optional.empty());
+        given(aiServerClient.fetchSummary(eq(contentId), anyString(), any()))
                 .willThrow(new DevpickException(ErrorCode.AI_SERVER_ERROR));
 
         assertThatThrownBy(() -> aiSummaryService.getSummary(userId, contentId, level))
@@ -192,7 +228,7 @@ class AiSummaryServiceTest {
     @DisplayName("retrySummary — 캐시 삭제 후 FastAPI 재호출")
     void retrySummary_success_deletesCacheAndRefreshes() throws JsonProcessingException {
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
-        given(aiServerClient.fetchSummary(contentId, level)).willReturn(fastApiResult);
+        given(aiServerClient.fetchSummary(eq(contentId), anyString(), any())).willReturn(fastApiResult);
         given(aiSummaryRepository.save(any())).willReturn(document);
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
 
@@ -200,8 +236,8 @@ class AiSummaryServiceTest {
 
         assertThat(response.coreSummary()).isEqualTo("핵심 요약");
         verify(redisTemplate).delete(anyString());
-        verify(aiSummaryRepository).deleteByContentIdAndLevel(contentId.toString(), level);
-        verify(aiServerClient).fetchSummary(contentId, level);
+        verify(aiSummaryRepository).deleteByContentIdAndLevel(contentId.toString(), aiLevel);
+        verify(aiServerClient).fetchSummary(eq(contentId), anyString(), any());
         verify(aiSummaryRepository).save(any(AiSummaryDocument.class));
         verify(valueOps).set(anyString(), anyString(), anyLong(), any());
     }
@@ -218,125 +254,60 @@ class AiSummaryServiceTest {
     }
 
     @Test
-    @DisplayName("getSummary — Redis 캐시 있지만 만료 → MongoDB fallback")
-    void getSummary_redisCacheExpired_fallsBackToMongodb() throws JsonProcessingException {
-        // Redis에서 역직렬화는 성공하지만 expiresAt이 과거 → 캐시 만료 처리
+    @DisplayName("getSummary — Redis 캐시 있지만 만료 → DynamoDB fallback")
+    void getSummary_redisCacheExpired_fallsBackToDynamoDb() throws JsonProcessingException {
         AiSummaryResponse expiredResponse = new AiSummaryResponse(
-                contentId.toString(), level, "핵심 요약", List.of("포인트1"), List.of("Spring"),
+                contentId.toString(), aiLevel, "핵심 요약", List.of("포인트1"), List.of("Spring"),
                 "보통", "다음 읽기", 0.9, List.of("질문1"),
                 Instant.now().minus(8, ChronoUnit.DAYS),
-                Instant.now().minus(1, ChronoUnit.DAYS)    // expiresAt 과거
+                Instant.now().minus(1, ChronoUnit.DAYS)
         );
 
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
         given(valueOps.get(anyString())).willReturn("{\"expired\":true}");
         given(objectMapper.readValue(anyString(), eq(AiSummaryResponse.class))).willReturn(expiredResponse);
-        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
-                .willReturn(Optional.of(document));  // MongoDB 히트
-        given(objectMapper.writeValueAsString(any())).willReturn("{}");
-
-        AiSummaryResponse response = aiSummaryService.getSummary(userId, contentId, level);
-
-        assertThat(response.coreSummary()).isEqualTo("핵심 요약");
-        verify(aiServerClient, never()).fetchSummary(any(), any());
-        verify(aiSummaryRepository).findByContentIdAndLevel(contentId.toString(), level);
-    }
-
-    @Test
-    @DisplayName("getSummary — Redis/MongoDB 모두 만료 → FastAPI 호출")
-    void getSummary_bothCachesExpired_callsFastApi() throws JsonProcessingException {
-        AiSummaryResponse expiredRedisResponse = new AiSummaryResponse(
-                contentId.toString(), level, "핵심 요약", List.of(), List.of(),
-                "보통", "다음", 0.9, List.of(),
-                Instant.now().minus(8, ChronoUnit.DAYS),
-                Instant.now().minus(1, ChronoUnit.DAYS)   // expiresAt 과거
-        );
-        AiSummaryDocument expiredDoc = AiSummaryDocument.builder()
-                .contentId(contentId.toString()).level(level)
-                .coreSummary("핵심 요약").keyPoints(List.of()).keywords(List.of())
-                .difficulty("보통").nextRecommendation("다음").confidence(0.9)
-                .additionalQuestions(List.of())
-                .cachedAt(LocalDateTime.now().minusDays(8))
-                .expiresAt(LocalDateTime.now().minusDays(1))  // 만료
-                .build();
-
-        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
-        given(valueOps.get(anyString())).willReturn("{\"expired\":true}");
-        given(objectMapper.readValue(anyString(), eq(AiSummaryResponse.class))).willReturn(expiredRedisResponse);
-        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
-                .willReturn(Optional.of(expiredDoc));  // MongoDB도 만료
-        given(aiServerClient.fetchSummary(contentId, level)).willReturn(fastApiResult);
-        given(aiSummaryRepository.save(any())).willReturn(document);
-        given(objectMapper.writeValueAsString(any())).willReturn("{}");
-
-        aiSummaryService.getSummary(userId, contentId, level);
-
-        verify(aiServerClient).fetchSummary(contentId, level);
-        verify(aiSummaryRepository).save(any(AiSummaryDocument.class));
-    }
-
-    @Test
-    @DisplayName("getSummary — Redis 캐시 있지만 expiresAt null → MongoDB fallback")
-    void getSummary_redisCacheExpiresAtNull_fallsBackToMongodb() throws JsonProcessingException {
-        AiSummaryResponse noExpiry = new AiSummaryResponse(
-                contentId.toString(), level, "핵심 요약", List.of(), List.of(),
-                "보통", "다음", 0.9, List.of(),
-                Instant.now(),
-                null   // expiresAt == null → 유효하지 않은 캐시로 처리
-        );
-
-        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
-        given(valueOps.get(anyString())).willReturn("{\"no-expiry\":true}");
-        given(objectMapper.readValue(anyString(), eq(AiSummaryResponse.class))).willReturn(noExpiry);
-        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
                 .willReturn(Optional.of(document));
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
 
         AiSummaryResponse response = aiSummaryService.getSummary(userId, contentId, level);
 
         assertThat(response.coreSummary()).isEqualTo("핵심 요약");
-        verify(aiServerClient, never()).fetchSummary(any(), any());
+        verify(aiServerClient, never()).fetchSummary(any(), any(), any());
+        verify(aiSummaryRepository).findByContentIdAndLevel(contentId.toString(), aiLevel);
     }
 
     @Test
-    @DisplayName("getSummary — MongoDB doc의 expiresAt null → FastAPI 호출")
-    void getSummary_mongoDbExpiresAtNull_callsFastApi() throws JsonProcessingException {
-        AiSummaryDocument docNoExpiry = AiSummaryDocument.builder()
-                .contentId(contentId.toString()).level(level)
+    @DisplayName("getSummary — Redis/DynamoDB 모두 만료 → FastAPI 호출")
+    void getSummary_bothCachesExpired_callsFastApi() throws JsonProcessingException {
+        AiSummaryResponse expiredRedisResponse = new AiSummaryResponse(
+                contentId.toString(), aiLevel, "핵심 요약", List.of(), List.of(),
+                "보통", "다음", 0.9, List.of(),
+                Instant.now().minus(8, ChronoUnit.DAYS),
+                Instant.now().minus(1, ChronoUnit.DAYS)
+        );
+        AiSummaryDocument expiredDoc = AiSummaryDocument.builder()
+                .contentId(contentId.toString()).level(aiLevel)
                 .coreSummary("핵심 요약").keyPoints(List.of()).keywords(List.of())
                 .difficulty("보통").nextRecommendation("다음").confidence(0.9)
                 .additionalQuestions(List.of())
-                .cachedAt(LocalDateTime.now())
-                .expiresAt(null)  // expiresAt null → 유효하지 않은 캐시
+                .cachedAt(LocalDateTime.now().minusDays(8))
+                .expiresAt(LocalDateTime.now().minusDays(1))
                 .build();
 
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
-        given(valueOps.get(anyString())).willReturn(null);
-        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
-                .willReturn(Optional.of(docNoExpiry));
-        given(aiServerClient.fetchSummary(contentId, level)).willReturn(fastApiResult);
+        given(valueOps.get(anyString())).willReturn("{\"expired\":true}");
+        given(objectMapper.readValue(anyString(), eq(AiSummaryResponse.class))).willReturn(expiredRedisResponse);
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
+                .willReturn(Optional.of(expiredDoc));
+        given(aiServerClient.fetchSummary(eq(contentId), anyString(), any())).willReturn(fastApiResult);
         given(aiSummaryRepository.save(any())).willReturn(document);
         given(objectMapper.writeValueAsString(any())).willReturn("{}");
 
         aiSummaryService.getSummary(userId, contentId, level);
 
-        verify(aiServerClient).fetchSummary(contentId, level);
-    }
-
-    @Test
-    @DisplayName("retrySummary — saveToRedis 직렬화 실패해도 응답 반환")
-    void retrySummary_saveToRedisFails_stillReturnsResponse() throws JsonProcessingException {
-        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
-        given(aiServerClient.fetchSummary(contentId, level)).willReturn(fastApiResult);
-        given(aiSummaryRepository.save(any())).willReturn(document);
-        given(objectMapper.writeValueAsString(any()))
-                .willThrow(new com.fasterxml.jackson.core.JsonGenerationException("write error", (com.fasterxml.jackson.core.JsonGenerator) null));
-
-        AiSummaryResponse response = aiSummaryService.retrySummary(userId, contentId, level);
-
-        assertThat(response.coreSummary()).isEqualTo("핵심 요약");
-        verify(redisTemplate).delete(anyString());
-        verify(aiServerClient).fetchSummary(contentId, level);
+        verify(aiServerClient).fetchSummary(eq(contentId), anyString(), any());
+        verify(aiSummaryRepository).save(any(AiSummaryDocument.class));
     }
 
     @Test
@@ -352,10 +323,10 @@ class AiSummaryServiceTest {
     }
 
     @Test
-    @DisplayName("findCachedCoreSummary — Redis 미스, MongoDB 히트 시 coreSummary 반환")
-    void findCachedCoreSummary_mongoDbHit_returnsCoreSummary() throws JsonProcessingException {
+    @DisplayName("findCachedCoreSummary — Redis 미스, DynamoDB 히트 시 coreSummary 반환")
+    void findCachedCoreSummary_dynamoDbHit_returnsCoreSummary() throws JsonProcessingException {
         given(valueOps.get(anyString())).willReturn(null);
-        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
                 .willReturn(Optional.of(document));
 
         Optional<String> result = aiSummaryService.findCachedCoreSummary(contentId, level);
@@ -364,10 +335,10 @@ class AiSummaryServiceTest {
     }
 
     @Test
-    @DisplayName("findCachedCoreSummary — Redis/MongoDB 모두 미스 시 empty 반환")
+    @DisplayName("findCachedCoreSummary — Redis/DynamoDB 모두 미스 시 empty 반환")
     void findCachedCoreSummary_bothMiss_returnsEmpty() throws JsonProcessingException {
         given(valueOps.get(anyString())).willReturn(null);
-        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
+        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
                 .willReturn(Optional.empty());
 
         Optional<String> result = aiSummaryService.findCachedCoreSummary(contentId, level);
@@ -376,19 +347,11 @@ class AiSummaryServiceTest {
     }
 
     @Test
-    @DisplayName("getSummary — Redis 역직렬화 실패 → MongoDB fallback")
-    void getSummary_redisDeserializationFails_fallsBackToMongodb() throws JsonProcessingException {
-        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
-        given(valueOps.get(anyString())).willReturn("malformed-json");
-        given(objectMapper.readValue(anyString(), eq(AiSummaryResponse.class)))
-                .willThrow(new com.fasterxml.jackson.core.JsonParseException(null, "parse error"));
-        given(aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level))
-                .willReturn(Optional.of(document));
-        given(objectMapper.writeValueAsString(any())).willReturn("{}");
-
-        AiSummaryResponse response = aiSummaryService.getSummary(userId, contentId, level);
-
-        assertThat(response.coreSummary()).isEqualTo("핵심 요약");
-        verify(aiServerClient, never()).fetchSummary(any(), any());
+    @DisplayName("toAiServerLevel — MIDDLE은 mid로, 나머지는 lowercase로 변환")
+    void toAiServerLevel_convertsCorrectly() {
+        assertThat(AiSummaryService.toAiServerLevel("MIDDLE")).isEqualTo("mid");
+        assertThat(AiSummaryService.toAiServerLevel("JUNIOR")).isEqualTo("junior");
+        assertThat(AiSummaryService.toAiServerLevel("BEGINNER")).isEqualTo("beginner");
+        assertThat(AiSummaryService.toAiServerLevel("SENIOR")).isEqualTo("senior");
     }
 }

@@ -46,19 +46,22 @@ public class AiSummaryService {
 
     @Transactional
     public AiSummaryResponse getSummary(UUID userId, UUID contentId, String level) {
-        contentRepository.findByIdAndIsAvailableTrue(contentId)
+        var content = contentRepository.findByIdAndIsAvailableTrue(contentId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
 
+        // AI 서버가 DynamoDB에 저장하는 level 키 (junior, mid, beginner, senior)
+        String aiLevel = toAiServerLevel(level);
+
         // 1. Redis 캐시 조회
-        String redisKey = buildRedisKey(contentId, level);
+        String redisKey = buildRedisKey(contentId, aiLevel);
         AiSummaryResponse cached = getFromRedis(redisKey);
         if (cached != null && cached.expiresAt() != null && cached.expiresAt().isAfter(Instant.now())) {
             recordHistory(userId, contentId);
             return cached;
         }
 
-        // 2. MongoDB 캐시 조회
-        Optional<AiSummaryDocument> docOpt = aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level);
+        // 2. DynamoDB 캐시 조회
+        Optional<AiSummaryDocument> docOpt = aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel);
         if (docOpt.isPresent() && docOpt.get().getExpiresAt() != null
                 && docOpt.get().getExpiresAt().isAfter(LocalDateTime.now())) {
             AiSummaryResponse response = AiSummaryResponse.of(docOpt.get());
@@ -67,9 +70,10 @@ public class AiSummaryService {
             return response;
         }
 
-        // 3. FastAPI 호출
-        AiSummaryResult result = aiServerClient.fetchSummary(contentId, level);
-        AiSummaryDocument doc = buildDocument(contentId, level, result);
+        // 3. FastAPI /internal/summaries 호출 (4레벨 동시 생성)
+        AiSummaryResult result = aiServerClient.fetchSummary(contentId, content.getOriginalContent(), content.getThumbnailUrl());
+        // 요청된 레벨 응답 추출 및 저장
+        AiSummaryDocument doc = buildDocument(contentId, aiLevel, result.levelSummary(aiLevel), result.common());
         aiSummaryRepository.save(doc);
 
         AiSummaryResponse response = AiSummaryResponse.of(doc);
@@ -80,50 +84,65 @@ public class AiSummaryService {
 
     @Transactional
     public AiSummaryResponse retrySummary(UUID userId, UUID contentId, String level) {
-        contentRepository.findByIdAndIsAvailableTrue(contentId)
+        var content = contentRepository.findByIdAndIsAvailableTrue(contentId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
 
+        String aiLevel = toAiServerLevel(level);
+
         // 캐시 삭제
-        redisTemplate.delete(buildRedisKey(contentId, level));
-        aiSummaryRepository.deleteByContentIdAndLevel(contentId.toString(), level);
+        redisTemplate.delete(buildRedisKey(contentId, aiLevel));
+        aiSummaryRepository.deleteByContentIdAndLevel(contentId.toString(), aiLevel);
 
         // FastAPI 재호출
-        AiSummaryResult result = aiServerClient.fetchSummary(contentId, level);
-        AiSummaryDocument doc = buildDocument(contentId, level, result);
+        AiSummaryResult result = aiServerClient.fetchSummary(contentId, content.getOriginalContent(), content.getThumbnailUrl());
+        AiSummaryDocument doc = buildDocument(contentId, aiLevel, result.levelSummary(aiLevel), result.common());
         aiSummaryRepository.save(doc);
 
         AiSummaryResponse response = AiSummaryResponse.of(doc);
-        saveToRedis(buildRedisKey(contentId, level), response);
+        saveToRedis(buildRedisKey(contentId, aiLevel), response);
         return response;
     }
 
-    private String buildRedisKey(UUID contentId, String level) {
-        return "summary:" + contentId + ":" + level;
+    /**
+     * 백엔드 level 값을 AI 서버 DynamoDB SK로 정규화한다.
+     * BEGINNER→beginner, JUNIOR→junior, MIDDLE→mid, SENIOR→senior
+     */
+    static String toAiServerLevel(String level) {
+        return switch (level.toUpperCase()) {
+            case "MIDDLE" -> "mid";
+            default -> level.toLowerCase();
+        };
     }
 
-    private AiSummaryDocument buildDocument(UUID contentId, String level, AiSummaryResult result) {
+    private String buildRedisKey(UUID contentId, String aiLevel) {
+        return "summary:" + contentId + ":" + aiLevel;
+    }
+
+    private AiSummaryDocument buildDocument(UUID contentId, String aiLevel,
+            AiSummaryResult.LevelSummary levelSummary, AiSummaryResult.CommonSummary common) {
         LocalDateTime now = LocalDateTime.now();
         return AiSummaryDocument.builder()
                 .contentId(contentId.toString())
-                .level(level)
-                .coreSummary(result.coreSummary())
-                .keyPoints(result.keyPoints())
-                .keywords(result.keywords())
-                .difficulty(result.difficulty())
-                .nextRecommendation(result.nextRecommendation())
-                .confidence(result.confidence())
-                .additionalQuestions(result.additionalQuestions())
+                .level(aiLevel)
+                .coreSummary(levelSummary.coreSummary())
+                .keyPoints(levelSummary.keyPoints())
+                .keywords(common.keywords())
+                .difficulty(common.difficulty())
+                .nextRecommendation(levelSummary.nextRecommendation())
+                .confidence(levelSummary.confidence())
+                .additionalQuestions(levelSummary.additionalQuestions())
                 .cachedAt(now)
                 .expiresAt(now.plusDays(CACHE_TTL_DAYS))
                 .build();
     }
 
     public Optional<String> findCachedCoreSummary(UUID contentId, String level) {
-        AiSummaryResponse cached = getFromRedis(buildRedisKey(contentId, level));
+        String aiLevel = toAiServerLevel(level);
+        AiSummaryResponse cached = getFromRedis(buildRedisKey(contentId, aiLevel));
         if (cached != null) {
             return Optional.ofNullable(cached.coreSummary());
         }
-        return aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), level)
+        return aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel)
                 .map(AiSummaryDocument::getCoreSummary);
     }
 

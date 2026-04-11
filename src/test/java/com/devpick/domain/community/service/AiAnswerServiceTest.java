@@ -3,8 +3,10 @@ package com.devpick.domain.community.service;
 import com.devpick.domain.community.client.AiAnswerClient;
 import com.devpick.domain.community.dto.AiAnswerResponse;
 import com.devpick.domain.community.entity.AiAnswer;
+import com.devpick.domain.community.entity.AiQuestion;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.repository.AiAnswerRepository;
+import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.global.common.exception.DevpickException;
@@ -37,6 +39,8 @@ class AiAnswerServiceTest {
     @Mock
     private AiAnswerRepository aiAnswerRepository;
     @Mock
+    private AiQuestionRepository aiQuestionRepository;
+    @Mock
     private PostRepository postRepository;
     @Mock
     private AiAnswerClient aiAnswerClient;
@@ -66,7 +70,7 @@ class AiAnswerServiceTest {
                         .isEqualTo(ErrorCode.COMMUNITY_POST_NOT_FOUND));
 
         verify(aiAnswerRepository, never()).save(any());
-        verify(aiAnswerClient, never()).generateAnswer(any());
+        verify(aiAnswerClient, never()).generateAnswer(any(), any());
     }
 
     @Test
@@ -87,12 +91,12 @@ class AiAnswerServiceTest {
         assertThat(result.id()).isEqualTo(answerId);
         assertThat(result.content()).isEqualTo("기존 AI 답변");
         assertThat(result.postId()).isEqualTo(postId);
-        verify(aiAnswerClient, never()).generateAnswer(any());
+        verify(aiAnswerClient, never()).generateAnswer(any(), any());
         verify(aiAnswerRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("AI 답변이 없으면 FastAPI를 호출하고 저장 후 반환한다")
+    @DisplayName("AI 답변이 없으면 FastAPI를 호출하고 저장 후 반환한다 (refined 없을 때)")
     void generateOrGetAnswer_noExisting_callsFastApiAndSaves() {
         AiAnswer saved = AiAnswer.builder()
                 .post(post)
@@ -103,7 +107,8 @@ class AiAnswerServiceTest {
 
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
         given(aiAnswerRepository.findByPost_Id(postId)).willReturn(Optional.empty());
-        given(aiAnswerClient.generateAnswer(post)).willReturn("AI가 생성한 답변");
+        given(aiQuestionRepository.findByPost_Id(postId)).willReturn(Optional.empty());
+        given(aiAnswerClient.generateAnswer(post, null)).willReturn("AI가 생성한 답변");
         given(aiAnswerRepository.save(any(AiAnswer.class))).willReturn(saved);
 
         AiAnswerResponse result = aiAnswerService.generateOrGetAnswer(postId);
@@ -111,7 +116,35 @@ class AiAnswerServiceTest {
         assertThat(result.id()).isEqualTo(answerId);
         assertThat(result.content()).isEqualTo("AI가 생성한 답변");
         assertThat(result.isAdopted()).isFalse();
-        verify(aiAnswerClient).generateAnswer(post);
+        verify(aiAnswerClient).generateAnswer(post, null);
         verify(aiAnswerRepository).save(any(AiAnswer.class));
+    }
+
+    @Test
+    @DisplayName("AiQuestion이 존재하면 refined 데이터를 넘겨서 FastAPI를 호출한다")
+    void generateOrGetAnswer_withRefinedQuestion_passesRefinedData() {
+        AiQuestion aiQuestion = AiQuestion.builder()
+                .post(post)
+                .originalTitle("Spring 질문")
+                .refinedTitle("Spring IoC란?")
+                .refinedContent("IoC 설명 필요")
+                .build();
+        AiAnswer saved = AiAnswer.builder()
+                .post(post)
+                .content("refined 기반 답변")
+                .build();
+        UUID answerId = UUID.randomUUID();
+        ReflectionTestUtils.setField(saved, "id", answerId);
+
+        given(postRepository.findById(postId)).willReturn(Optional.of(post));
+        given(aiAnswerRepository.findByPost_Id(postId)).willReturn(Optional.empty());
+        given(aiQuestionRepository.findByPost_Id(postId)).willReturn(Optional.of(aiQuestion));
+        given(aiAnswerClient.generateAnswer(post, aiQuestion)).willReturn("refined 기반 답변");
+        given(aiAnswerRepository.save(any(AiAnswer.class))).willReturn(saved);
+
+        AiAnswerResponse result = aiAnswerService.generateOrGetAnswer(postId);
+
+        assertThat(result.content()).isEqualTo("refined 기반 답변");
+        verify(aiAnswerClient).generateAnswer(post, aiQuestion);
     }
 }

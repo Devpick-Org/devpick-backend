@@ -24,6 +24,8 @@ public record AiQuizResponse(
 
     public record Question(
             String id,
+            /** "multiple_choice" 또는 "short_answer" */
+            String type,
             String question,
             List<Option> options,
             String correctOptionId,
@@ -39,6 +41,7 @@ public record AiQuizResponse(
         List<Question> questions = doc.getQuestions().stream()
                 .map(q -> new Question(
                         q.getId(),
+                        q.getType(),
                         q.getQuestion(),
                         q.getOptions().stream()
                                 .map(o -> new Option(o.getId(), o.getText()))

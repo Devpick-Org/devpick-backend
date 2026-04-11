@@ -35,16 +35,20 @@ public class SimilarQuestionClient {
             @JsonProperty("total") int total
     ) {}
 
-    public List<UUID> searchSimilar(UUID postId, String text, int topK) {
+    public List<UUID> searchSimilar(UUID postId, UUID userId, String text, int topK) {
         try {
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("text", text);
+            body.put("question_id", postId.toString());
+            body.put("top_k", topK);
+            if (userId != null) {
+                body.put("user_id", userId.toString());
+            }
+
             SimilarQuestionFastApiResponse response = webClient.post()
                     .uri(aiServerUrl + "/internal/similar-questions")
                     .header("X-Internal-Key", internalKey)
-                    .bodyValue(Map.of(
-                            "text", text,
-                            "question_id", postId.toString(),
-                            "top_k", topK
-                    ))
+                    .bodyValue(body)
                     .retrieve()
                     .bodyToMono(SimilarQuestionFastApiResponse.class)
                     .block();

@@ -1,7 +1,9 @@
 package com.devpick.domain.community.client;
 
+import com.devpick.domain.community.entity.AiQuestion;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.user.entity.Level;
+import com.devpick.domain.user.entity.User;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,16 +37,21 @@ class AiAnswerClientTest {
     private WebClient webClient;
 
     private Post post;
+    private User user;
 
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(aiAnswerClient, "aiServerUrl", "http://localhost:8000");
         ReflectionTestUtils.setField(aiAnswerClient, "internalKey", "test-key");
 
+        user = User.builder().email("test@devpick.kr").nickname("tester").build();
+        ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
+
         post = Post.builder()
                 .title("Spring 질문")
                 .content("내용입니다")
                 .level(Level.JUNIOR)
+                .user(user)
                 .build();
         ReflectionTestUtils.setField(post, "id", UUID.randomUUID());
     }
@@ -78,9 +85,28 @@ class AiAnswerClientTest {
                 new AiAnswerClient.AiAnswerFastApiResponse("AI가 생성한 답변");
         mockWebClientChain(fakeResponse);
 
-        String result = aiAnswerClient.generateAnswer(post);
+        String result = aiAnswerClient.generateAnswer(post, null);
 
         assertThat(result).isEqualTo("AI가 생성한 답변");
+    }
+
+    @Test
+    @DisplayName("refined 데이터가 있으면 refinedTitle/refinedContent를 사용한다")
+    void generateAnswer_withRefinedQuestion_usesRefinedData() {
+        AiQuestion aiQuestion = AiQuestion.builder()
+                .post(post)
+                .originalTitle("Spring 질문")
+                .refinedTitle("Spring IoC란 무엇인가요?")
+                .refinedContent("Spring의 IoC 컨테이너 동작 방식을 설명해주세요.")
+                .build();
+
+        AiAnswerClient.AiAnswerFastApiResponse fakeResponse =
+                new AiAnswerClient.AiAnswerFastApiResponse("refined 기반 AI 답변");
+        mockWebClientChain(fakeResponse);
+
+        String result = aiAnswerClient.generateAnswer(post, aiQuestion);
+
+        assertThat(result).isEqualTo("refined 기반 AI 답변");
     }
 
     @Test
@@ -88,7 +114,7 @@ class AiAnswerClientTest {
     void generateAnswer_nullResponse_throwsAiServerError() {
         mockWebClientChain(null);
 
-        assertThatThrownBy(() -> aiAnswerClient.generateAnswer(post))
+        assertThatThrownBy(() -> aiAnswerClient.generateAnswer(post, null))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.AI_SERVER_ERROR));
@@ -99,7 +125,7 @@ class AiAnswerClientTest {
     void generateAnswer_webClientException_throwsAiServerError() {
         mockWebClientChain(WebClientResponseException.create(500, "Internal Server Error", null, null, null));
 
-        assertThatThrownBy(() -> aiAnswerClient.generateAnswer(post))
+        assertThatThrownBy(() -> aiAnswerClient.generateAnswer(post, null))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.AI_SERVER_ERROR));
@@ -112,7 +138,7 @@ class AiAnswerClientTest {
                 new AiAnswerClient.AiAnswerFastApiResponse(null);
         mockWebClientChain(fakeResponse);
 
-        assertThatThrownBy(() -> aiAnswerClient.generateAnswer(post))
+        assertThatThrownBy(() -> aiAnswerClient.generateAnswer(post, null))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.AI_SERVER_ERROR));

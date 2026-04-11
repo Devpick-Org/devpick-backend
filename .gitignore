@@ -22,7 +22,10 @@ logs/
 
 ### Environment ###
 .env
+.env.*
 !.env.example
+### SSH keys (EC2 등) ###
+*.pem
 
 ### Spring Boot ###
 spring-shell.log

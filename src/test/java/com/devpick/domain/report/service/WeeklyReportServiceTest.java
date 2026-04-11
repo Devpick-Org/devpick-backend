@@ -1,5 +1,6 @@
 package com.devpick.domain.report.service;
 
+import com.devpick.domain.report.client.AiReportClient;
 import com.devpick.domain.report.document.ReportInsightDocument;
 import com.devpick.domain.report.dto.ChartDataResponse;
 import com.devpick.domain.report.dto.ReportSummaryResponse;
@@ -60,6 +61,8 @@ class WeeklyReportServiceTest {
     private UserRepository userRepository;
     @Mock
     private ReportInsightRepository reportInsightRepository;
+    @Mock
+    private AiReportClient aiReportClient;
     @Mock
     private ObjectMapper objectMapper;
 
