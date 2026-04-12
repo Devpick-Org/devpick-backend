@@ -59,8 +59,9 @@ public class PointService {
                 .referenceId(referenceId)
                 .build());
         user.addPoints(action.getPoints());
+        userRepository.save(user);
         try {
-            badgeService.checkAndUnlock(user);
+            badgeService.checkAndUnlock(user, action);
         } catch (Exception e) {
             log.warn("배지 잠금 해제 중 오류 발생 (포인트 적립은 정상 처리됨): userId={}, action={}, error={}",
                     user.getId(), action, e.getMessage());
