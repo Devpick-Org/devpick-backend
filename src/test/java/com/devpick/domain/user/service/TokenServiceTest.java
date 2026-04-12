@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -84,18 +85,13 @@ class TokenServiceTest {
                 .willReturn(Optional.of(stored));
         given(jwtTokenProvider.generateAccessToken(user.getId()))
                 .willReturn("new-access-token");
-        given(jwtTokenProvider.generateRefreshToken())
-                .willReturn("new-refresh-token");
-        given(jwtTokenProvider.getRefreshTokenExpiresAt())
-                .willReturn(LocalDateTime.now().plusDays(7));
-        given(refreshTokenRepository.save(any(RefreshToken.class)))
-                .willAnswer(invocation -> invocation.getArgument(0));
 
         String[] tokens = tokenService.reissueTokens("old-refresh-token");
 
         assertThat(tokens[0]).isEqualTo("new-access-token");
-        assertThat(tokens[1]).isEqualTo("new-refresh-token");
-        verify(refreshTokenRepository).deleteByUser(user);
+        assertThat(tokens[1]).isEqualTo("old-refresh-token");
+        verify(refreshTokenRepository, never()).deleteByUser(any());
+        verify(refreshTokenRepository, never()).save(any());
     }
 
     @Test

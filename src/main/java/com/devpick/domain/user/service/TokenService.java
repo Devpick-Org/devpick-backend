@@ -91,19 +91,10 @@ public class TokenService {
 
         User user = stored.getUser();
 
-        // 4. 기존 토큰 삭제 + 신규 토큰 발급 (Token Rotation)
-        refreshTokenRepository.deleteByUser(user);
-
+        // 4. Access Token만 새로 발급, Refresh Token은 유지 (레이스 컨디션 방지)
         String newAccessToken = jwtTokenProvider.generateAccessToken(user.getId());
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken();
 
-        refreshTokenRepository.save(RefreshToken.builder()
-                .user(user)
-                .token(newRefreshToken)
-                .expiresAt(jwtTokenProvider.getRefreshTokenExpiresAt())
-                .build());
-
-        return new String[]{newAccessToken, newRefreshToken};
+        return new String[]{newAccessToken, refreshToken};
     }
 
     /**
