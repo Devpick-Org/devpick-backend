@@ -4,6 +4,7 @@ import com.devpick.domain.point.dto.BadgeResponse;
 import com.devpick.domain.point.dto.RepresentativeBadgeDto;
 import com.devpick.domain.point.entity.Badge;
 import com.devpick.domain.point.entity.PointAction;
+import com.devpick.domain.point.entity.PointLog;
 import com.devpick.domain.point.entity.UserBadge;
 import com.devpick.domain.point.repository.BadgeRepository;
 import com.devpick.domain.point.repository.PointLogRepository;
@@ -172,6 +173,50 @@ class BadgeServiceTest {
         given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of());
 
         badgeService.checkAndUnlock(user, PointAction.CONTENT_SCRAP);
+
+        verify(userBadgeRepository, never()).save(any());
+    }
+
+    // ── checkAndUnlock — STREAK_7 ──────────────────────────
+
+    @Test
+    @DisplayName("checkAndUnlock — DAILY_LOGIN 적립 시 오늘 포함 7일 연속이면 STREAK_7 배지 잠금 해제")
+    void checkAndUnlock_streak7_dailyLogin_sevenConsecutiveDays_unlocks() {
+        Badge badge = Badge.builder().id("STREAK_7").name("7일 연속 로그인").sortOrder(5).build();
+        given(pointLogRepository.existsByUser_IdAndAction(userId, PointAction.CONTENT_SCRAP)).willReturn(false);
+        given(pointLogRepository.existsByUser_IdAndAction(userId, PointAction.QUESTION_WRITE)).willReturn(false);
+        given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.ANSWER_ADOPTED)).willReturn(0L);
+        given(userBadgeRepository.existsByUser_IdAndBadge_Id(userId, "STREAK_7")).willReturn(false);
+        given(badgeRepository.findById("STREAK_7")).willReturn(Optional.of(badge));
+        // 어제~6일 전 로그인 기록 — 오늘은 DAILY_LOGIN justEarned로 추가됨 → 7일 연속
+        given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of(
+                PointLog.builder().user(user).action(PointAction.DAILY_LOGIN).points(5).earnedAt(LocalDateTime.now().minusDays(1)).build(),
+                PointLog.builder().user(user).action(PointAction.DAILY_LOGIN).points(5).earnedAt(LocalDateTime.now().minusDays(2)).build(),
+                PointLog.builder().user(user).action(PointAction.DAILY_LOGIN).points(5).earnedAt(LocalDateTime.now().minusDays(3)).build(),
+                PointLog.builder().user(user).action(PointAction.DAILY_LOGIN).points(5).earnedAt(LocalDateTime.now().minusDays(4)).build(),
+                PointLog.builder().user(user).action(PointAction.DAILY_LOGIN).points(5).earnedAt(LocalDateTime.now().minusDays(5)).build(),
+                PointLog.builder().user(user).action(PointAction.DAILY_LOGIN).points(5).earnedAt(LocalDateTime.now().minusDays(6)).build()
+        ));
+
+        badgeService.checkAndUnlock(user, PointAction.DAILY_LOGIN);
+
+        verify(userBadgeRepository).save(any(UserBadge.class));
+    }
+
+    @Test
+    @DisplayName("checkAndUnlock — DAILY_LOGIN 적립 시 연속 일수 부족하면 STREAK_7 배지 잠금 해제 안 함")
+    void checkAndUnlock_streak7_dailyLogin_notEnoughDays_doesNotUnlock() {
+        given(pointLogRepository.existsByUser_IdAndAction(userId, PointAction.CONTENT_SCRAP)).willReturn(false);
+        given(pointLogRepository.existsByUser_IdAndAction(userId, PointAction.QUESTION_WRITE)).willReturn(false);
+        given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.ANSWER_ADOPTED)).willReturn(0L);
+        // 3일치만 있음 — 오늘 포함 최대 4일 연속 → 7일 미달
+        given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of(
+                PointLog.builder().user(user).action(PointAction.DAILY_LOGIN).points(5).earnedAt(LocalDateTime.now().minusDays(1)).build(),
+                PointLog.builder().user(user).action(PointAction.DAILY_LOGIN).points(5).earnedAt(LocalDateTime.now().minusDays(2)).build(),
+                PointLog.builder().user(user).action(PointAction.DAILY_LOGIN).points(5).earnedAt(LocalDateTime.now().minusDays(3)).build()
+        ));
+
+        badgeService.checkAndUnlock(user, PointAction.DAILY_LOGIN);
 
         verify(userBadgeRepository, never()).save(any());
     }
