@@ -2,6 +2,7 @@ package com.devpick.domain.report.service;
 
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.content.entity.Content;
+import com.devpick.domain.report.dto.ActivityPageResponse;
 import com.devpick.domain.report.dto.HistoryPageResponse;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
@@ -26,6 +27,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -236,5 +238,81 @@ class HistoryServiceTest {
         verify(historyRepository).findHistoryIdsByActionTypes(
                 eq(userId), eq(actionTypes), any(Pageable.class));
         verify(historyRepository, never()).findHistoryIdsExcludingContentLiked(any(), any());
+    }
+
+    @Test
+    @DisplayName("날짜 필터 있을 때 (actionTypes 없음) - 날짜 범위 쿼리가 호출된다")
+    void getLearningHistory_withDateRange_usesDateRangeQuery() {
+        OffsetDateTime start = OffsetDateTime.parse("2026-04-01T00:00:00Z");
+        OffsetDateTime end = OffsetDateTime.parse("2026-04-07T23:59:59Z");
+
+        History history = History.builder()
+                .user(user).actionType("content_opened").build();
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
+
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findHistoryIdsByDateRangeExcludingContentLiked(
+                eq(userId), any(), any(), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
+
+        HistoryPageResponse response = historyService.getHistory(userId, null, start, end, pageable);
+
+        assertThat(response.items()).hasSize(1);
+        verify(historyRepository).findHistoryIdsByDateRangeExcludingContentLiked(
+                eq(userId), any(), any(), any(Pageable.class));
+        verify(historyRepository, never()).findHistoryIdsExcludingContentLiked(any(), any());
+    }
+
+    @Test
+    @DisplayName("날짜 필터 + actionTypes 모두 있을 때 - actionTypes+날짜 범위 쿼리가 호출된다")
+    void getLearningHistory_withActionTypesAndDateRange_usesActionTypesDateRangeQuery() {
+        List<String> actionTypes = List.of("content_opened");
+        OffsetDateTime start = OffsetDateTime.parse("2026-04-01T00:00:00Z");
+        OffsetDateTime end = OffsetDateTime.parse("2026-04-07T23:59:59Z");
+
+        History history = History.builder()
+                .user(user).actionType("content_opened").build();
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
+
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findHistoryIdsByActionTypesAndDateRange(
+                eq(userId), eq(actionTypes), any(), any(), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
+
+        HistoryPageResponse response = historyService.getHistory(userId, actionTypes, start, end, pageable);
+
+        assertThat(response.items()).hasSize(1);
+        verify(historyRepository).findHistoryIdsByActionTypesAndDateRange(
+                eq(userId), eq(actionTypes), any(), any(), any(Pageable.class));
+        verify(historyRepository, never()).findHistoryIdsByActionTypes(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("활동 히스토리 조회 - 정상 반환")
+    void getActivityHistory_success() {
+        History history = History.builder()
+                .user(user).actionType("content_liked").build();
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
+
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findAllHistoryIds(eq(userId), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
+
+        ActivityPageResponse response = historyService.getActivityHistory(userId, pageable);
+
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.totalElements()).isEqualTo(1L);
     }
 }
