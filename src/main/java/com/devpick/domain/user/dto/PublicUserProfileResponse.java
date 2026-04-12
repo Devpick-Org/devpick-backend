@@ -9,8 +9,10 @@ import com.devpick.domain.user.entity.User;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public record PublicUserProfileResponse(
         UUID userId,
@@ -50,11 +52,16 @@ public record PublicUserProfileResponse(
                                 p.getCreatedAt() != null ? p.getCreatedAt().toInstant(ZoneOffset.UTC) : null))
                         .toList(),
                 answers.stream()
-                        .map(a -> new RecentAnswer(
-                                a.getId(),
-                                a.getPost().getId(),
-                                a.getPost().getTitle(),
-                                a.getCreatedAt() != null ? a.getCreatedAt().toInstant(ZoneOffset.UTC) : null))
+                        .collect(Collectors.toMap(
+                                a -> a.getPost().getId(),
+                                a -> new RecentAnswer(
+                                        a.getId(),
+                                        a.getPost().getId(),
+                                        a.getPost().getTitle(),
+                                        a.getCreatedAt() != null ? a.getCreatedAt().toInstant(ZoneOffset.UTC) : null),
+                                (existing, replacement) -> existing,  // 가장 최신 답변 유지 (쿼리가 createdAt DESC 순)
+                                LinkedHashMap::new))
+                        .values().stream()
                         .toList()
         );
     }
