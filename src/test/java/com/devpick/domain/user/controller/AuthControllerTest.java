@@ -31,6 +31,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.UUID;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -38,7 +42,6 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -159,7 +162,10 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.email").value("test@devpick.kr"))
                 .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
                 .andExpect(header().string("Set-Cookie", containsString("SameSite=None")))
-                .andExpect(header().string("Set-Cookie", containsString("refreshToken=refresh-token")));
+                .andExpect(header().string("Set-Cookie", containsString("refreshToken=refresh-token")))
+                .andExpect(result -> assertThat(
+                        result.getResponse().getHeaders("Set-Cookie"),
+                        hasItem(allOf(containsString("hasSession=true"), containsString("SameSite=Lax")))));
     }
 
     @Test
@@ -216,7 +222,12 @@ class AuthControllerTest {
                                 testUserId, null, List.of())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(header().string("Set-Cookie", containsString("Max-Age=0")));
+                .andExpect(result -> assertThat(
+                        result.getResponse().getHeaders("Set-Cookie"),
+                        hasItem(allOf(containsString("refreshToken="), containsString("Max-Age=0")))))
+                .andExpect(result -> assertThat(
+                        result.getResponse().getHeaders("Set-Cookie"),
+                        hasItem(allOf(containsString("hasSession="), containsString("Max-Age=0")))));
     }
 
     @Test
@@ -360,7 +371,10 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.email").value("hayoung@test.com"))
                 .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
                 .andExpect(header().string("Set-Cookie", containsString("SameSite=None")))
-                .andExpect(header().string("Set-Cookie", containsString("refreshToken=refresh-token")));
+                .andExpect(header().string("Set-Cookie", containsString("refreshToken=refresh-token")))
+                .andExpect(result -> assertThat(
+                        result.getResponse().getHeaders("Set-Cookie"),
+                        hasItem(allOf(containsString("hasSession=true"), containsString("SameSite=Lax")))));
     }
 
     @Test
@@ -420,7 +434,10 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.email").value("hayoung@gmail.com"))
                 .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
                 .andExpect(header().string("Set-Cookie", containsString("SameSite=None")))
-                .andExpect(header().string("Set-Cookie", containsString("refreshToken=refresh-token")));
+                .andExpect(header().string("Set-Cookie", containsString("refreshToken=refresh-token")))
+                .andExpect(result -> assertThat(
+                        result.getResponse().getHeaders("Set-Cookie"),
+                        hasItem(allOf(containsString("hasSession=true"), containsString("SameSite=Lax")))));
     }
 
     @Test
@@ -450,7 +467,10 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.accessToken").value("access-token"));
+                .andExpect(jsonPath("$.data.accessToken").value("access-token"))
+                .andExpect(result -> assertThat(
+                        result.getResponse().getHeaders("Set-Cookie"),
+                        hasItem(allOf(containsString("hasSession=true"), containsString("SameSite=Lax")))));
     }
 
     @Test
@@ -484,7 +504,10 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
                 .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
-                .andExpect(header().string("Set-Cookie", containsString("SameSite=None")));
+                .andExpect(header().string("Set-Cookie", containsString("SameSite=None")))
+                .andExpect(result -> assertThat(
+                        result.getResponse().getHeaders("Set-Cookie"),
+                        hasItem(allOf(containsString("hasSession=true"), containsString("SameSite=Lax")))));
     }
 
     @Test
