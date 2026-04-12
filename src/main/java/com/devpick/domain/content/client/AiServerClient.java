@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.reactive.function.client.WebClientException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -53,7 +53,7 @@ public class AiServerClient {
                 throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
             }
             return result;
-        } catch (WebClientResponseException e) {
+        } catch (WebClientException e) {
             throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
         }
     }
@@ -82,7 +82,7 @@ public class AiServerClient {
                 throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
             }
             return result;
-        } catch (WebClientResponseException e) {
+        } catch (WebClientException e) {
             throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
         }
     }
