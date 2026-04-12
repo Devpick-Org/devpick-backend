@@ -4,6 +4,7 @@ import com.devpick.domain.community.entity.Answer;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -25,4 +26,11 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
 
     @Query("SELECT a FROM Answer a JOIN FETCH a.post WHERE a.user.id = :userId ORDER BY a.createdAt DESC")
     List<Answer> findByUserIdWithPost(@Param("userId") UUID userId);
+
+    @Query("SELECT a FROM Answer a JOIN FETCH a.post WHERE a.post.id IN :postIds ORDER BY a.post.id, a.createdAt ASC")
+    List<Answer> findByPostIdsOrderByCreatedAtAsc(@Param("postIds") List<UUID> postIds);
+
+    @Modifying
+    @Query("DELETE FROM Answer a WHERE a.post.id = :postId")
+    void deleteByPostId(@Param("postId") UUID postId);
 }

@@ -8,6 +8,7 @@ import com.devpick.domain.community.dto.AnswerWithCommentsResponse;
 import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.community.entity.Comment;
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.repository.AnswerLikeRepository;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.CommentRepository;
 import com.devpick.domain.community.repository.PostRepository;
@@ -36,6 +37,7 @@ public class AnswerService {
     private final HistoryRepository historyRepository;
     private final PointService pointService;
     private final CommentRepository commentRepository;
+    private final AnswerLikeRepository answerLikeRepository;
 
     @Transactional(readOnly = true)
     public AnswerListResponse getAnswers(UUID postId) {
@@ -105,6 +107,10 @@ public class AnswerService {
             throw new DevpickException(ErrorCode.COMMUNITY_UNAUTHORIZED_ANSWER_ACTION);
         }
 
+        // 자식 레코드 순서대로 삭제 (FK 제약조건 준수)
+        commentRepository.deleteByAnswerId(answerId);
+        answerLikeRepository.deleteByAnswerId(answerId);
+        historyRepository.deleteByAnswerId(answerId);
         answerRepository.delete(answer);
     }
 

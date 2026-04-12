@@ -7,6 +7,7 @@ import com.devpick.domain.community.dto.AnswerUpdateRequest;
 import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.community.entity.Comment;
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.repository.AnswerLikeRepository;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.CommentRepository;
 import com.devpick.domain.community.repository.PostRepository;
@@ -59,6 +60,8 @@ class AnswerServiceTest {
     private com.devpick.domain.point.service.PointService pointService;
     @Mock
     private CommentRepository commentRepository;
+    @Mock
+    private AnswerLikeRepository answerLikeRepository;
 
     private UUID userId;
     private UUID postId;

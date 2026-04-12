@@ -5,7 +5,12 @@ import com.devpick.domain.community.dto.PostDetailResponse;
 import com.devpick.domain.community.dto.PostListResponse;
 import com.devpick.domain.community.dto.PostUpdateRequest;
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.repository.AiAnswerRepository;
+import com.devpick.domain.community.repository.AiQuestionRepository;
+import com.devpick.domain.community.repository.AnswerLikeRepository;
 import com.devpick.domain.community.repository.AnswerRepository;
+import com.devpick.domain.community.repository.CommentRepository;
+import com.devpick.domain.community.repository.PostLikeRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
@@ -54,6 +59,16 @@ class PostServiceTest {
     private HistoryRepository historyRepository;
     @Mock
     private com.devpick.domain.point.service.PointService pointService;
+    @Mock
+    private PostLikeRepository postLikeRepository;
+    @Mock
+    private AiAnswerRepository aiAnswerRepository;
+    @Mock
+    private AiQuestionRepository aiQuestionRepository;
+    @Mock
+    private CommentRepository commentRepository;
+    @Mock
+    private AnswerLikeRepository answerLikeRepository;
 
     private UUID userId;
     private UUID postId;

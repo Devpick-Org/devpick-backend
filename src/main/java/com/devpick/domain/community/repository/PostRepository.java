@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,4 +23,6 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     Page<Post> searchByTitleOrContentContaining(@Param("q") String q, Pageable pageable);
 
     List<Post> findByUser_IdOrderByCreatedAtDesc(UUID userId);
+
+    boolean existsByUser_IdAndTitleAndCreatedAtAfter(UUID userId, String title, LocalDateTime after);
 }

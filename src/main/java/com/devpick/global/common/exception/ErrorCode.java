@@ -81,6 +81,7 @@ public enum ErrorCode {
     COMMUNITY_POST_NOT_LIKED(HttpStatus.NOT_FOUND, "COMMUNITY_010", "좋아요하지 않은 게시글입니다."),
     COMMUNITY_ANSWER_ALREADY_LIKED(HttpStatus.CONFLICT, "COMMUNITY_011", "이미 좋아요한 답변입니다."),
     COMMUNITY_ANSWER_NOT_LIKED(HttpStatus.NOT_FOUND, "COMMUNITY_012", "좋아요하지 않은 답변입니다."),
+    COMMUNITY_DUPLICATE_POST(HttpStatus.CONFLICT, "COMMUNITY_013", "잠시 후 다시 시도해 주세요."),
 
     // Report
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "REPORT_001", "주간 리포트를 찾을 수 없습니다."),

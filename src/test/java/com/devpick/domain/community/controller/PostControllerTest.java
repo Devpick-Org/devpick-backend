@@ -124,7 +124,7 @@ class PostControllerTest {
     @DisplayName("GET /posts - 목록 조회 성공 시 200과 목록 반환")
     void getPosts_success_returns200() throws Exception {
         PostSummaryResponse summary = new PostSummaryResponse(
-                postId, "Test Post", Level.JUNIOR, userId, "tester", Job.BACKEND, null, Instant.now());
+                postId, "Test Post", Level.JUNIOR, userId, "tester", Job.BACKEND, null, Instant.now(), 2L, "content preview", null);
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
         given(postService.getPosts(any(), any())).willReturn(listResponse);
 
@@ -140,7 +140,7 @@ class PostControllerTest {
     @DisplayName("GET /posts - 목록 응답에 authorJob 필드 포함")
     void getPosts_responseIncludesAuthorJob() throws Exception {
         PostSummaryResponse summary = new PostSummaryResponse(
-                postId, "Test Post", Level.JUNIOR, userId, "tester", Job.FRONTEND, null, Instant.now());
+                postId, "Test Post", Level.JUNIOR, userId, "tester", Job.FRONTEND, null, Instant.now(), 0L, "content preview", null);
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
         given(postService.getPosts(any(), any())).willReturn(listResponse);
 
@@ -153,7 +153,7 @@ class PostControllerTest {
     @DisplayName("GET /posts - authorJob이 null이어도 정상 반환")
     void getPosts_nullAuthorJob_returns200() throws Exception {
         PostSummaryResponse summary = new PostSummaryResponse(
-                postId, "Test Post", Level.JUNIOR, userId, "tester", null, null, Instant.now());
+                postId, "Test Post", Level.JUNIOR, userId, "tester", null, null, Instant.now(), 0L, "content preview", null);
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
         given(postService.getPosts(any(), any())).willReturn(listResponse);
 
