@@ -35,7 +35,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -85,7 +84,7 @@ class HistoryServiceTest {
 
         Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(historyRepository.findHistoryIdsByDateRangeExcludingContentLiked(eq(userId), isNull(), isNull(), any(Pageable.class)))
+        given(historyRepository.findHistoryIdsExcludingContentLiked(eq(userId), any(Pageable.class)))
                 .willReturn(idPage);
         given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
                 .willReturn(List.of(history));
@@ -116,7 +115,7 @@ class HistoryServiceTest {
 
         Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(historyRepository.findHistoryIdsByDateRangeExcludingContentLiked(eq(userId), isNull(), isNull(), any(Pageable.class)))
+        given(historyRepository.findHistoryIdsExcludingContentLiked(eq(userId), any(Pageable.class)))
                 .willReturn(idPage);
         given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
                 .willReturn(List.of(history));
@@ -134,7 +133,7 @@ class HistoryServiceTest {
     void getLearningHistory_emptyHistory_returnsEmptyItems() {
         Page<UUID> emptyIdPage = new PageImpl<>(List.of(), pageable, 0);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(historyRepository.findHistoryIdsByDateRangeExcludingContentLiked(eq(userId), isNull(), isNull(), any(Pageable.class)))
+        given(historyRepository.findHistoryIdsExcludingContentLiked(eq(userId), any(Pageable.class)))
                 .willReturn(emptyIdPage);
 
         HistoryPageResponse response = historyService.getHistory(userId, null, null, null, pageable);
@@ -165,7 +164,7 @@ class HistoryServiceTest {
 
         Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(historyRepository.findHistoryIdsByDateRangeExcludingContentLiked(eq(userId), isNull(), isNull(), any(Pageable.class)))
+        given(historyRepository.findHistoryIdsExcludingContentLiked(eq(userId), any(Pageable.class)))
                 .willReturn(idPage);
         given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
                 .willReturn(List.of(history));
@@ -188,7 +187,7 @@ class HistoryServiceTest {
 
         Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(historyRepository.findHistoryIdsByDateRangeExcludingContentLiked(eq(userId), isNull(), isNull(), any(Pageable.class)))
+        given(historyRepository.findHistoryIdsExcludingContentLiked(eq(userId), any(Pageable.class)))
                 .willReturn(idPage);
         given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
                 .willReturn(List.of(history));
@@ -225,8 +224,8 @@ class HistoryServiceTest {
 
         Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(historyRepository.findHistoryIdsByActionTypesAndDateRange(
-                eq(userId), eq(actionTypes), isNull(), isNull(), any(Pageable.class)))
+        given(historyRepository.findHistoryIdsByActionTypes(
+                eq(userId), eq(actionTypes), any(Pageable.class)))
                 .willReturn(idPage);
         given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
                 .willReturn(List.of(history));
@@ -234,8 +233,8 @@ class HistoryServiceTest {
         HistoryPageResponse response = historyService.getHistory(userId, actionTypes, null, null, pageable);
 
         assertThat(response.items()).hasSize(1);
-        verify(historyRepository).findHistoryIdsByActionTypesAndDateRange(
-                eq(userId), eq(actionTypes), isNull(), isNull(), any(Pageable.class));
-        verify(historyRepository, never()).findHistoryIdsByDateRangeExcludingContentLiked(any(), any(), any(), any());
+        verify(historyRepository).findHistoryIdsByActionTypes(
+                eq(userId), eq(actionTypes), any(Pageable.class));
+        verify(historyRepository, never()).findHistoryIdsExcludingContentLiked(any(), any());
     }
 }

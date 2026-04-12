@@ -39,18 +39,31 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 
-    // DP-293: 2단계 페이징 - 1단계: ID만 조회 (actionType 필터 있을 때)
+    // DP-293: 2단계 페이징 - 1단계: ID만 조회 (actionType 필터 있을 때, 날짜 필터 없음)
     @Query(value = "SELECT h.id FROM History h " +
                    "WHERE h.user.id = :userId " +
                    "AND h.actionType IN :actionTypes " +
-                   "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
-                   "AND (:endDate IS NULL OR h.createdAt <= :endDate) " +
+                   "ORDER BY h.createdAt DESC",
+           countQuery = "SELECT COUNT(h) FROM History h " +
+                        "WHERE h.user.id = :userId " +
+                        "AND h.actionType IN :actionTypes")
+    Page<UUID> findHistoryIdsByActionTypes(
+            @Param("userId") UUID userId,
+            @Param("actionTypes") List<String> actionTypes,
+            Pageable pageable);
+
+    // DP-293: 2단계 페이징 - 1단계: ID만 조회 (actionType 필터 있을 때, 날짜 필터 있음)
+    @Query(value = "SELECT h.id FROM History h " +
+                   "WHERE h.user.id = :userId " +
+                   "AND h.actionType IN :actionTypes " +
+                   "AND h.createdAt >= :startDate " +
+                   "AND h.createdAt <= :endDate " +
                    "ORDER BY h.createdAt DESC",
            countQuery = "SELECT COUNT(h) FROM History h " +
                         "WHERE h.user.id = :userId " +
                         "AND h.actionType IN :actionTypes " +
-                        "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
-                        "AND (:endDate IS NULL OR h.createdAt <= :endDate)")
+                        "AND h.createdAt >= :startDate " +
+                        "AND h.createdAt <= :endDate")
     Page<UUID> findHistoryIdsByActionTypesAndDateRange(
             @Param("userId") UUID userId,
             @Param("actionTypes") List<String> actionTypes,
@@ -58,34 +71,40 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
             @Param("endDate") LocalDateTime endDate,
             Pageable pageable);
 
-    // DP-293: 2단계 페이징 - 1단계: ID만 조회 (actionType 필터 없을 때)
+    // DP-293: 2단계 페이징 - 1단계: ID만 조회 (전체, 날짜 필터 없음)
     @Query(value = "SELECT h.id FROM History h " +
                    "WHERE h.user.id = :userId " +
-                   "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
-                   "AND (:endDate IS NULL OR h.createdAt <= :endDate) " +
                    "ORDER BY h.createdAt DESC",
            countQuery = "SELECT COUNT(h) FROM History h " +
-                        "WHERE h.user.id = :userId " +
-                        "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
-                        "AND (:endDate IS NULL OR h.createdAt <= :endDate)")
-    Page<UUID> findHistoryIdsByDateRange(
+                        "WHERE h.user.id = :userId")
+    Page<UUID> findAllHistoryIds(
             @Param("userId") UUID userId,
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endDate") LocalDateTime endDate,
             Pageable pageable);
 
-    /** 학습 히스토리: content_liked 제외 (GET /history 기본) */
+    /** 학습 히스토리: content_liked 제외, 날짜 필터 없음 */
     @Query(value = "SELECT h.id FROM History h " +
                    "WHERE h.user.id = :userId " +
                    "AND h.actionType <> 'content_liked' " +
-                   "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
-                   "AND (:endDate IS NULL OR h.createdAt <= :endDate) " +
+                   "ORDER BY h.createdAt DESC",
+           countQuery = "SELECT COUNT(h) FROM History h " +
+                        "WHERE h.user.id = :userId " +
+                        "AND h.actionType <> 'content_liked'")
+    Page<UUID> findHistoryIdsExcludingContentLiked(
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /** 학습 히스토리: content_liked 제외, 날짜 필터 있음 */
+    @Query(value = "SELECT h.id FROM History h " +
+                   "WHERE h.user.id = :userId " +
+                   "AND h.actionType <> 'content_liked' " +
+                   "AND h.createdAt >= :startDate " +
+                   "AND h.createdAt <= :endDate " +
                    "ORDER BY h.createdAt DESC",
            countQuery = "SELECT COUNT(h) FROM History h " +
                         "WHERE h.user.id = :userId " +
                         "AND h.actionType <> 'content_liked' " +
-                        "AND (:startDate IS NULL OR h.createdAt >= :startDate) " +
-                        "AND (:endDate IS NULL OR h.createdAt <= :endDate)")
+                        "AND h.createdAt >= :startDate " +
+                        "AND h.createdAt <= :endDate")
     Page<UUID> findHistoryIdsByDateRangeExcludingContentLiked(
             @Param("userId") UUID userId,
             @Param("startDate") LocalDateTime startDate,
