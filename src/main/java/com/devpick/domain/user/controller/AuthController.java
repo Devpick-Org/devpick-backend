@@ -109,6 +109,7 @@ public class AuthController {
             HttpServletResponse response) {
         String[] tokens = tokenService.reissueTokens(refreshToken);
         setRefreshTokenCookie(response, tokens[1]);
+        setHasSessionCookie(response);
         return ApiResponse.ok(new TokenResponse(tokens[0]));
     }
 
