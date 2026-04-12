@@ -146,6 +146,41 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("getPublicProfile — 동일 게시글에 답변 여러 개일 때 recentAnswers에 게시글 1개만 포함")
+    void getPublicProfile_multipleAnswersOnSamePost_deduplicatesRecentAnswers() {
+        Post post = Post.builder().user(user).title("Spring 질문").content("내용").level(Level.JUNIOR).build();
+
+        Answer answer1 = Mockito.mock(Answer.class);
+        Answer answer2 = Mockito.mock(Answer.class);
+        UUID postId = UUID.randomUUID();
+        UUID answer1Id = UUID.randomUUID();
+        UUID answer2Id = UUID.randomUUID();
+
+        Post mockPost = Mockito.mock(Post.class);
+        Mockito.when(mockPost.getId()).thenReturn(postId);
+        Mockito.when(mockPost.getTitle()).thenReturn("Spring 질문");
+
+        Mockito.when(answer1.getId()).thenReturn(answer1Id);
+        Mockito.when(answer1.getPost()).thenReturn(mockPost);
+        Mockito.when(answer1.getCreatedAt()).thenReturn(null);
+
+        Mockito.when(answer2.getId()).thenReturn(answer2Id);
+        Mockito.when(answer2.getPost()).thenReturn(mockPost);
+        Mockito.when(answer2.getCreatedAt()).thenReturn(null);
+
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(userBadgeRepository.findByUser_IdOrderByAcquiredAtDesc(userId)).willReturn(List.of());
+        given(postRepository.findByUser_IdOrderByCreatedAtDesc(userId)).willReturn(List.of(post));
+        given(answerRepository.findByUserIdWithPost(userId)).willReturn(List.of(answer1, answer2));
+
+        PublicUserProfileResponse response = userService.getPublicProfile(userId);
+
+        assertThat(response.recentAnswers()).hasSize(1);
+        assertThat(response.recentAnswers().get(0).postId()).isEqualTo(postId);
+        assertThat(response.recentAnswers().get(0).answerId()).isEqualTo(answer1Id); // 첫 번째(최신) 답변 유지
+    }
+
+    @Test
     @DisplayName("getPublicProfile — 비활성 사용자 USER_NOT_FOUND 예외")
     void getPublicProfile_inactiveUser_throwsUserNotFound() {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
