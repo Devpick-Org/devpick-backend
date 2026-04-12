@@ -46,6 +46,7 @@ import java.util.UUID;
 public class AuthController {
 
     static final String REFRESH_TOKEN_COOKIE = "refreshToken";
+    static final String HAS_SESSION_COOKIE = "hasSession";
     static final int REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60; // 7일 (초 단위)
 
     private final AuthService authService;
@@ -76,6 +77,7 @@ public class AuthController {
                                             HttpServletResponse response) {
         LoginResponse loginResponse = authService.login(request);
         setRefreshTokenCookie(response, loginResponse.refreshTokenValue());
+        setHasSessionCookie(response);
         return ApiResponse.ok(loginResponse);
     }
 
@@ -90,6 +92,7 @@ public class AuthController {
         UUID userId = (UUID) authentication.getPrincipal();
         tokenService.logout(userId);
         clearRefreshTokenCookie(response);
+        clearHasSessionCookie(response);
         return ApiResponse.ok(null);
     }
 
@@ -120,6 +123,7 @@ public class AuthController {
                                               HttpServletResponse response) {
         LoginResponse loginResponse = authService.recover(request);
         setRefreshTokenCookie(response, loginResponse.refreshTokenValue());
+        setHasSessionCookie(response);
         return ApiResponse.ok(loginResponse);
     }
 
@@ -134,6 +138,7 @@ public class AuthController {
                                                           HttpServletResponse response) {
         SocialLoginResponse loginResponse = socialAuthService.recoverWithToken(request.recoveryToken());
         setRefreshTokenCookie(response, loginResponse.refreshTokenValue());
+        setHasSessionCookie(response);
         return ApiResponse.ok(loginResponse);
     }
 
@@ -195,6 +200,7 @@ public class AuthController {
             HttpServletResponse response) {
         SocialLoginResponse loginResponse = socialAuthService.login("github", code, state);
         setRefreshTokenCookie(response, loginResponse.refreshTokenValue());
+        setHasSessionCookie(response);
         return ApiResponse.ok(loginResponse);
     }
 
@@ -212,10 +218,33 @@ public class AuthController {
             HttpServletResponse response) {
         SocialLoginResponse loginResponse = socialAuthService.login("google", code, state);
         setRefreshTokenCookie(response, loginResponse.refreshTokenValue());
+        setHasSessionCookie(response);
         return ApiResponse.ok(loginResponse);
     }
 
     // ── Cookie 헬퍼 ──────────────────────────────────────────────
+
+    private void setHasSessionCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from(HAS_SESSION_COOKIE, "true")
+                .httpOnly(false)
+                .secure(true)
+                .path("/")
+                .maxAge(REFRESH_TOKEN_MAX_AGE)
+                .sameSite("Lax")
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
+    }
+
+    private void clearHasSessionCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from(HAS_SESSION_COOKIE, "")
+                .httpOnly(false)
+                .secure(true)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
+    }
 
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, refreshToken)
