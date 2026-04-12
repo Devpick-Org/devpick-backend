@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - develop
+      - developV2
 
 permissions:
   pull-requests: write
