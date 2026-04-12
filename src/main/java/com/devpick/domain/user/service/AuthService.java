@@ -44,9 +44,10 @@ public class AuthService {
      */
     @Transactional
     public SignupResponse signup(SignupRequest request) {
-        if (!Boolean.TRUE.equals(request.termsAgreed()) || !Boolean.TRUE.equals(request.privacyAgreed())) {
-            throw new DevpickException(ErrorCode.AUTH_CONSENT_REQUIRED);
-        }
+        // 프론트 미사용 — 재활성화 시 주석 해제
+        // if (!Boolean.TRUE.equals(request.termsAgreed()) || !Boolean.TRUE.equals(request.privacyAgreed())) {
+        //     throw new DevpickException(ErrorCode.AUTH_CONSENT_REQUIRED);
+        // }
 
         if (!emailVerificationRedisService.isVerified(request.email())) {
             throw new DevpickException(ErrorCode.AUTH_EMAIL_NOT_VERIFIED_FOR_SIGNUP);
