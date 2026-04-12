@@ -246,7 +246,7 @@ class AuthControllerTest {
     // ── refresh ──────────────────────────────────────────────
 
     @Test
-    @DisplayName("POST /auth/refresh - Cookie의 Refresh Token으로 새 accessToken(바디)과 refreshToken(Cookie)을 반환한다")
+    @DisplayName("POST /auth/refresh - Cookie의 Refresh Token으로 새 accessToken(바디), refreshToken(Cookie), hasSession(Cookie)을 반환한다")
     void refresh_success() throws Exception {
         given(tokenService.reissueTokens("valid-refresh-token"))
                 .willReturn(new String[]{"new-access-token", "new-refresh-token"});
@@ -258,7 +258,26 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.accessToken").value("new-access-token"))
                 .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
                 .andExpect(header().string("Set-Cookie", containsString("SameSite=None")))
-                .andExpect(header().string("Set-Cookie", containsString("refreshToken=new-refresh-token")));
+                .andExpect(header().string("Set-Cookie", containsString("refreshToken=new-refresh-token")))
+                .andExpect(result -> assertThat(
+                        result.getResponse().getHeaders("Set-Cookie"),
+                        hasItem(allOf(containsString("hasSession=true"), containsString("SameSite=Lax")))));
+    }
+
+    @Test
+    @DisplayName("POST /auth/refresh - 성공 시 hasSession 쿠키의 maxAge가 refreshToken과 동일하게 갱신된다")
+    void refresh_success_hasSessionMaxAgeRenewed() throws Exception {
+        given(tokenService.reissueTokens("valid-refresh-token"))
+                .willReturn(new String[]{"new-access-token", "new-refresh-token"});
+
+        mockMvc.perform(post("/auth/refresh")
+                        .cookie(new Cookie(AuthController.REFRESH_TOKEN_COOKIE, "valid-refresh-token")))
+                .andExpect(status().isOk())
+                .andExpect(result -> assertThat(
+                        result.getResponse().getHeaders("Set-Cookie"),
+                        hasItem(allOf(
+                                containsString("hasSession=true"),
+                                containsString("Max-Age=" + AuthController.REFRESH_TOKEN_MAX_AGE)))));
     }
 
     @Test
@@ -271,6 +290,13 @@ class AuthControllerTest {
                         .cookie(new Cookie(AuthController.REFRESH_TOKEN_COOKIE, "invalid-refresh-token")))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /auth/refresh - refreshToken 쿠키가 없으면 401을 반환한다")
+    void refresh_missingCookie_returns401() throws Exception {
+        mockMvc.perform(post("/auth/refresh"))
+                .andExpect(status().isUnauthorized());
     }
 
     // ── email/send & email/verify ──────────────────────────────────────────────
