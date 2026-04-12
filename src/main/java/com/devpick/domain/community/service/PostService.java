@@ -6,6 +6,7 @@ import com.devpick.domain.community.dto.PostListResponse;
 import com.devpick.domain.community.dto.PostSummaryResponse;
 import com.devpick.domain.community.dto.PostUpdateRequest;
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostAttachment;
 import com.devpick.domain.community.repository.AiAnswerRepository;
 import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.AnswerLikeRepository;
@@ -21,6 +22,7 @@ import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
+import com.devpick.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -50,6 +52,7 @@ public class PostService {
     private final AiQuestionRepository aiQuestionRepository;
     private final CommentRepository commentRepository;
     private final AnswerLikeRepository answerLikeRepository;
+    private final FileStorageService fileStorageService;
 
     @Transactional
     public PostDetailResponse createPost(UUID userId, PostCreateRequest request) {
@@ -67,6 +70,7 @@ public class PostService {
                 .content(request.content())
                 .level(request.level())
                 .build();
+        applyPostAttachments(post, request.attachmentUrls());
         Post savedPost = postRepository.save(post);
 
         historyRepository.save(History.builder()
@@ -133,7 +137,7 @@ public class PostService {
 
     @Transactional(readOnly = true)
     public PostDetailResponse getPostDetail(UUID postId) {
-        Post post = postRepository.findById(postId)
+        Post post = postRepository.findByIdWithAttachments(postId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.COMMUNITY_POST_NOT_FOUND));
         long answerCount = answerRepository.countByPost_Id(postId);
         return PostDetailResponse.of(post, answerCount);
@@ -149,8 +153,25 @@ public class PostService {
         }
 
         post.update(request.title(), request.content(), request.level());
+        post.getAttachments().clear();
+        applyPostAttachments(post, request.attachmentUrls());
         long answerCount = answerRepository.countByPost_Id(postId);
         return PostDetailResponse.of(post, answerCount);
+    }
+
+    private void applyPostAttachments(Post post, List<String> urls) {
+        if (urls == null || urls.isEmpty()) {
+            return;
+        }
+        for (String url : urls) {
+            fileStorageService.validateUploadedAttachmentUrl(url);
+            post.getAttachments().add(PostAttachment.builder()
+                    .post(post)
+                    .url(url)
+                    .fileName(FileStorageService.extractFileNameFromUrl(url))
+                    .type(FileStorageService.inferAttachmentTypeFromUrl(url))
+                    .build());
+        }
     }
 
     @Transactional

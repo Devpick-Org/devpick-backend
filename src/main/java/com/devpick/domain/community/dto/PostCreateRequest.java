@@ -5,8 +5,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+
 public record PostCreateRequest(
         @NotBlank @Size(max = 500) String title,
         @NotBlank String content,
-        @NotNull Level level
-) {}
+        @NotNull Level level,
+        @Size(max = 10) List<String> attachmentUrls
+) {
+    public PostCreateRequest {
+        attachmentUrls = attachmentUrls == null ? List.of() : List.copyOf(attachmentUrls);
+    }
+}

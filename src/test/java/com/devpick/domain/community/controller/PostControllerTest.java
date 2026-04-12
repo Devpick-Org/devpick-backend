@@ -96,7 +96,7 @@ class PostControllerTest {
     @Test
     @DisplayName("POST /posts - 게시글 작성 성공 시 201과 응답 반환")
     void createPost_success_returns201() throws Exception {
-        PostCreateRequest request = new PostCreateRequest("Test Post", "Test Content", Level.JUNIOR);
+        PostCreateRequest request = new PostCreateRequest("Test Post", "Test Content", Level.JUNIOR, null);
         given(postService.createPost(eq(userId), any())).willReturn(detailResponse);
 
         mockMvc.perform(post("/posts")
@@ -111,7 +111,7 @@ class PostControllerTest {
     @Test
     @DisplayName("POST /posts - 유효성 검사 실패 시 400 반환")
     void createPost_validationFails_returns400() throws Exception {
-        PostCreateRequest request = new PostCreateRequest("", "content", Level.JUNIOR);
+        PostCreateRequest request = new PostCreateRequest("", "content", Level.JUNIOR, null);
 
         mockMvc.perform(post("/posts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -188,7 +188,7 @@ class PostControllerTest {
     @Test
     @DisplayName("PUT /posts/{postId} - 수정 성공 시 200 반환")
     void updatePost_success_returns200() throws Exception {
-        PostUpdateRequest request = new PostUpdateRequest("Updated", "Updated Content", Level.SENIOR);
+        PostUpdateRequest request = new PostUpdateRequest("Updated", "Updated Content", Level.SENIOR, null);
         PostDetailResponse updated = new PostDetailResponse(
                 postId, "Updated", "Updated Content", Level.SENIOR,
                 userId, "tester", null, null, null, 0L, Instant.now(), Instant.now(), List.of());
@@ -205,7 +205,7 @@ class PostControllerTest {
     @Test
     @DisplayName("PUT /posts/{postId} - 권한 없으면 403 반환")
     void updatePost_unauthorized_returns403() throws Exception {
-        PostUpdateRequest request = new PostUpdateRequest("Updated", "Content", Level.JUNIOR);
+        PostUpdateRequest request = new PostUpdateRequest("Updated", "Content", Level.JUNIOR, null);
         given(postService.updatePost(eq(userId), eq(postId), any()))
                 .willThrow(new DevpickException(ErrorCode.COMMUNITY_UNAUTHORIZED_POST_ACTION));
 

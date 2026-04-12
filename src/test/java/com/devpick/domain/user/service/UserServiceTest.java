@@ -22,6 +22,7 @@ import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
+import com.devpick.global.storage.FileStorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -64,6 +65,8 @@ class UserServiceTest {
     private PostRepository postRepository;
     @Mock
     private AnswerRepository answerRepository;
+    @Mock
+    private FileStorageService fileStorageService;
 
     private UUID userId;
     private User user;

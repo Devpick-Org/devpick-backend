@@ -6,6 +6,9 @@ import com.devpick.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "posts", indexes = {
         @Index(name = "idx_posts_user_id", columnList = "user_id")
@@ -29,6 +32,10 @@ public class Post extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(length = 20, nullable = false)
     private Level level;
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<PostAttachment> attachments = new ArrayList<>();
 
     public void update(String title, String content, Level level) {
         this.title = title;

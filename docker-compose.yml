@@ -41,7 +41,10 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       AI_SERVER_URL: ${AI_SERVER_URL:-http://host.docker.internal:8000}
+      AI_SERVER_TIMEOUT_MS: ${AI_SERVER_TIMEOUT_MS:-90000}
       AI_SERVER_INTERNAL_KEY: ${AI_SERVER_INTERNAL_KEY:-}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_S3_PUBLIC_BASE_URL: ${AWS_S3_PUBLIC_BASE_URL:-}
     dns:
       - 172.31.0.2  # AWS VPC DNS — ElastiCache 등 내부 hostname 해석용
     depends_on:

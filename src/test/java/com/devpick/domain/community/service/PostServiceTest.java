@@ -13,6 +13,7 @@ import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.CommentRepository;
 import com.devpick.domain.community.repository.PostLikeRepository;
 import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.global.storage.FileStorageService;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.Job;
@@ -72,6 +73,8 @@ class PostServiceTest {
     private CommentRepository commentRepository;
     @Mock
     private AnswerLikeRepository answerLikeRepository;
+    @Mock
+    private FileStorageService fileStorageService;
 
     private UUID userId;
     private UUID postId;
@@ -103,7 +106,7 @@ class PostServiceTest {
     @Test
     @DisplayName("createPost — 성공 시 히스토리 저장하고 게시글 반환")
     void createPost_success_savesHistoryAndReturnsPost() {
-        PostCreateRequest request = new PostCreateRequest("Test Post", "Test Content", Level.JUNIOR);
+        PostCreateRequest request = new PostCreateRequest("Test Post", "Test Content", Level.JUNIOR, null);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(postRepository.save(any(Post.class))).willReturn(post);
 
@@ -117,7 +120,7 @@ class PostServiceTest {
     @Test
     @DisplayName("createPost — 사용자 없으면 USER_NOT_FOUND 예외")
     void createPost_userNotFound_throwsException() {
-        PostCreateRequest request = new PostCreateRequest("title", "content", Level.JUNIOR);
+        PostCreateRequest request = new PostCreateRequest("title", "content", Level.JUNIOR, null);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> postService.createPost(userId, request))
@@ -156,7 +159,7 @@ class PostServiceTest {
     @Test
     @DisplayName("getPostDetail — 성공 시 답변 수 포함 상세 반환")
     void getPostDetail_success_returnsDetailWithAnswerCount() {
-        given(postRepository.findById(postId)).willReturn(Optional.of(post));
+        given(postRepository.findByIdWithAttachments(postId)).willReturn(Optional.of(post));
         given(answerRepository.countByPost_Id(postId)).willReturn(3L);
 
         PostDetailResponse response = postService.getPostDetail(postId);
@@ -169,7 +172,7 @@ class PostServiceTest {
     @Test
     @DisplayName("getPostDetail — 게시글 없으면 COMMUNITY_POST_NOT_FOUND 예외")
     void getPostDetail_notFound_throwsException() {
-        given(postRepository.findById(postId)).willReturn(Optional.empty());
+        given(postRepository.findByIdWithAttachments(postId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> postService.getPostDetail(postId))
                 .isInstanceOf(DevpickException.class)
@@ -180,7 +183,7 @@ class PostServiceTest {
     @Test
     @DisplayName("updatePost — 성공 시 수정된 게시글 반환")
     void updatePost_success_returnsUpdatedPost() {
-        PostUpdateRequest request = new PostUpdateRequest("Updated Title", "Updated Content", Level.SENIOR);
+        PostUpdateRequest request = new PostUpdateRequest("Updated Title", "Updated Content", Level.SENIOR, null);
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
         given(answerRepository.countByPost_Id(postId)).willReturn(0L);
 
@@ -193,7 +196,7 @@ class PostServiceTest {
     @Test
     @DisplayName("updatePost — 게시글 없으면 COMMUNITY_POST_NOT_FOUND 예외")
     void updatePost_notFound_throwsException() {
-        PostUpdateRequest request = new PostUpdateRequest("title", "content", Level.JUNIOR);
+        PostUpdateRequest request = new PostUpdateRequest("title", "content", Level.JUNIOR, null);
         given(postRepository.findById(postId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> postService.updatePost(userId, postId, request))
@@ -206,7 +209,7 @@ class PostServiceTest {
     @DisplayName("updatePost — 작성자 아닌 경우 COMMUNITY_UNAUTHORIZED_POST_ACTION 예외")
     void updatePost_unauthorized_throwsException() {
         UUID otherUserId = UUID.randomUUID();
-        PostUpdateRequest request = new PostUpdateRequest("title", "content", Level.JUNIOR);
+        PostUpdateRequest request = new PostUpdateRequest("title", "content", Level.JUNIOR, null);
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
 
         assertThatThrownBy(() -> postService.updatePost(otherUserId, postId, request))
@@ -270,7 +273,7 @@ class PostServiceTest {
     @Test
     @DisplayName("createPost — 10초 이내 동일 제목 중복 제출 시 COMMUNITY_DUPLICATE_POST 예외")
     void createPost_duplicatePost_throwsException() {
-        PostCreateRequest request = new PostCreateRequest("Test Post", "Test Content", Level.JUNIOR);
+        PostCreateRequest request = new PostCreateRequest("Test Post", "Test Content", Level.JUNIOR, null);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(postRepository.existsByUser_IdAndTitleAndCreatedAtAfter(eq(userId), eq("Test Post"), any(LocalDateTime.class)))
                 .willReturn(true);

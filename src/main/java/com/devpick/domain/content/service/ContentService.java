@@ -86,19 +86,29 @@ public class ContentService {
         Content content = contentRepository.findByIdAndIsAvailableTrue(contentId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
 
-        User user = userRepository.findByIdAndIsActiveTrue(userId)
+        userRepository.findByIdAndIsActiveTrue(userId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
-
-        historyRepository.save(History.builder()
-                .user(user)
-                .actionType("content_opened")
-                .content(content)
-                .build());
 
         boolean isScrapped = scrapRepository.existsByUser_IdAndContent_Id(userId, contentId);
         boolean isLiked = likeRepository.existsByUser_IdAndContent_Id(userId, contentId);
 
         return ContentDetailResponse.of(content, isScrapped, isLiked);
+    }
+
+    /**
+     * 원문(외부 링크) 확인 시 학습 히스토리(content_opened) 기록. 상세 페이지 진입만으로는 기록하지 않음 (DP-321).
+     */
+    @Transactional
+    public void recordContentOriginalOpened(UUID userId, UUID contentId) {
+        Content content = contentRepository.findByIdAndIsAvailableTrue(contentId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
+        User user = userRepository.findByIdAndIsActiveTrue(userId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
+        historyRepository.save(History.builder()
+                .user(user)
+                .actionType("content_opened")
+                .content(content)
+                .build());
     }
 
     @Transactional

@@ -17,9 +17,11 @@ import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
+import com.devpick.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -36,6 +38,7 @@ public class UserService {
     private final UserBadgeRepository userBadgeRepository;
     private final PostRepository postRepository;
     private final AnswerRepository answerRepository;
+    private final FileStorageService fileStorageService;
 
     @Transactional(readOnly = true)
     public PublicUserProfileResponse getPublicProfile(UUID targetUserId) {
@@ -75,6 +78,14 @@ public class UserService {
             tags.forEach(tag -> user.getUserTags().add(UserTag.builder().user(user).tag(tag).build()));
         }
 
+        return UserProfileUpdateResponse.from(user);
+    }
+
+    @Transactional
+    public UserProfileUpdateResponse updateProfileImage(UUID userId, MultipartFile file) {
+        User user = findActiveUser(userId);
+        String url = fileStorageService.uploadProfileImage(userId, file);
+        user.updateProfile(null, url, null, null);
         return UserProfileUpdateResponse.from(user);
     }
 

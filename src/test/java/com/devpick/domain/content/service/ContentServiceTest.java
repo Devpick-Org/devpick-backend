@@ -187,8 +187,8 @@ class ContentServiceTest {
     }
 
     @Test
-    @DisplayName("getDetail — 성공 시 히스토리 저장하고 상세 반환")
-    void getDetail_success_savesHistory() {
+    @DisplayName("getDetail — 성공 시 상세만 반환 (content_opened 히스토리는 저장하지 않음)")
+    void getDetail_success_doesNotSaveContentOpenedHistory() {
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(scrapRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
@@ -198,7 +198,21 @@ class ContentServiceTest {
 
         assertThat(response.title()).isEqualTo("Spring Boot 가이드");
         assertThat(response.sourceName()).isEqualTo("Velog");
-        verify(historyRepository).save(any(History.class));
+        verify(historyRepository, never()).save(any(History.class));
+    }
+
+    @Test
+    @DisplayName("recordContentOriginalOpened — content_opened 히스토리 저장")
+    void recordContentOriginalOpened_success_savesHistory() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+
+        contentService.recordContentOriginalOpened(userId, contentId);
+
+        ArgumentCaptor<History> captor = ArgumentCaptor.forClass(History.class);
+        verify(historyRepository).save(captor.capture());
+        assertThat(captor.getValue().getActionType()).isEqualTo("content_opened");
+        assertThat(captor.getValue().getContent()).isEqualTo(content);
     }
 
     @Test

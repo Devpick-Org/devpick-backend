@@ -3,6 +3,7 @@ package com.devpick.domain.community.dto;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
+import com.devpick.global.util.MarkdownPreviewUtils;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -26,9 +27,10 @@ public record PostSummaryResponse(
 
     public static PostSummaryResponse of(Post post, long answerCount, String topAnswerPreview) {
         String content = post.getContent();
-        String contentPreview = content != null && content.length() > CONTENT_PREVIEW_LENGTH
-                ? content.substring(0, CONTENT_PREVIEW_LENGTH) + "..."
-                : content;
+        String plain = content != null ? MarkdownPreviewUtils.stripForPreview(content) : null;
+        String contentPreview = plain != null && plain.length() > CONTENT_PREVIEW_LENGTH
+                ? plain.substring(0, CONTENT_PREVIEW_LENGTH) + "..."
+                : plain;
 
         return new PostSummaryResponse(
                 post.getId(),
@@ -47,8 +49,9 @@ public record PostSummaryResponse(
 
     public static String truncateAnswerPreview(String content) {
         if (content == null) return null;
-        return content.length() > ANSWER_PREVIEW_LENGTH
-                ? content.substring(0, ANSWER_PREVIEW_LENGTH) + "..."
-                : content;
+        String plain = MarkdownPreviewUtils.stripForPreview(content);
+        return plain.length() > ANSWER_PREVIEW_LENGTH
+                ? plain.substring(0, ANSWER_PREVIEW_LENGTH) + "..."
+                : plain;
     }
 }

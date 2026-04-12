@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface PostRepository extends JpaRepository<Post, UUID> {
@@ -25,4 +26,11 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     List<Post> findByUser_IdOrderByCreatedAtDesc(UUID userId);
 
     boolean existsByUser_IdAndTitleAndCreatedAtAfter(UUID userId, String title, LocalDateTime after);
+
+    @Query("""
+            SELECT DISTINCT p FROM Post p
+            LEFT JOIN FETCH p.attachments
+            WHERE p.id = :id
+            """)
+    Optional<Post> findByIdWithAttachments(@Param("id") UUID id);
 }

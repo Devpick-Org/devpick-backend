@@ -1,6 +1,7 @@
 package com.devpick.domain.community.dto;
 
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostAttachment;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 
@@ -25,6 +26,9 @@ public record PostDetailResponse(
         List<PostAttachmentDTO> attachments
 ) {
     public static PostDetailResponse of(Post post, long answerCount) {
+        List<PostAttachmentDTO> attachmentDtos = post.getAttachments().stream()
+                .map(PostDetailResponse::toAttachmentDto)
+                .toList();
         return new PostDetailResponse(
                 post.getId(),
                 post.getTitle(),
@@ -38,7 +42,12 @@ public record PostDetailResponse(
                 answerCount,
                 post.getCreatedAt() != null ? post.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
                 post.getUpdatedAt() != null ? post.getUpdatedAt().toInstant(ZoneOffset.UTC) : null,
-                List.of()
+                attachmentDtos
         );
+    }
+
+    private static PostAttachmentDTO toAttachmentDto(PostAttachment a) {
+        String type = a.getType() != null ? a.getType() : "file";
+        return new PostAttachmentDTO(type, a.getUrl(), a.getFileName());
     }
 }

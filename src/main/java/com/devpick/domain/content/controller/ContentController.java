@@ -63,7 +63,7 @@ public class ContentController {
         return ApiResponse.ok(contentService.search(userId, query, tags, pageable));
     }
 
-    @Operation(summary = "콘텐츠 상세 조회", description = "특정 콘텐츠의 상세 내용을 조회합니다. 조회 시 학습 히스토리(content_opened)가 기록됩니다.")
+    @Operation(summary = "콘텐츠 상세 조회", description = "특정 콘텐츠의 상세 내용을 조회합니다. 학습 히스토리(content_opened)는 원문 확인 시 POST /contents/{contentId}/read-original 로 기록합니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
@@ -74,6 +74,20 @@ public class ContentController {
             @AuthenticationPrincipal UUID userId,
             @Parameter(description = "콘텐츠 ID (UUID)", required = true) @PathVariable UUID contentId) {
         return ApiResponse.ok(contentService.getDetail(userId, contentId));
+    }
+
+    @Operation(summary = "원문 확인(학습 기록)", description = "외부 원문 링크를 연 시점에 호출합니다. 학습 히스토리(content_opened)가 기록됩니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "기록 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "콘텐츠를 찾을 수 없음")
+    })
+    @PostMapping("/{contentId}/read-original")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void recordReadOriginal(
+            @AuthenticationPrincipal UUID userId,
+            @Parameter(description = "콘텐츠 ID (UUID)", required = true) @PathVariable UUID contentId) {
+        contentService.recordContentOriginalOpened(userId, contentId);
     }
 
     @Operation(summary = "스크랩 추가", description = "콘텐츠를 스크랩합니다. 학습 히스토리(scrapped)가 기록됩니다.")

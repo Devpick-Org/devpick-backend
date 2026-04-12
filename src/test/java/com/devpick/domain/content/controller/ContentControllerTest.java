@@ -138,6 +138,17 @@ class ContentControllerTest {
     }
 
     @Test
+    @DisplayName("POST /contents/{contentId}/read-original - 원문 확인 기록 성공 시 204")
+    void recordReadOriginal_success_returns204() throws Exception {
+        UUID contentId = UUID.randomUUID();
+
+        mockMvc.perform(post("/contents/" + contentId + "/read-original"))
+                .andExpect(status().isNoContent());
+
+        verify(contentService).recordContentOriginalOpened(userId, contentId);
+    }
+
+    @Test
     @DisplayName("POST /contents/{contentId}/scrap - 스크랩 성공 시 201과 success:true 반환")
     void addScrap_success_returns201() throws Exception {
         UUID contentId = UUID.randomUUID();

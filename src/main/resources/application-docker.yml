@@ -3,6 +3,10 @@ server:
   forward-headers-strategy: native
 
 spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
   datasource:
     url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:devpick}
     username: ${DB_USERNAME:devpick}
@@ -18,6 +22,9 @@ spring:
 
 aws:
   region: ${AWS_REGION:ap-northeast-2}
+  s3:
+    bucket: ${AWS_S3_BUCKET:}
+    public-base-url: ${AWS_S3_PUBLIC_BASE_URL:}
 
 resend:
   api-key: ${RESEND_API_KEY}
@@ -32,7 +39,7 @@ jwt:
 
 ai-server:
   url: ${AI_SERVER_URL:http://ai-server:8000}
-  timeout-ms: ${AI_SERVER_TIMEOUT_MS:10000}
+  timeout-ms: ${AI_SERVER_TIMEOUT_MS:90000}
   internal-key: ${AI_SERVER_INTERNAL_KEY:}
 
 oauth:
