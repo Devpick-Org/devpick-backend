@@ -75,7 +75,7 @@ class BadgeServiceTest {
         given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.ANSWER_ADOPTED)).willReturn(0L);
         given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of());
 
-        badgeService.checkAndUnlock(user);
+        badgeService.checkAndUnlock(user, PointAction.CONTENT_SCRAP);
 
         verify(userBadgeRepository).save(any(UserBadge.class));
     }
@@ -89,7 +89,7 @@ class BadgeServiceTest {
         given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.ANSWER_ADOPTED)).willReturn(0L);
         given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of());
 
-        badgeService.checkAndUnlock(user);
+        badgeService.checkAndUnlock(user, PointAction.CONTENT_SCRAP);
 
         verify(userBadgeRepository, never()).save(any());
     }
@@ -107,7 +107,7 @@ class BadgeServiceTest {
         given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.ANSWER_ADOPTED)).willReturn(0L);
         given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of());
 
-        badgeService.checkAndUnlock(user);
+        badgeService.checkAndUnlock(user, PointAction.CONTENT_SCRAP);
 
         verify(userBadgeRepository).save(any(UserBadge.class));
     }
@@ -125,7 +125,7 @@ class BadgeServiceTest {
         given(badgeRepository.findById("ANSWER_MASTER")).willReturn(Optional.of(badge));
         given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of());
 
-        badgeService.checkAndUnlock(user);
+        badgeService.checkAndUnlock(user, PointAction.CONTENT_SCRAP);
 
         verify(userBadgeRepository).save(any(UserBadge.class));
     }
@@ -138,7 +138,7 @@ class BadgeServiceTest {
         given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.ANSWER_ADOPTED)).willReturn(4L);
         given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of());
 
-        badgeService.checkAndUnlock(user);
+        badgeService.checkAndUnlock(user, PointAction.CONTENT_SCRAP);
 
         verify(userBadgeRepository, never()).save(any());
     }
@@ -157,7 +157,7 @@ class BadgeServiceTest {
         given(badgeRepository.findById("POINT_100")).willReturn(Optional.of(badge));
         given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of());
 
-        badgeService.checkAndUnlock(user);
+        badgeService.checkAndUnlock(user, PointAction.CONTENT_SCRAP);
 
         verify(userBadgeRepository).save(any(UserBadge.class));
     }
@@ -171,7 +171,7 @@ class BadgeServiceTest {
         given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.ANSWER_ADOPTED)).willReturn(0L);
         given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of());
 
-        badgeService.checkAndUnlock(user);
+        badgeService.checkAndUnlock(user, PointAction.CONTENT_SCRAP);
 
         verify(userBadgeRepository, never()).save(any());
     }

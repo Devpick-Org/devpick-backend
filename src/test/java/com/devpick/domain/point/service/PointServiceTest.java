@@ -150,7 +150,7 @@ class PointServiceTest {
                 eq(userId), eq(PointAction.DAILY_LOGIN), any(LocalDateTime.class), any(LocalDateTime.class)))
                 .willReturn(false);
         org.mockito.Mockito.doThrow(new RuntimeException("badge error"))
-                .when(badgeService).checkAndUnlock(user);
+                .when(badgeService).checkAndUnlock(user, PointAction.DAILY_LOGIN);
 
         pointService.earn(user, PointAction.DAILY_LOGIN);
 

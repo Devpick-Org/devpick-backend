@@ -44,12 +44,12 @@ public class BadgeService {
      * 이미 획득한 배지는 중복 발급하지 않는다.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void checkAndUnlock(User user) {
+    public void checkAndUnlock(User user, PointAction justEarned) {
         checkFirstScrap(user);
         checkFirstQuestion(user);
         checkAnswerMaster(user);
         checkPointBadges(user);
-        checkStreak7(user);
+        checkStreak7(user, justEarned);
     }
 
     @Transactional(readOnly = true)
@@ -103,8 +103,8 @@ public class BadgeService {
         unlockIfConditionMet(user, "POINT_1000", total >= 1000);
     }
 
-    private void checkStreak7(User user) {
-        unlockIfConditionMet(user, "STREAK_7", calculateStreak(user.getId()) >= 7);
+    private void checkStreak7(User user, PointAction justEarned) {
+        unlockIfConditionMet(user, "STREAK_7", calculateStreak(user.getId(), justEarned) >= 7);
     }
 
     private void unlockIfConditionMet(User user, String badgeId, boolean condition) {
@@ -122,17 +122,24 @@ public class BadgeService {
                 .build());
     }
 
-    private int calculateStreak(UUID userId) {
-        List<LocalDate> loginDates = pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)
+    private int calculateStreak(UUID userId, PointAction justEarned) {
+        Set<LocalDate> dateSet = pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)
                 .stream()
                 .map(log -> log.getEarnedAt().atZone(ZoneId.systemDefault()).withZoneSameInstant(KST).toLocalDate())
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
 
-        if (loginDates.isEmpty()) return 0;
+        // REQUIRES_NEW 트랜잭션은 외부 트랜잭션의 미커밋 PointLog를 볼 수 없으므로
+        // DAILY_LOGIN을 막 적립한 경우 오늘 날짜를 직접 포함시킨다.
+        LocalDate today = ZonedDateTime.now(KST).toLocalDate();
+        if (justEarned == PointAction.DAILY_LOGIN) {
+            dateSet = new java.util.HashSet<>(dateSet);
+            dateSet.add(today);
+        }
 
-        Set<LocalDate> dateSet = Set.copyOf(loginDates);
-        LocalDate current = ZonedDateTime.now(KST).toLocalDate();
+        if (dateSet.isEmpty()) return 0;
+
         int streak = 0;
+        LocalDate current = today;
         while (dateSet.contains(current)) {
             streak++;
             current = current.minusDays(1);
