@@ -6,3 +6,13 @@ spring:
 
 server:
   port: 8080
+
+# Actuator: EC2/로드밸런서에서 /actuator/health 사용 시 노출 필요
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
