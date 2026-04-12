@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientException;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -54,7 +55,7 @@ public class AiServerClient {
             }
             return result;
         } catch (WebClientException e) {
-            throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
+            throw toDevpickException(e);
         }
     }
 
@@ -83,7 +84,15 @@ public class AiServerClient {
             }
             return result;
         } catch (WebClientException e) {
-            throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
+            throw toDevpickException(e);
         }
+    }
+
+    private DevpickException toDevpickException(WebClientException e) {
+        if (e instanceof WebClientRequestException requestEx
+                && requestEx.getCause() instanceof java.util.concurrent.TimeoutException) {
+            return new DevpickException(ErrorCode.AI_TIMEOUT);
+        }
+        return new DevpickException(ErrorCode.AI_SERVER_ERROR);
     }
 }
