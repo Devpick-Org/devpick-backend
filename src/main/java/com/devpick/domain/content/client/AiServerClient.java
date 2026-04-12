@@ -8,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.reactive.function.client.WebClientException;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -53,8 +54,8 @@ public class AiServerClient {
                 throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
             }
             return result;
-        } catch (WebClientResponseException e) {
-            throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
+        } catch (WebClientException e) {
+            throw toDevpickException(e);
         }
     }
 
@@ -82,8 +83,16 @@ public class AiServerClient {
                 throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
             }
             return result;
-        } catch (WebClientResponseException e) {
-            throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
+        } catch (WebClientException e) {
+            throw toDevpickException(e);
         }
+    }
+
+    private DevpickException toDevpickException(WebClientException e) {
+        if (e instanceof WebClientRequestException requestEx
+                && requestEx.getCause() instanceof java.util.concurrent.TimeoutException) {
+            return new DevpickException(ErrorCode.AI_TIMEOUT);
+        }
+        return new DevpickException(ErrorCode.AI_SERVER_ERROR);
     }
 }
