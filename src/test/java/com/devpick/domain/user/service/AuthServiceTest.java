@@ -54,33 +54,14 @@ class AuthServiceTest {
 
     // ── signup ──────────────────────────────────────────────────────────
 
-    @Test
-    @DisplayName("이용약관 미동의 — termsAgreed=false이면 AUTH_CONSENT_REQUIRED 예외가 발생한다")
-    void signup_termsNotAgreed_throwsException() {
-        // given
-        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영", false, true);
+    // 프론트 미사용 — 재활성화 시 주석 해제
+    // @Test
+    // @DisplayName("이용약관 미동의 — termsAgreed=false이면 AUTH_CONSENT_REQUIRED 예외가 발생한다")
+    // void signup_termsNotAgreed_throwsException() { ... }
 
-        // when & then
-        assertThatThrownBy(() -> authService.signup(request))
-                .isInstanceOf(DevpickException.class)
-                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
-                        .isEqualTo(ErrorCode.AUTH_CONSENT_REQUIRED));
-        verify(userRepository, never()).save(any(User.class));
-    }
-
-    @Test
-    @DisplayName("개인정보처리방침 미동의 — privacyAgreed=false이면 AUTH_CONSENT_REQUIRED 예외가 발생한다")
-    void signup_privacyNotAgreed_throwsException() {
-        // given
-        SignupRequest request = new SignupRequest("test@devpick.kr", "password123!", "하영", true, false);
-
-        // when & then
-        assertThatThrownBy(() -> authService.signup(request))
-                .isInstanceOf(DevpickException.class)
-                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
-                        .isEqualTo(ErrorCode.AUTH_CONSENT_REQUIRED));
-        verify(userRepository, never()).save(any(User.class));
-    }
+    // @Test
+    // @DisplayName("개인정보처리방침 미동의 — privacyAgreed=false이면 AUTH_CONSENT_REQUIRED 예외가 발생한다")
+    // void signup_privacyNotAgreed_throwsException() { ... }
 
     @Test
     @DisplayName("정상 회원가입 — 이메일 인증 완료 후 회원가입 시 User가 저장되고 is_email_verified=true로 생성된다")
