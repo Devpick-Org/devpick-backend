@@ -4,6 +4,7 @@ import com.devpick.domain.report.entity.History;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -99,4 +100,16 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
            "WHERE h.id IN :ids " +
            "ORDER BY h.createdAt DESC")
     List<History> findHistoriesWithAssociationsByIds(@Param("ids") List<UUID> ids);
+
+    @Modifying
+    @Query("DELETE FROM History h WHERE h.post.id = :postId")
+    void deleteByPostId(@Param("postId") UUID postId);
+
+    @Modifying
+    @Query("DELETE FROM History h WHERE h.answer.id = :answerId")
+    void deleteByAnswerId(@Param("answerId") UUID answerId);
+
+    @Modifying
+    @Query("DELETE FROM History h WHERE h.answer.id IN (SELECT a.id FROM Answer a WHERE a.post.id = :postId)")
+    void deleteByAnswerPostId(@Param("postId") UUID postId);
 }

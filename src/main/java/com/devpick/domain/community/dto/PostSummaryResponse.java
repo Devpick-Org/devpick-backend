@@ -16,9 +16,20 @@ public record PostSummaryResponse(
         String authorNickname,
         Job authorJob,
         String authorProfileImage,
-        Instant createdAt
+        Instant createdAt,
+        long answerCount,
+        String contentPreview,
+        String topAnswerPreview
 ) {
-    public static PostSummaryResponse of(Post post) {
+    private static final int CONTENT_PREVIEW_LENGTH = 150;
+    private static final int ANSWER_PREVIEW_LENGTH = 100;
+
+    public static PostSummaryResponse of(Post post, long answerCount, String topAnswerPreview) {
+        String content = post.getContent();
+        String contentPreview = content != null && content.length() > CONTENT_PREVIEW_LENGTH
+                ? content.substring(0, CONTENT_PREVIEW_LENGTH) + "..."
+                : content;
+
         return new PostSummaryResponse(
                 post.getId(),
                 post.getTitle(),
@@ -27,7 +38,17 @@ public record PostSummaryResponse(
                 post.getUser().getNickname(),
                 post.getUser().getJob(),
                 post.getUser().getProfileImage(),
-                post.getCreatedAt() != null ? post.getCreatedAt().toInstant(ZoneOffset.UTC) : null
+                post.getCreatedAt() != null ? post.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
+                answerCount,
+                contentPreview,
+                topAnswerPreview
         );
+    }
+
+    public static String truncateAnswerPreview(String content) {
+        if (content == null) return null;
+        return content.length() > ANSWER_PREVIEW_LENGTH
+                ? content.substring(0, ANSWER_PREVIEW_LENGTH) + "..."
+                : content;
     }
 }

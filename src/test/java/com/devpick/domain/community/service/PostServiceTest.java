@@ -4,8 +4,14 @@ import com.devpick.domain.community.dto.PostCreateRequest;
 import com.devpick.domain.community.dto.PostDetailResponse;
 import com.devpick.domain.community.dto.PostListResponse;
 import com.devpick.domain.community.dto.PostUpdateRequest;
+import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.repository.AiAnswerRepository;
+import com.devpick.domain.community.repository.AiQuestionRepository;
+import com.devpick.domain.community.repository.AnswerLikeRepository;
 import com.devpick.domain.community.repository.AnswerRepository;
+import com.devpick.domain.community.repository.CommentRepository;
+import com.devpick.domain.community.repository.PostLikeRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
@@ -26,6 +32,8 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,6 +62,16 @@ class PostServiceTest {
     private HistoryRepository historyRepository;
     @Mock
     private com.devpick.domain.point.service.PointService pointService;
+    @Mock
+    private PostLikeRepository postLikeRepository;
+    @Mock
+    private AiAnswerRepository aiAnswerRepository;
+    @Mock
+    private AiQuestionRepository aiQuestionRepository;
+    @Mock
+    private CommentRepository commentRepository;
+    @Mock
+    private AnswerLikeRepository answerLikeRepository;
 
     private UUID userId;
     private UUID postId;
@@ -229,5 +247,76 @@ class PostServiceTest {
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.COMMUNITY_UNAUTHORIZED_POST_ACTION));
         verify(postRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("deletePost — 성공 시 자식 레코드 순서대로 모두 삭제")
+    void deletePost_success_deletesAllChildRecords() {
+        given(postRepository.findById(postId)).willReturn(Optional.of(post));
+
+        postService.deletePost(userId, postId);
+
+        verify(commentRepository).deleteByPostId(postId);
+        verify(answerLikeRepository).deleteByPostId(postId);
+        verify(historyRepository).deleteByAnswerPostId(postId);
+        verify(answerRepository).deleteByPostId(postId);
+        verify(postLikeRepository).deleteByPostId(postId);
+        verify(aiAnswerRepository).deleteByPostId(postId);
+        verify(aiQuestionRepository).deleteByPostId(postId);
+        verify(historyRepository).deleteByPostId(postId);
+        verify(postRepository).delete(post);
+    }
+
+    @Test
+    @DisplayName("createPost — 10초 이내 동일 제목 중복 제출 시 COMMUNITY_DUPLICATE_POST 예외")
+    void createPost_duplicatePost_throwsException() {
+        PostCreateRequest request = new PostCreateRequest("Test Post", "Test Content", Level.JUNIOR);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(postRepository.existsByUser_IdAndTitleAndCreatedAtAfter(eq(userId), eq("Test Post"), any(LocalDateTime.class)))
+                .willReturn(true);
+
+        assertThatThrownBy(() -> postService.createPost(userId, request))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.COMMUNITY_DUPLICATE_POST));
+        verify(postRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("getPosts — 게시글 없으면 빈 목록 반환 (배치 조회 미호출)")
+    void getPosts_emptyPage_returnsEmptyList() {
+        given(postRepository.findAllByOrderByCreatedAtDesc(any()))
+                .willReturn(new PageImpl<>(List.of()));
+
+        PostListResponse response = postService.getPosts(PageRequest.of(0, 20), null);
+
+        assertThat(response.posts()).isEmpty();
+        assertThat(response.totalElements()).isEqualTo(0L);
+        verify(answerRepository, never()).countByPostIds(any());
+        verify(answerRepository, never()).findByPostIdsOrderByCreatedAtAsc(any());
+    }
+
+    @Test
+    @DisplayName("getPosts — 답변 수와 첫 번째 답변 미리보기가 포함된 목록 반환")
+    void getPosts_withAnswerCountsAndPreviews() {
+        Answer answer = Answer.builder()
+                .post(post)
+                .user(user)
+                .content("a".repeat(150))
+                .build();
+
+        given(postRepository.findAllByOrderByCreatedAtDesc(any()))
+                .willReturn(new PageImpl<>(List.of(post)));
+        Object[] countRow = {postId, 3L};
+        given(answerRepository.countByPostIds(any()))
+                .willReturn(Collections.singletonList(countRow));
+        given(answerRepository.findByPostIdsOrderByCreatedAtAsc(any()))
+                .willReturn(List.of(answer));
+
+        PostListResponse response = postService.getPosts(PageRequest.of(0, 20), null);
+
+        assertThat(response.posts()).hasSize(1);
+        assertThat(response.posts().get(0).answerCount()).isEqualTo(3L);
+        assertThat(response.posts().get(0).topAnswerPreview()).isEqualTo("a".repeat(100) + "...");
     }
 }
