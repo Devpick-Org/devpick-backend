@@ -41,11 +41,20 @@ public class HistoryService {
                 ? endDate.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime() : null;
 
         // 1단계: SQL LIMIT/OFFSET이 적용된 ID 페이징 조회
+        // DP-310: PostgreSQL이 null 파라미터의 타입을 추론 못하는 문제 방지 — null 여부에 따라 메서드 분기
         Page<UUID> idPage;
         if (actionTypes != null && !actionTypes.isEmpty()) {
-            idPage = historyRepository.findHistoryIdsByActionTypesAndDateRange(userId, actionTypes, start, end, pageable);
+            if (start == null && end == null) {
+                idPage = historyRepository.findHistoryIdsByActionTypes(userId, actionTypes, pageable);
+            } else {
+                idPage = historyRepository.findHistoryIdsByActionTypesAndDateRange(userId, actionTypes, start, end, pageable);
+            }
         } else {
-            idPage = historyRepository.findHistoryIdsByDateRangeExcludingContentLiked(userId, start, end, pageable);
+            if (start == null && end == null) {
+                idPage = historyRepository.findHistoryIdsExcludingContentLiked(userId, pageable);
+            } else {
+                idPage = historyRepository.findHistoryIdsByDateRangeExcludingContentLiked(userId, start, end, pageable);
+            }
         }
 
         if (idPage.isEmpty()) {
@@ -74,7 +83,7 @@ public class HistoryService {
         userRepository.findByIdAndIsActiveTrue(userId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
 
-        Page<UUID> idPage = historyRepository.findHistoryIdsByDateRange(userId, null, null, pageable);
+        Page<UUID> idPage = historyRepository.findAllHistoryIds(userId, pageable);
 
         if (idPage.isEmpty()) {
             return new ActivityPageResponse(List.of(), idPage.getNumber(), idPage.getSize(), 0, 0);
