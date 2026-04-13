@@ -1,11 +1,11 @@
 package com.devpick.domain.content.service;
 
-import com.devpick.domain.content.client.AiServerClient;
 import com.devpick.domain.content.document.AiSummaryDocument;
 import com.devpick.domain.content.dto.AiSummaryResponse;
-import com.devpick.domain.content.dto.AiSummaryResult;
 import com.devpick.domain.content.repository.AiSummaryRepository;
 import com.devpick.domain.content.repository.ContentRepository;
+import com.devpick.domain.point.entity.PointAction;
+import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.repository.UserRepository;
@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -34,22 +33,23 @@ public class AiSummaryService {
 
     private final ContentRepository contentRepository;
     private final AiSummaryRepository aiSummaryRepository;
-    private final AiServerClient aiServerClient;
     private final UserRepository userRepository;
     private final HistoryRepository historyRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
-    private final ContentTagService contentTagService;
+    private final PointService pointService;
 
+    /**
+     * AI 요약 조회 — Redis → DynamoDB(ai_summaries)만 사용.
+     * 요약은 배치 파이프라인에서만 생성하며, 없으면 CONTENT_NOT_READY(202)를 반환한다.
+     */
     @Transactional
     public AiSummaryResponse getSummary(UUID userId, UUID contentId, String level) {
-        var content = contentRepository.findByIdAndIsAvailableTrue(contentId)
+        contentRepository.findByIdAndIsAvailableTrue(contentId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
 
-        // AI 서버가 DynamoDB에 저장하는 level 키 (junior, mid, beginner, senior)
         String aiLevel = toAiServerLevel(level);
 
-        // 1. Redis 캐시 조회
         String redisKey = buildRedisKey(contentId, aiLevel);
         AiSummaryResponse cached = getFromRedis(redisKey);
         if (cached != null && cached.expiresAt() != null && cached.expiresAt().isAfter(Instant.now())) {
@@ -57,53 +57,15 @@ public class AiSummaryService {
             return cached;
         }
 
-        // 2. DynamoDB 캐시 조회
         Optional<AiSummaryDocument> docOpt = aiSummaryRepository.findByContentIdAndLevel(contentId.toString(), aiLevel);
-        if (docOpt.isPresent() && docOpt.get().getExpiresAt() != null
-                && docOpt.get().getExpiresAt().isAfter(LocalDateTime.now())) {
+        if (docOpt.isPresent()) {
             AiSummaryResponse response = AiSummaryResponse.of(docOpt.get());
             saveToRedis(redisKey, response);
             recordHistory(userId, contentId);
             return response;
         }
 
-        // 3. FastAPI /internal/summaries 호출 (4레벨 동시 생성)
-        AiSummaryResult result = aiServerClient.fetchSummary(contentId, content.getOriginalContent(), content.getThumbnailUrl());
-        // 요청된 레벨 응답 추출 및 저장
-        AiSummaryDocument doc = buildDocument(contentId, aiLevel, result.levelSummary(aiLevel), result.common());
-        aiSummaryRepository.save(doc);
-
-        // content_tags가 아직 없을 때만 AI 생성 tags로 채운다 (최초 요약 시 1회)
-        contentTagService.saveIfAbsent(content, result.common().tags());
-
-        AiSummaryResponse response = AiSummaryResponse.of(doc);
-        saveToRedis(redisKey, response);
-        recordHistory(userId, contentId);
-        return response;
-    }
-
-    @Transactional
-    public AiSummaryResponse retrySummary(UUID userId, UUID contentId, String level) {
-        var content = contentRepository.findByIdAndIsAvailableTrue(contentId)
-                .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
-
-        String aiLevel = toAiServerLevel(level);
-
-        // 캐시 삭제
-        redisTemplate.delete(buildRedisKey(contentId, aiLevel));
-        aiSummaryRepository.deleteByContentIdAndLevel(contentId.toString(), aiLevel);
-
-        // FastAPI 재호출
-        AiSummaryResult result = aiServerClient.fetchSummary(contentId, content.getOriginalContent(), content.getThumbnailUrl());
-        AiSummaryDocument doc = buildDocument(contentId, aiLevel, result.levelSummary(aiLevel), result.common());
-        aiSummaryRepository.save(doc);
-
-        // 재시도 시 기존 content_tags 교체
-        contentTagService.replace(content, result.common().tags());
-
-        AiSummaryResponse response = AiSummaryResponse.of(doc);
-        saveToRedis(buildRedisKey(contentId, aiLevel), response);
-        return response;
+        throw new DevpickException(ErrorCode.CONTENT_NOT_READY);
     }
 
     /**
@@ -119,24 +81,6 @@ public class AiSummaryService {
 
     private String buildRedisKey(UUID contentId, String aiLevel) {
         return "summary:" + contentId + ":" + aiLevel;
-    }
-
-    private AiSummaryDocument buildDocument(UUID contentId, String aiLevel,
-            AiSummaryResult.LevelSummary levelSummary, AiSummaryResult.CommonSummary common) {
-        LocalDateTime now = LocalDateTime.now();
-        return AiSummaryDocument.builder()
-                .contentId(contentId.toString())
-                .level(aiLevel)
-                .coreSummary(levelSummary.coreSummary())
-                .keyPoints(levelSummary.keyPoints())
-                .keywords(common.keywords())
-                .difficulty(common.difficulty())
-                .nextRecommendation(levelSummary.nextRecommendation())
-                .confidence(levelSummary.confidence())
-                .additionalQuestions(levelSummary.additionalQuestions())
-                .cachedAt(now)
-                .expiresAt(now.plusDays(CACHE_TTL_DAYS))
-                .build();
     }
 
     public Optional<String> findCachedCoreSummary(UUID contentId, String level) {
@@ -161,13 +105,14 @@ public class AiSummaryService {
 
     private void recordHistory(UUID userId, UUID contentId) {
         userRepository.findByIdAndIsActiveTrue(userId).ifPresent(user ->
-                contentRepository.findByIdAndIsAvailableTrue(contentId).ifPresent(content ->
-                        historyRepository.save(History.builder()
-                                .user(user)
-                                .actionType("ai_summary_viewed")
-                                .content(content)
-                                .build())
-                )
+                contentRepository.findByIdAndIsAvailableTrue(contentId).ifPresent(content -> {
+                    historyRepository.save(History.builder()
+                            .user(user)
+                            .actionType("ai_summary_viewed")
+                            .content(content)
+                            .build());
+                    pointService.earn(user, PointAction.AI_SUMMARY_VIEW);
+                })
         );
     }
 

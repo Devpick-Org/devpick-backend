@@ -1,7 +1,6 @@
 package com.devpick.domain.content.client;
 
 import com.devpick.domain.content.dto.AiQuizResult;
-import com.devpick.domain.content.dto.AiSummaryResult;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,62 +65,11 @@ class AiServerClientTest {
         }
     }
 
-    private static AiSummaryResult sampleSummaryResult() {
-        AiSummaryResult.CommonSummary common = new AiSummaryResult.CommonSummary(
-                "한줄", List.of("k"), "c", List.of(), "medium");
-        AiSummaryResult.LevelSummary ls = new AiSummaryResult.LevelSummary(
-                "core", List.of(), List.of(), "next", 0.9);
-        return new AiSummaryResult(
-                "cid", common, ls, ls, ls, ls, "2024-01-01T00:00:00Z", null);
-    }
-
     private static AiQuizResult sampleQuizResult() {
         AiQuizResult.QuestionResult q = new AiQuizResult.QuestionResult(
                 "q1", "multiple_choice", "Q?", List.of(), "A", "exp", "");
         AiQuizResult.LevelQuiz lq = new AiQuizResult.LevelQuiz(List.of(q), 1, 5);
         return new AiQuizResult("cid", "qid", "title", lq, lq, lq, lq, "2024-01-01T00:00:00Z");
-    }
-
-    @Test
-    @DisplayName("fetchSummary — 본문 없으면 CONTENT_NOT_READY")
-    void fetchSummary_blankText_throws() {
-        assertThatThrownBy(() -> aiServerClient.fetchSummary(contentId, "  ", null))
-                .isInstanceOf(DevpickException.class)
-                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
-                        .isEqualTo(ErrorCode.CONTENT_NOT_READY));
-    }
-
-    @Test
-    @DisplayName("fetchSummary — 정상 응답")
-    void fetchSummary_success() {
-        AiSummaryResult expected = sampleSummaryResult();
-        mockPostChain(expected);
-
-        AiSummaryResult result = aiServerClient.fetchSummary(contentId, "본문", "https://thumb");
-
-        assertThat(result.contentId()).isEqualTo("cid");
-    }
-
-    @Test
-    @DisplayName("fetchSummary — 응답 null이면 AI_SERVER_ERROR")
-    void fetchSummary_nullResponse_throws() {
-        mockPostChain(null);
-
-        assertThatThrownBy(() -> aiServerClient.fetchSummary(contentId, "본문", null))
-                .isInstanceOf(DevpickException.class)
-                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
-                        .isEqualTo(ErrorCode.AI_SERVER_ERROR));
-    }
-
-    @Test
-    @DisplayName("fetchSummary — WebClient 오류 시 AI_SERVER_ERROR")
-    void fetchSummary_webClientError_throws() {
-        mockPostChain(WebClientResponseException.create(500, "err", null, null, null));
-
-        assertThatThrownBy(() -> aiServerClient.fetchSummary(contentId, "본문", null))
-                .isInstanceOf(DevpickException.class)
-                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
-                        .isEqualTo(ErrorCode.AI_SERVER_ERROR));
     }
 
     @Test

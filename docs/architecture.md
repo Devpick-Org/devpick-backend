@@ -32,13 +32,14 @@
            weekly_reports      event_logs
            quiz_attempts       ai_answers
                                       │
-                                      │ WebClient (내부 REST)
+                                      │ WebClient (내부 REST, 퀴즈·개선·답변 등)
                                       ▼
                                [FastAPI :8000]
-                               ├─ POST /api/summary  (AI 요약 생성)
-                               ├─ POST /api/quiz     (AI 퀴즈 생성)
-                               ├─ POST /api/refine   (질문 개선)
-                               ├─ POST /api/answer   (AI 답변)
+                               ├─ AI 요약: 배치·파이프라인이 생성 후 DynamoDB 적재
+                               │   (유저 GET /summary 조회 시 Spring → FastAPI 요약 호출 없음)
+                               ├─ POST /internal/quiz   (퀴즈, 캐시 미스 시 Spring이 호출)
+                               ├─ POST /api/refine      (질문 개선)
+                               ├─ POST /api/answer      (AI 답변)
                                ├─ FAISS 벡터 인덱스
                                └─ Claude API (LLM)
 ```
@@ -116,7 +117,8 @@ AiSummaryController.getSummary()
 ① ContentRepository.findByIdAndIsAvailableTrue(contentId)
       없음 → CONTENT_NOT_FOUND
 
-② Redis.get("summary:{contentId}:JUNIOR")
+② Redis.get("summary:{contentId}:{level}")
+      (level SK는 beginner/junior/mid/senior)
       ┌─ HIT ──────────────────────────────────────┐
       │  HistoryRepository.save(ai_summary_viewed) │
       │  PointService.earn(AI_SUMMARY_VIEW)        │
@@ -126,28 +128,16 @@ AiSummaryController.getSummary()
       ▼
 ③ AiSummaryRepository                 [DynamoDB]
      .findByContentIdAndLevel()
-      ┌─ 있고 expiresAt > now ──────────────────────┐
+      ┌─ 문서 있음 (만료 여부 무관, 배치가 적재) ────┐
       │  Redis.set("summary:...", TTL 7일)          │
-      │  → 응답 반환                                │
-      └─────────────────────────────────────────────┘
-      │ 없거나 만료
+      │  HistoryRepository.save(ai_summary_viewed)   │
+      │  PointService.earn(AI_SUMMARY_VIEW)          │
+      │  → AiSummaryResponse 반환                    │
+      └──────────────────────────────────────────────┘
+      │ 없음 (배치/파이프라인이 아직 미생성)
       ▼
-④ AiServerClient.fetchSummary()
-     WebClient POST http://ai-server:8000/api/summary
-     Body: { content_id, level }
-     ← AiSummaryResult {
-         coreSummary, keyPoints, keywords,
-         difficulty, nextRecommendation,
-         confidence, additionalQuestions
-       }
-
-⑤ AiSummaryRepository.save(doc)       [DynamoDB, TTL expires_at]
-   Redis.set("summary:{id}:{level}")   [TTL 7일]
-   HistoryRepository.save(ai_summary_viewed)
-   PointService.earn(AI_SUMMARY_VIEW)
-    │
-    ▼
-응답 반환: AiSummaryResponse
+④ CONTENT_NOT_READY (HTTP 202)
+   요약 생성은 Python 배치·파이프라인 전용, API에서 FastAPI 즉석 호출 없음
 ```
 
 ### AI 퀴즈 조회: GET /contents/{contentId}/quiz?level=JUNIOR
@@ -166,8 +156,8 @@ AiSummaryController.getSummary()
       있고 유효 → Redis 재저장 → 응답
 
 ⑤ AiServerClient.fetchQuiz()
-     WebClient POST http://ai-server:8000/api/quiz
-     Body: { content_id, level }
+     WebClient POST http://ai-server:8000/internal/quiz
+     Body: { content_id, text }
      ← AiQuizResult {
          questions[{ id, question, options[], correctOptionId, explanation }],
          passingCount, estimatedMinutes

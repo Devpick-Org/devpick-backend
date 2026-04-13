@@ -1417,7 +1417,7 @@
       "get": {
         "tags": ["AI Summary"],
         "summary": "레벨별 AI 요약 조회",
-        "description": "Redis 캐시(7일) → DynamoDB(ai_summaries) → FastAPI POST /internal/summaries 순서. 조회 시 ai_summary_viewed 히스토리가 기록됩니다.",
+        "description": "Redis 캐시(7일) → DynamoDB(ai_summaries) 순서. 요약은 배치에서만 생성되며 없으면 202(CONTENT_NOT_READY). 조회 시 ai_summary_viewed 히스토리가 기록됩니다.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "contentId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
@@ -1441,40 +1441,9 @@
               }
             }
           },
+          "202": { "description": "요약 준비 중 (CONTENT_NOT_READY)" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
-          "503": { "description": "AI 서버 오류" }
-        }
-      }
-    },
-    "/contents/{contentId}/summary/retry": {
-      "post": {
-        "tags": ["AI Summary"],
-        "summary": "AI 요약 재시도",
-        "description": "캐시를 무시하고 FastAPI에서 새로 생성합니다.",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "contentId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
-          {
-            "name": "level",
-            "in": "query",
-            "schema": { "type": "string", "enum": ["BEGINNER", "JUNIOR", "MIDDLE", "SENIOR"], "default": "JUNIOR" }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "재생성 성공",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    { "$ref": "#/components/schemas/ApiResponse" },
-                    { "properties": { "data": { "$ref": "#/components/schemas/AiSummaryResponse" } } }
-                  ]
-                }
-              }
-            }
-          },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
+          "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
     },

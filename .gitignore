@@ -3,6 +3,9 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+### IDE / 로컬 빌드 산출물 ###
+bin/
+
 ### IntelliJ IDEA ###
 .idea/
 *.iws

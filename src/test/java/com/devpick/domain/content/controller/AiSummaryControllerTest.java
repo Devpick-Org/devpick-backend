@@ -28,7 +28,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -101,25 +100,13 @@ class AiSummaryControllerTest {
     }
 
     @Test
-    @DisplayName("POST /contents/{contentId}/summary/retry - 재시도 성공 시 200 반환")
-    void retrySummary_success_returns200() throws Exception {
-        given(aiSummaryService.retrySummary(eq(userId), eq(contentId), any())).willReturn(summaryResponse);
+    @DisplayName("GET /contents/{contentId}/summary - 요약 없으면 202(CONTENT_NOT_READY)")
+    void getSummary_notReady_returns202() throws Exception {
+        given(aiSummaryService.getSummary(eq(userId), eq(contentId), any()))
+                .willThrow(new DevpickException(ErrorCode.CONTENT_NOT_READY));
 
-        mockMvc.perform(post("/contents/" + contentId + "/summary/retry")
-                        .param("level", "JUNIOR"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.coreSummary").value("핵심 요약"));
-    }
-
-    @Test
-    @DisplayName("POST /contents/{contentId}/summary/retry - AI 서버 오류 시 500 반환")
-    void retrySummary_aiServerError_returns500() throws Exception {
-        given(aiSummaryService.retrySummary(eq(userId), eq(contentId), any()))
-                .willThrow(new DevpickException(ErrorCode.AI_SERVER_ERROR));
-
-        mockMvc.perform(post("/contents/" + contentId + "/summary/retry"))
-                .andExpect(status().isInternalServerError())
+        mockMvc.perform(get("/contents/" + contentId + "/summary"))
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success").value(false));
     }
 }

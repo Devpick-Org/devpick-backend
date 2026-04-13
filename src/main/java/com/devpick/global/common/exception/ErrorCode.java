@@ -61,7 +61,7 @@ public enum ErrorCode {
     CONTENT_ALREADY_LIKED(HttpStatus.CONFLICT, "CONTENT_004", "이미 좋아요한 콘텐츠입니다."),
     CONTENT_NOT_LIKED(HttpStatus.NOT_FOUND, "CONTENT_005", "좋아요하지 않은 콘텐츠입니다."),
     CONTENT_SOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "CONTENT_006", "콘텐츠 소스를 찾을 수 없습니다."),
-    CONTENT_NOT_READY(HttpStatus.ACCEPTED, "CONTENT_007", "AI 요약을 준비하고 있습니다. 잠시 후 다시 시도해 주세요."),
+    CONTENT_NOT_READY(HttpStatus.ACCEPTED, "CONTENT_007", "AI 요약을 준비하고 있습니다. 잠시 후 다시 확인해 주세요."),
 
     // AI
     AI_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "AI_001", "AI 서버 오류가 발생했습니다."),

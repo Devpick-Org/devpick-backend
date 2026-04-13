@@ -27,17 +27,4 @@ public class AiSummaryRepository {
                 .build();
         return Optional.ofNullable(table.getItem(key));
     }
-
-    public AiSummaryDocument save(AiSummaryDocument document) {
-        table.putItem(document);
-        return document;
-    }
-
-    public void deleteByContentIdAndLevel(String contentId, String level) {
-        Key key = Key.builder()
-                .partitionValue(contentId)
-                .sortValue(level)
-                .build();
-        table.deleteItem(key);
-    }
 }

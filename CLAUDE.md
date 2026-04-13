@@ -198,7 +198,7 @@ com.devpick
 │   ├── content       # 콘텐츠 피드/스크랩/좋아요/AI요약/AI퀴즈 (구현 완료)
 │   │   └── collector/    # CollectedContent, NormalizedContentDto, StackOverflowCollector
 │   │   └── document/     # AiSummaryDocument, AiQuizDocument (DynamoDB)
-│   │   └── client/       # AiServerClient (FastAPI 통신)
+│   │   └── client/       # AiServerClient (퀴즈 등 FastAPI; 요약은 배치→Dynamo, 조회만 Spring)
 │   │   └── entity/       # Content, ContentSource, Like, Scrap, QuizAttempt
 │   │   └── repository/   # AiQuizRepository, QuizAttemptRepository
 │   ├── community     # 게시글/답변/AI질문개선 (구현 완료)
@@ -478,8 +478,7 @@ class AuthControllerTest {
 ### Epic C — AI 요약 / AI 퀴즈
 | Method | Endpoint | 설명 | 인증 | 담당 |
 |--------|----------|------|------|------|
-| GET | `/contents/{contentId}/summary` | 레벨별 AI 요약 조회 | O | 홍근 (DP-221) |
-| POST | `/contents/{contentId}/summary/retry` | AI 요약 재시도 | O | 홍근 (DP-221) |
+| GET | `/contents/{contentId}/summary` | 레벨별 AI 요약 조회 (Redis→DynamoDB, 없으면 202) | O | 홍근 (DP-221) |
 | GET | `/contents/{contentId}/quiz` | 레벨별 AI 퀴즈 조회 (`?level=JUNIOR`) | O | 홍근 |
 | POST | `/contents/{contentId}/quiz/submit` | 퀴즈 결과 제출 (통과 시 히스토리 + 포인트) | O | 홍근 |
 
