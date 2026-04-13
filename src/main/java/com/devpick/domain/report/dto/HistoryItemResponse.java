@@ -14,11 +14,13 @@ public record HistoryItemResponse(
         ContentInfo content,
         PostInfo post,
         AnswerInfo answer,
+        CommentInfo comment,
         Instant createdAt
 ) {
     public record ContentInfo(UUID id, String title, String preview) {}
     public record PostInfo(UUID id, String title) {}
-    public record AnswerInfo(UUID id) {}
+    public record AnswerInfo(UUID id, String preview) {}
+    public record CommentInfo(UUID id, String preview) {}
 
     public static HistoryItemResponse of(History history) {
         ContentInfo contentInfo = history.getContent() != null
@@ -35,11 +37,18 @@ public record HistoryItemResponse(
                 : null;
 
         AnswerInfo answerInfo = history.getAnswer() != null
-                ? new AnswerInfo(history.getAnswer().getId())
+                ? new AnswerInfo(
+                        history.getAnswer().getId(),
+                        truncate(history.getAnswer().getContent(), 100))
+                : null;
+
+        CommentInfo commentInfo = history.getComment() != null
+                ? new CommentInfo(
+                        history.getComment().getId(),
+                        truncate(history.getComment().getContent(), 100))
                 : null;
 
         Integer points = switch (history.getActionType()) {
-            case "ai_summary_viewed" -> PointAction.AI_SUMMARY_VIEW.getPoints();
             case "scrapped"          -> PointAction.CONTENT_SCRAP.getPoints();
             case "content_liked"     -> PointAction.CONTENT_LIKE.getPoints();
             case "question_created"  -> PointAction.QUESTION_WRITE.getPoints();
@@ -57,7 +66,13 @@ public record HistoryItemResponse(
                 contentInfo,
                 postInfo,
                 answerInfo,
+                commentInfo,
                 history.getCreatedAt() != null ? history.getCreatedAt().toInstant(ZoneOffset.UTC) : null
         );
+    }
+
+    private static String truncate(String text, int maxLength) {
+        if (text == null) return null;
+        return text.length() <= maxLength ? text : text.substring(0, maxLength) + "...";
     }
 }

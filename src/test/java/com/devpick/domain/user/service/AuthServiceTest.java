@@ -52,6 +52,9 @@ class AuthServiceTest {
     @Mock
     private UserConsentRepository userConsentRepository;
 
+    @Mock
+    private com.devpick.domain.report.repository.HistoryRepository historyRepository;
+
     // ── signup ──────────────────────────────────────────────────────────
 
     // 프론트 미사용 — 재활성화 시 주석 해제

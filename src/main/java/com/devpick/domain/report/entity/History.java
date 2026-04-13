@@ -2,6 +2,7 @@ package com.devpick.domain.report.entity;
 
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.community.entity.Answer;
+import com.devpick.domain.community.entity.Comment;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.user.entity.User;
 import com.devpick.global.entity.BaseCreatedEntity;
@@ -38,4 +39,11 @@ public class History extends BaseCreatedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "answer_id")
     private Answer answer;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "comment_id")
+    private Comment comment;
+
+    @Column(name = "level", length = 20)
+    private String level;
 }

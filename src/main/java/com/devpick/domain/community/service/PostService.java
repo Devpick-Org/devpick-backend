@@ -183,6 +183,9 @@ public class PostService {
             throw new DevpickException(ErrorCode.COMMUNITY_UNAUTHORIZED_POST_ACTION);
         }
 
+        // 포인트 환불: QUESTION_WRITE
+        pointService.refundLatestByAction(post.getUser(), PointAction.QUESTION_WRITE);
+
         // 자식 레코드 순서대로 삭제 (FK 제약조건 준수)
         commentRepository.deleteByPostId(postId);
         answerLikeRepository.deleteByPostId(postId);

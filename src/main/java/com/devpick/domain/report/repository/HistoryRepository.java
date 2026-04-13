@@ -116,6 +116,7 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
            "LEFT JOIN FETCH h.content " +
            "LEFT JOIN FETCH h.post " +
            "LEFT JOIN FETCH h.answer " +
+           "LEFT JOIN FETCH h.comment " +
            "WHERE h.id IN :ids " +
            "ORDER BY h.createdAt DESC")
     List<History> findHistoriesWithAssociationsByIds(@Param("ids") List<UUID> ids);
@@ -131,4 +132,15 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
     @Modifying
     @Query("DELETE FROM History h WHERE h.answer.id IN (SELECT a.id FROM Answer a WHERE a.post.id = :postId)")
     void deleteByAnswerPostId(@Param("postId") UUID postId);
+
+    @Modifying
+    @Query("DELETE FROM History h WHERE h.comment.id = :commentId")
+    void deleteByCommentId(@Param("commentId") UUID commentId);
+
+    @Modifying
+    @Query("DELETE FROM History h WHERE h.user.id = :userId AND h.content.id = :contentId AND h.actionType = :actionType")
+    void deleteByUserIdAndContentIdAndActionType(
+            @Param("userId") UUID userId,
+            @Param("contentId") UUID contentId,
+            @Param("actionType") String actionType);
 }

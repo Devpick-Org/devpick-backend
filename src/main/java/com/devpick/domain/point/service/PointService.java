@@ -105,6 +105,43 @@ public class PointService {
 
     // ── 중복 적립 방지 ──────────────────────────────────────────────────
 
+    /**
+     * referenceId 기준으로 적립된 포인트를 환불한다 (스크랩/좋아요 취소 시).
+     */
+    @Transactional
+    public void refund(User user, PointAction action, UUID referenceId) {
+        int refundPoints = pointLogRepository.sumPointsByUser_IdAndActionAndReferenceId(
+                user.getId(), action, referenceId);
+        if (refundPoints <= 0) return;
+        pointLogRepository.deleteByUser_IdAndActionAndReferenceId(user.getId(), action, referenceId);
+        user.subtractPoints(refundPoints);
+        userRepository.save(user);
+    }
+
+    /**
+     * 가장 최근 적립 로그 1건을 환불한다 (답변/게시글 삭제 시).
+     */
+    @Transactional
+    public void refundLatestByAction(User user, PointAction action) {
+        pointLogRepository.findTopByUser_IdAndActionOrderByEarnedAtDesc(user.getId(), action)
+                .ifPresent(log -> {
+                    pointLogRepository.delete(log);
+                    user.subtractPoints(log.getPoints());
+                    userRepository.save(user);
+                });
+    }
+
+    /**
+     * 답변 삭제 시 포인트 환불: ANSWER_WRITE (항상), ANSWER_ADOPTED (채택된 경우).
+     */
+    @Transactional
+    public void refundAnswerPoints(User user, boolean wasAdopted) {
+        refundLatestByAction(user, PointAction.ANSWER_WRITE);
+        if (wasAdopted) {
+            refundLatestByAction(user, PointAction.ANSWER_ADOPTED);
+        }
+    }
+
     private boolean isDuplicate(UUID userId, PointAction action, UUID referenceId) {
         return switch (action) {
             case CONTENT_SCRAP, CONTENT_LIKE, AI_QUIZ_PASS ->

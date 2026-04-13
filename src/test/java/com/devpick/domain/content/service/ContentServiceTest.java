@@ -259,6 +259,7 @@ class ContentServiceTest {
     void removeScrap_success() {
         Scrap scrap = Scrap.builder().user(user).content(content).build();
         given(scrapRepository.findByUser_IdAndContent_Id(userId, contentId)).willReturn(Optional.of(scrap));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
         contentService.removeScrap(userId, contentId);
 
@@ -306,6 +307,7 @@ class ContentServiceTest {
     void removeLike_success() {
         Like like = Like.builder().user(user).content(content).build();
         given(likeRepository.findByUser_IdAndContent_Id(userId, contentId)).willReturn(Optional.of(like));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
         contentService.removeLike(userId, contentId);
 

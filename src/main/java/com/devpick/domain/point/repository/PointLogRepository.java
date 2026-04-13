@@ -5,11 +5,13 @@ import com.devpick.domain.point.entity.PointLog;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface PointLogRepository extends JpaRepository<PointLog, UUID> {
@@ -36,4 +38,19 @@ public interface PointLogRepository extends JpaRepository<PointLog, UUID> {
             "WHERE pl.user.id = :userId AND pl.action = 'DAILY_LOGIN' " +
             "ORDER BY pl.earnedAt DESC")
     List<PointLog> findDailyLoginsByUserIdOrderByEarnedAtDesc(@Param("userId") UUID userId);
+
+    @Modifying
+    @Query("DELETE FROM PointLog pl WHERE pl.user.id = :userId AND pl.action = :action AND pl.referenceId = :referenceId")
+    void deleteByUser_IdAndActionAndReferenceId(
+            @Param("userId") UUID userId,
+            @Param("action") PointAction action,
+            @Param("referenceId") UUID referenceId);
+
+    @Query("SELECT COALESCE(SUM(pl.points), 0) FROM PointLog pl WHERE pl.user.id = :userId AND pl.action = :action AND pl.referenceId = :referenceId")
+    int sumPointsByUser_IdAndActionAndReferenceId(
+            @Param("userId") UUID userId,
+            @Param("action") PointAction action,
+            @Param("referenceId") UUID referenceId);
+
+    Optional<PointLog> findTopByUser_IdAndActionOrderByEarnedAtDesc(UUID userId, PointAction action);
 }

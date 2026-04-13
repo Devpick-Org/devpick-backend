@@ -109,6 +109,11 @@ public class User extends BaseTimeEntity {
         this.totalPoints += points;
     }
 
+    /** 포인트 차감 (환불). */
+    public void subtractPoints(int points) {
+        this.totalPoints = Math.max(0, this.totalPoints - points);
+    }
+
     /** 프로필 수정 (DP-187). */
     public void updateProfile(String nickname, String profileImage, Job job, Level level) {
         if (nickname != null) this.nickname = nickname;

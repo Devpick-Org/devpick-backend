@@ -6,11 +6,8 @@ import com.devpick.domain.content.dto.AiSummaryResponse;
 import com.devpick.domain.content.dto.AiSummaryResult;
 import com.devpick.domain.content.repository.AiSummaryRepository;
 import com.devpick.domain.content.repository.ContentRepository;
-import com.devpick.domain.point.entity.PointAction;
-import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
-import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -42,7 +39,6 @@ public class AiSummaryService {
     private final HistoryRepository historyRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
-    private final PointService pointService;
     private final ContentTagService contentTagService;
 
     @Transactional
@@ -57,7 +53,6 @@ public class AiSummaryService {
         String redisKey = buildRedisKey(contentId, aiLevel);
         AiSummaryResponse cached = getFromRedis(redisKey);
         if (cached != null && cached.expiresAt() != null && cached.expiresAt().isAfter(Instant.now())) {
-            recordHistory(userId, contentId);
             return cached;
         }
 
@@ -67,7 +62,6 @@ public class AiSummaryService {
                 && docOpt.get().getExpiresAt().isAfter(LocalDateTime.now())) {
             AiSummaryResponse response = AiSummaryResponse.of(docOpt.get());
             saveToRedis(redisKey, response);
-            recordHistory(userId, contentId);
             return response;
         }
 
@@ -82,7 +76,6 @@ public class AiSummaryService {
 
         AiSummaryResponse response = AiSummaryResponse.of(doc);
         saveToRedis(redisKey, response);
-        recordHistory(userId, contentId);
         return response;
     }
 
@@ -163,16 +156,16 @@ public class AiSummaryService {
         }
     }
 
-    private void recordHistory(UUID userId, UUID contentId) {
+    public void recordSummaryViewed(UUID userId, UUID contentId, String level) {
         userRepository.findByIdAndIsActiveTrue(userId).ifPresent(user ->
-                contentRepository.findByIdAndIsAvailableTrue(contentId).ifPresent(content -> {
-                    historyRepository.save(History.builder()
-                            .user(user)
-                            .actionType("ai_summary_viewed")
-                            .content(content)
-                            .build());
-                    pointService.earn(user, PointAction.AI_SUMMARY_VIEW);
-                })
+                contentRepository.findByIdAndIsAvailableTrue(contentId).ifPresent(content ->
+                        historyRepository.save(History.builder()
+                                .user(user)
+                                .actionType("ai_summary_viewed")
+                                .content(content)
+                                .level(level)
+                                .build())
+                )
         );
     }
 
