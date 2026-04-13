@@ -107,6 +107,9 @@ public class AnswerService {
             throw new DevpickException(ErrorCode.COMMUNITY_UNAUTHORIZED_ANSWER_ACTION);
         }
 
+        // 포인트 환불: ANSWER_WRITE (항상), ANSWER_ADOPTED (채택된 경우)
+        pointService.refundAnswerPoints(answer.getUser(), Boolean.TRUE.equals(answer.getIsAdopted()));
+
         // 자식 레코드 순서대로 삭제 (FK 제약조건 준수)
         commentRepository.deleteByAnswerId(answerId);
         answerLikeRepository.deleteByAnswerId(answerId);

@@ -2,6 +2,8 @@ package com.devpick.domain.user.service;
 
 import com.devpick.domain.point.entity.PointAction;
 import com.devpick.domain.point.service.PointService;
+import com.devpick.domain.report.entity.History;
+import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.dto.LoginRequest;
 import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.RecoverRequest;
@@ -31,6 +33,7 @@ public class AuthService {
     private final EmailVerificationRedisService emailVerificationRedisService;
     private final PointService pointService;
     private final UserConsentRepository userConsentRepository;
+    private final HistoryRepository historyRepository;
 
     /**
      * 이메일 회원가입 (DP-177 수정 — 이메일 인증 후 가입 흐름).
@@ -93,6 +96,10 @@ public class AuthService {
         }
 
         pointService.earn(user, PointAction.DAILY_LOGIN);
+        historyRepository.save(History.builder()
+                .user(user)
+                .actionType("daily_login")
+                .build());
         return tokenService.issueTokenPair(user);
     }
 

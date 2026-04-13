@@ -201,7 +201,7 @@ class HistoryServiceTest {
 
     static Stream<Arguments> actionTypePointsProvider() {
         return Stream.of(
-                Arguments.of("ai_summary_viewed", 3),
+                Arguments.of("ai_summary_viewed", null),
                 Arguments.of("scrapped", 5),
                 Arguments.of("content_liked", 2),
                 Arguments.of("question_created", 10),

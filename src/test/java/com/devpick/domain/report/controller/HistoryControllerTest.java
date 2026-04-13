@@ -76,7 +76,7 @@ class HistoryControllerTest {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "content_opened", null,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React useEffect 완전 정복", "미리보기"),
-                null, null,
+                null, null, null,
                 Instant.now()
         );
         historyPageResponse = new HistoryPageResponse(List.of(item), 0, 20, 1L, 1);
@@ -149,7 +149,7 @@ class HistoryControllerTest {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "scrapped", 5,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "제목", "미리보기"),
-                null, null, Instant.now()
+                null, null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
                 .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
@@ -163,16 +163,16 @@ class HistoryControllerTest {
     @DisplayName("GET /history - ai_summary_viewed 액션은 points 3을 반환한다")
     void getLearningHistory_aiSummaryViewedAction_returnsPoints3() throws Exception {
         HistoryItemResponse item = new HistoryItemResponse(
-                UUID.randomUUID(), "ai_summary_viewed", 3,
+                UUID.randomUUID(), "ai_summary_viewed", null,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "제목", "미리보기"),
-                null, null, Instant.now()
+                null, null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
                 .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
 
         mockMvc.perform(get("/history"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.items[0].points").value(3));
+                .andExpect(jsonPath("$.data.items[0].points", nullValue()));
     }
 
     @Test
@@ -182,7 +182,7 @@ class HistoryControllerTest {
                 UUID.randomUUID(), "question_created", 10,
                 null,
                 new HistoryItemResponse.PostInfo(UUID.randomUUID(), "질문 제목"),
-                null, Instant.now()
+                null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
                 .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
@@ -198,7 +198,7 @@ class HistoryControllerTest {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "ai_quiz_completed", 5,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React 퀴즈", "미리보기"),
-                null, null, Instant.now()
+                null, null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
                 .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));

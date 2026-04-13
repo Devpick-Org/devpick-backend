@@ -60,6 +60,7 @@ public class CommentService {
                 .actionType("comment_created")
                 .post(answer.getPost())
                 .answer(answer)
+                .comment(savedComment)
                 .build());
         return CommentResponse.of(savedComment);
     }
@@ -92,6 +93,7 @@ public class CommentService {
             throw new DevpickException(ErrorCode.COMMUNITY_UNAUTHORIZED_COMMENT_ACTION);
         }
 
+        historyRepository.deleteByCommentId(commentId);
         commentRepository.delete(comment);
     }
 }

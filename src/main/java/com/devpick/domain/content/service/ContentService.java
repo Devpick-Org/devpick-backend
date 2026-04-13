@@ -136,7 +136,11 @@ public class ContentService {
     public void removeScrap(UUID userId, UUID contentId) {
         Scrap scrap = scrapRepository.findByUser_IdAndContent_Id(userId, contentId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_SCRAPED));
+        User user = userRepository.findByIdAndIsActiveTrue(userId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
         scrapRepository.delete(scrap);
+        historyRepository.deleteByUserIdAndContentIdAndActionType(userId, contentId, "scrapped");
+        pointService.refund(user, PointAction.CONTENT_SCRAP, contentId);
     }
 
     @Transactional
@@ -166,7 +170,11 @@ public class ContentService {
     public void removeLike(UUID userId, UUID contentId) {
         Like like = likeRepository.findByUser_IdAndContent_Id(userId, contentId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_LIKED));
+        User user = userRepository.findByIdAndIsActiveTrue(userId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
         likeRepository.delete(like);
+        historyRepository.deleteByUserIdAndContentIdAndActionType(userId, contentId, "content_liked");
+        pointService.refund(user, PointAction.CONTENT_LIKE, contentId);
     }
 
     @Transactional(readOnly = true)
