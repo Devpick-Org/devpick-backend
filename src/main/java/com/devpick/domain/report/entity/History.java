@@ -43,7 +43,4 @@ public class History extends BaseCreatedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "comment_id")
     private Comment comment;
-
-    @Column(name = "level", length = 20)
-    private String level;
 }

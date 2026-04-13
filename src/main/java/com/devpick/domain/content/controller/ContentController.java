@@ -2,8 +2,6 @@ package com.devpick.domain.content.controller;
 
 import com.devpick.domain.content.dto.ContentDetailResponse;
 import com.devpick.domain.content.dto.ContentListResponse;
-import com.devpick.domain.content.dto.SummaryViewedRequest;
-import com.devpick.domain.content.service.AiSummaryService;
 import com.devpick.domain.content.service.ContentService;
 import com.devpick.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,7 +33,6 @@ import java.util.UUID;
 public class ContentController {
 
     private final ContentService contentService;
-    private final AiSummaryService aiSummaryService;
 
     @Operation(summary = "개인화 피드 조회", description = "사용자의 기술 태그와 레벨에 맞는 개인화된 콘텐츠 목록을 반환합니다.")
     @ApiResponses({
@@ -78,21 +75,6 @@ public class ContentController {
             @AuthenticationPrincipal UUID userId,
             @Parameter(description = "콘텐츠 ID (UUID)", required = true) @PathVariable UUID contentId) {
         return ApiResponse.ok(contentService.getDetail(userId, contentId));
-    }
-
-    @Operation(summary = "AI 요약 조회 히스토리 기록", description = "AI 요약 섹션 최초 진입 시 1회 호출합니다. 히스토리(ai_summary_viewed)가 기록됩니다.")
-    @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "기록 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "콘텐츠를 찾을 수 없음")
-    })
-    @PostMapping("/{contentId}/summary/viewed")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void recordSummaryViewed(
-            @AuthenticationPrincipal UUID userId,
-            @Parameter(description = "콘텐츠 ID (UUID)", required = true) @PathVariable UUID contentId,
-            @RequestBody SummaryViewedRequest request) {
-        aiSummaryService.recordSummaryViewed(userId, contentId, request.level());
     }
 
     @Operation(summary = "원문 확인(학습 기록)", description = "외부 원문 링크를 연 시점에 호출합니다. 학습 히스토리(content_opened)가 기록됩니다.")
