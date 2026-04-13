@@ -53,6 +53,7 @@ public class AiSummaryService {
         String redisKey = buildRedisKey(contentId, aiLevel);
         AiSummaryResponse cached = getFromRedis(redisKey);
         if (cached != null && cached.expiresAt() != null && cached.expiresAt().isAfter(Instant.now())) {
+            recordHistory(userId, contentId);
             return cached;
         }
 
@@ -62,6 +63,7 @@ public class AiSummaryService {
                 && docOpt.get().getExpiresAt().isAfter(LocalDateTime.now())) {
             AiSummaryResponse response = AiSummaryResponse.of(docOpt.get());
             saveToRedis(redisKey, response);
+            recordHistory(userId, contentId);
             return response;
         }
 
@@ -76,6 +78,7 @@ public class AiSummaryService {
 
         AiSummaryResponse response = AiSummaryResponse.of(doc);
         saveToRedis(redisKey, response);
+        recordHistory(userId, contentId);
         return response;
     }
 
@@ -156,14 +159,13 @@ public class AiSummaryService {
         }
     }
 
-    public void recordSummaryViewed(UUID userId, UUID contentId, String level) {
+    private void recordHistory(UUID userId, UUID contentId) {
         userRepository.findByIdAndIsActiveTrue(userId).ifPresent(user ->
                 contentRepository.findByIdAndIsAvailableTrue(contentId).ifPresent(content ->
                         historyRepository.save(History.builder()
                                 .user(user)
                                 .actionType("ai_summary_viewed")
                                 .content(content)
-                                .level(level)
                                 .build())
                 )
         );
