@@ -159,8 +159,9 @@ public class ContentController {
     public ApiResponse<ContentListResponse> getRecommendations(
             @AuthenticationPrincipal UUID userId,
             @Parameter(description = "콘텐츠 ID (UUID)", required = true) @PathVariable UUID contentId,
-            @Parameter(description = "추천 개수", example = "5") @RequestParam(defaultValue = "5") int size) {
-        Pageable pageable = PageRequest.of(0, size);
+            @Parameter(description = "추천 개수 (1~20, 기본 5)", example = "8") @RequestParam(defaultValue = "5") int size) {
+        int safeSize = Math.min(20, Math.max(1, size));
+        Pageable pageable = PageRequest.of(0, safeSize);
         return ApiResponse.ok(contentService.getRecommendations(userId, contentId, pageable));
     }
 }

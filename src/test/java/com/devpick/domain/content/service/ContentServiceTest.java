@@ -29,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -432,6 +433,35 @@ class ContentServiceTest {
 
         assertThat(response.contents()).hasSize(1);
         verify(contentRepository).findByIsAvailableTrueOrderByPublishedAtDesc(any());
+    }
+
+    @Test
+    @DisplayName("getRecommendations — 태그 없어도 현재 글 ID는 추천 목록에서 제외")
+    void getRecommendations_noTags_excludesCurrentContentId() {
+        ReflectionTestUtils.setField(content, "id", contentId);
+        Content other = Content.builder()
+                .source(content.getSource())
+                .title("다른 글")
+                .author("a")
+                .canonicalUrl("https://example.com/other")
+                .preview("p")
+                .publishedAt(LocalDateTime.now().minusDays(1))
+                .build();
+        UUID otherId = UUID.randomUUID();
+        ReflectionTestUtils.setField(other, "id", otherId);
+
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
+                .willReturn(new PageImpl<>(List.of(content, other)));
+        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+
+        ContentListResponse response = contentService.getRecommendations(userId, contentId, PageRequest.of(0, 5));
+
+        assertThat(response.contents()).hasSize(1);
+        assertThat(response.contents().get(0).id()).isEqualTo(otherId);
+        assertThat(response.size()).isEqualTo(1);
     }
 
     @Test

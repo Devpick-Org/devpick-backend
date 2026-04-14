@@ -229,6 +229,7 @@ public class ContentService {
         }
 
         List<Content> pool = new ArrayList<>(page.getContent());
+        pool.removeIf(c -> c.getId() != null && c.getId().equals(contentId));
         long seed = contentId.getMostSignificantBits() ^ contentId.getLeastSignificantBits();
         Collections.shuffle(pool, new Random(seed));
         List<Content> picked = pool.stream().limit(requestedSize).toList();
@@ -250,7 +251,7 @@ public class ContentService {
         return new ContentListResponse(
                 contents,
                 0,
-                requestedSize,
+                contents.size(),
                 page.getTotalElements(),
                 page.getTotalPages()
         );
