@@ -30,6 +30,9 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -43,6 +46,8 @@ import java.util.UUID;
 public class WeeklyReportService {
 
     private static final String[] DAY_NAMES = {"", "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
+    /** EC2 등 JVM 기본이 UTC일 때도 한국 주(월~일)·월요일 배치가 같은 달력을 쓰도록 */
+    private static final ZoneId ZONE_SEOUL = ZoneId.of("Asia/Seoul");
 
     private final WeeklyReportRepository weeklyReportRepository;
     private final HistoryRepository historyRepository;
@@ -62,7 +67,7 @@ public class WeeklyReportService {
     // DP-256: 이번 주 리포트 조회 — 없으면 온디맨드 생성 (OpenAPI·프론트 기대와 일치)
     @Transactional
     public WeeklyReportResponse getCurrentWeekReport(UUID userId) {
-        LocalDate weekStart = getWeekStart(LocalDate.now());
+        LocalDate weekStart = getWeekStart(todaySeoul());
         WeeklyReportResponse response = generateOrGetReport(userId, weekStart);
         recordWeeklyReportViewed(userId);
         return response;
@@ -106,7 +111,7 @@ public class WeeklyReportService {
     @Scheduled(cron = "0 5 0 * * MON", zone = "Asia/Seoul")
     @Transactional
     public void generateWeeklyReports() {
-        LocalDate lastWeekStart = getWeekStart(LocalDate.now().minusWeeks(1));
+        LocalDate lastWeekStart = getWeekStart(todaySeoul().minusWeeks(1));
         LocalDate lastWeekEnd = lastWeekStart.plusDays(6);
 
         List<User> activeUsers = userRepository.findAllByIsActiveTrueAndDeletedAtIsNull();
@@ -144,8 +149,11 @@ public class WeeklyReportService {
     }
 
     private WeeklyReport generateReportForUser(User user, LocalDate weekStart, LocalDate weekEnd) {
-        LocalDateTime from = weekStart.atStartOfDay();
-        LocalDateTime to = weekEnd.atTime(LocalTime.MAX);
+        // history.created_at 은 JVM(보통 UTC) 기준 LocalDateTime — 한국 주 경계를 UTC instant로 맞춤
+        ZonedDateTime fromZ = weekStart.atStartOfDay(ZONE_SEOUL);
+        ZonedDateTime toZ = weekEnd.atTime(23, 59, 59, 999_999_999).atZone(ZONE_SEOUL);
+        LocalDateTime from = LocalDateTime.ofInstant(fromZ.toInstant(), ZoneOffset.UTC);
+        LocalDateTime to = LocalDateTime.ofInstant(toZ.toInstant(), ZoneOffset.UTC);
 
         long contentsRead = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
                 user.getId(), "content_opened", from, to);
@@ -322,6 +330,10 @@ public class WeeklyReportService {
 
     private LocalDate getWeekStart(LocalDate date) {
         return date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+    }
+
+    private LocalDate todaySeoul() {
+        return LocalDate.now(ZONE_SEOUL);
     }
 
     // DP-246: 주간 리포트 조회 시 학습 히스토리 기록
