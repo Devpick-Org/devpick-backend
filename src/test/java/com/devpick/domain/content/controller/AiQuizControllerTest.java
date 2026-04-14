@@ -4,6 +4,7 @@ import com.devpick.domain.content.dto.AiQuizResponse;
 import com.devpick.domain.content.dto.QuizSubmitRequest;
 import com.devpick.domain.content.dto.QuizSubmitResponse;
 import com.devpick.domain.content.service.AiQuizService;
+import com.devpick.domain.user.service.UserService;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.common.exception.GlobalExceptionHandler;
@@ -31,6 +32,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -44,6 +46,9 @@ class AiQuizControllerTest {
 
     @Mock
     private AiQuizService aiQuizService;
+
+    @Mock
+    private UserService userService;
 
     @InjectMocks
     private AiQuizController aiQuizController;
@@ -86,6 +91,14 @@ class AiQuizControllerTest {
                 Instant.now(), Instant.now().plusSeconds(7 * 24 * 3600),
                 true, true, 4, 5
         );
+
+        lenient().when(userService.resolvePreferredAiLevel(any(), any())).thenAnswer(invocation -> {
+            String req = invocation.getArgument(1);
+            if (req != null && !req.isBlank()) {
+                return req.trim();
+            }
+            return "JUNIOR";
+        });
     }
 
     @AfterEach

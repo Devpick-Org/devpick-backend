@@ -2,6 +2,7 @@ package com.devpick.domain.content.controller;
 
 import com.devpick.domain.content.dto.AiSummaryResponse;
 import com.devpick.domain.content.service.AiSummaryService;
+import com.devpick.domain.user.service.UserService;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.common.exception.GlobalExceptionHandler;
@@ -39,6 +40,9 @@ class AiSummaryControllerTest {
     @Mock
     private AiSummaryService aiSummaryService;
 
+    @Mock
+    private UserService userService;
+
     @InjectMocks
     private AiSummaryController aiSummaryController;
 
@@ -68,6 +72,14 @@ class AiSummaryControllerTest {
                 "다음 읽기", 0.9, List.of("질문1"),
                 Instant.now(), Instant.now().plusSeconds(7 * 24 * 3600)
         );
+
+        given(userService.resolvePreferredAiLevel(any(), any())).willAnswer(invocation -> {
+            String req = invocation.getArgument(1);
+            if (req != null && !req.isBlank()) {
+                return req.trim();
+            }
+            return "JUNIOR";
+        });
     }
 
     @AfterEach

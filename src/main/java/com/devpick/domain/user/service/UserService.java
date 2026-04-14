@@ -96,6 +96,24 @@ public class UserService {
         refreshTokenRepository.deleteByUser(user);
     }
 
+    /**
+     * AI 요약·퀴즈 API의 {@code level} 쿼리가 비어 있을 때 사용한다.
+     * 값이 있으면 trim 한 문자열을 그대로 쓰고, 없으면 로그인 사용자는 프로필 {@link com.devpick.domain.user.entity.Level},
+     * 비로그인이거나 사용자를 찾지 못하면 {@code JUNIOR}를 반환한다.
+     */
+    @Transactional(readOnly = true)
+    public String resolvePreferredAiLevel(UUID userId, String requestedLevel) {
+        if (requestedLevel != null && !requestedLevel.isBlank()) {
+            return requestedLevel.trim();
+        }
+        if (userId == null) {
+            return "JUNIOR";
+        }
+        return userRepository.findByIdAndIsActiveTrue(userId)
+                .map(u -> u.getLevel().name())
+                .orElse("JUNIOR");
+    }
+
     /** 태그명으로 Tag 조회, 없으면 신규 생성 후 반환. */
     private List<Tag> findOrCreateTags(List<String> names) {
         return names.stream()

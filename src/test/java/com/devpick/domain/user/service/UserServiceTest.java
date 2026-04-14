@@ -293,4 +293,39 @@ class UserServiceTest {
                         .isEqualTo(ErrorCode.USER_NOT_FOUND));
         verify(refreshTokenRepository, never()).deleteByUser(any());
     }
+
+    @Test
+    @DisplayName("resolvePreferredAiLevel — 명시 값은 trim 후 그대로")
+    void resolvePreferredAiLevel_explicit_returnsTrimmed() {
+        assertThat(userService.resolvePreferredAiLevel(userId, "  MIDDLE  ")).isEqualTo("MIDDLE");
+    }
+
+    @Test
+    @DisplayName("resolvePreferredAiLevel — 비어 있고 로그인 시 프로필 level")
+    void resolvePreferredAiLevel_blank_usesProfileLevel() {
+        User middle = User.builder()
+                .email("m@x.kr")
+                .nickname("m")
+                .job(Job.BACKEND)
+                .level(Level.MIDDLE)
+                .build();
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(middle));
+
+        assertThat(userService.resolvePreferredAiLevel(userId, null)).isEqualTo("MIDDLE");
+        assertThat(userService.resolvePreferredAiLevel(userId, "   ")).isEqualTo("MIDDLE");
+    }
+
+    @Test
+    @DisplayName("resolvePreferredAiLevel — 비로그인이면 JUNIOR")
+    void resolvePreferredAiLevel_anonymous_defaultsJunior() {
+        assertThat(userService.resolvePreferredAiLevel(null, null)).isEqualTo("JUNIOR");
+    }
+
+    @Test
+    @DisplayName("resolvePreferredAiLevel — 사용자 없으면 JUNIOR")
+    void resolvePreferredAiLevel_userMissing_defaultsJunior() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
+
+        assertThat(userService.resolvePreferredAiLevel(userId, null)).isEqualTo("JUNIOR");
+    }
 }

@@ -2,6 +2,7 @@ package com.devpick.domain.content.controller;
 
 import com.devpick.domain.content.dto.AiSummaryResponse;
 import com.devpick.domain.content.service.AiSummaryService;
+import com.devpick.domain.user.service.UserService;
 import com.devpick.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,6 +25,7 @@ import java.util.UUID;
 public class AiSummaryController {
 
     private final AiSummaryService aiSummaryService;
+    private final UserService userService;
 
     @Operation(summary = "AI 요약 조회", description = "레벨별 AI 요약을 조회합니다. Redis → DynamoDB(ai_summaries) 순이며, 없으면 202(CONTENT_NOT_READY)입니다.")
     @ApiResponses({
@@ -35,8 +37,9 @@ public class AiSummaryController {
     public ApiResponse<AiSummaryResponse> getSummary(
             @AuthenticationPrincipal UUID userId,
             @Parameter(description = "콘텐츠 ID (UUID)", required = true) @PathVariable UUID contentId,
-            @Parameter(description = "레벨 (BEGINNER/JUNIOR/MIDDLE/SENIOR)", example = "JUNIOR")
-            @RequestParam(defaultValue = "JUNIOR") String level) {
-        return ApiResponse.ok(aiSummaryService.getSummary(userId, contentId, level));
+            @Parameter(description = "요약 레벨. 생략 시 로그인 사용자는 프로필 경력 수준, 비로그인은 JUNIOR", example = "MIDDLE")
+            @RequestParam(required = false) String level) {
+        String resolved = userService.resolvePreferredAiLevel(userId, level);
+        return ApiResponse.ok(aiSummaryService.getSummary(userId, contentId, resolved));
     }
 }

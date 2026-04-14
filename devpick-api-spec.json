@@ -1417,14 +1417,15 @@
       "get": {
         "tags": ["AI Summary"],
         "summary": "레벨별 AI 요약 조회",
-        "description": "Redis 캐시(7일) → DynamoDB(ai_summaries) 순서. 요약은 배치에서만 생성되며 없으면 202(CONTENT_NOT_READY). 조회 시 ai_summary_viewed 히스토리가 기록됩니다.",
+        "description": "Redis 캐시(7일) → DynamoDB(ai_summaries) 순서. 요약은 배치에서만 생성되며 없으면 202(CONTENT_NOT_READY). 조회 시 ai_summary_viewed 히스토리가 기록됩니다. level을 생략하면 로그인 사용자는 프로필 경력 수준, 비로그인은 JUNIOR로 조회합니다.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "contentId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
           {
             "name": "level",
             "in": "query",
-            "schema": { "type": "string", "enum": ["BEGINNER", "JUNIOR", "MIDDLE", "SENIOR"], "default": "JUNIOR" }
+            "description": "생략 시 로그인 사용자는 프로필 경력 수준, 비로그인은 JUNIOR",
+            "schema": { "type": "string", "enum": ["BEGINNER", "JUNIOR", "MIDDLE", "SENIOR"] }
           }
         ],
         "responses": {
@@ -1451,14 +1452,15 @@
       "get": {
         "tags": ["AI Quiz"],
         "summary": "AI 퀴즈 조회",
-        "description": "Redis 캐시(7일) → DynamoDB(ai_quizzes) → FastAPI POST /internal/quiz 순서. 레벨 쿼리는 DynamoDB SK(beginner/junior/mid/senior)와 매핑된다. 각 문항에 type(multiple_choice|short_answer)이 포함된다.",
+        "description": "Redis 캐시(7일) → DynamoDB(ai_quizzes) → FastAPI POST /internal/quiz 순서. 레벨 쿼리는 DynamoDB SK(beginner/junior/mid/senior)와 매핑된다. 각 문항에 type(multiple_choice|short_answer)이 포함된다. level을 생략하면 로그인 사용자는 프로필 경력 수준, 비로그인은 JUNIOR로 조회합니다.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "contentId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
           {
             "name": "level",
             "in": "query",
-            "schema": { "type": "string", "enum": ["BEGINNER", "JUNIOR", "MIDDLE", "SENIOR"], "default": "JUNIOR" }
+            "description": "생략 시 로그인 사용자는 프로필 경력 수준, 비로그인은 JUNIOR",
+            "schema": { "type": "string", "enum": ["BEGINNER", "JUNIOR", "MIDDLE", "SENIOR"] }
           }
         ],
         "responses": {
