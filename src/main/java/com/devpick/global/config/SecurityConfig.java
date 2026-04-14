@@ -52,6 +52,8 @@ public class SecurityConfig {
                                 .permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/reports/weekly/share/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/internal/reports/weekly/run-batch").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/internal/reports/weekly/backfill-from-history").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 .requestMatchers("/dev/**").permitAll()
                         // 공개 읽기: 콘텐츠 피드·게시글·타인 프로필·트렌드 (비로그인 시 개인화 없이 최신순 피드 제공)

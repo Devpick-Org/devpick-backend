@@ -55,6 +55,10 @@ oauth:
 cors:
   extra-origin: ${CORS_EXTRA_ORIGIN:}
 
+app:
+  weekly-report:
+    trigger-key: ${WEEKLY_REPORT_TRIGGER_KEY:}
+
 logging:
   level:
     com.devpick: INFO

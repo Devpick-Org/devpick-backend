@@ -10,9 +10,13 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface HistoryRepository extends JpaRepository<History, UUID> {
+
+    @Query("SELECT MIN(h.createdAt) FROM History h WHERE h.user.id = :userId")
+    Optional<LocalDateTime> findMinCreatedAtByUserId(@Param("userId") UUID userId);
 
     long countByUser_IdAndActionTypeAndCreatedAtBetween(
             UUID userId, String actionType, LocalDateTime from, LocalDateTime to);

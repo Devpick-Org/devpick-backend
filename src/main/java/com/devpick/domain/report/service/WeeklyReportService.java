@@ -1,7 +1,6 @@
 package com.devpick.domain.report.service;
 
 import com.devpick.domain.report.client.AiReportClient;
-import com.devpick.domain.report.document.ReportInsightDocument;
 import com.devpick.domain.report.dto.ChartDataResponse;
 import com.devpick.domain.report.dto.ReportInsightResponse;
 import com.devpick.domain.report.dto.ReportSummaryResponse;
@@ -29,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -38,6 +36,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -55,6 +54,7 @@ public class WeeklyReportService {
     private final ReportInsightRepository reportInsightRepository;
     private final AiReportClient aiReportClient;
     private final ObjectMapper objectMapper;
+    private final WeeklyReportBatchRunner weeklyReportBatchRunner;
 
     // DP-256: 리포트 목록 조회 (드롭다운용 최소 필드)
     @Transactional(readOnly = true)
@@ -130,6 +130,52 @@ public class WeeklyReportService {
             }
         }
         log.info("[WeeklyReport] 배치 완료 — 신규 생성: {}개", created);
+    }
+
+    /**
+     * 히스토리 최소 일시(없으면 가입일)를 기준으로, 지난 주(월요일 시작)까지 모든 한국 주에 대해
+     * 아직 없는 주간 리포트를 생성합니다. 운영 백필용.
+     */
+    public Map<String, Integer> backfillWeeklyReportsFromHistory() {
+        LocalDate lastWeekStart = getWeekStart(todaySeoul().minusWeeks(1));
+        List<User> activeUsers = userRepository.findAllByIsActiveTrueAndDeletedAtIsNull();
+        int created = 0;
+        int usersProcessed = 0;
+        log.info("[WeeklyReport] 백필 시작 — 대상 유저: {}명, 마지막 주(월): {}", activeUsers.size(), lastWeekStart);
+
+        for (User u : activeUsers) {
+            LocalDate firstWeek = getFirstWeekStartForUser(u);
+            if (firstWeek.isAfter(lastWeekStart)) {
+                continue;
+            }
+            usersProcessed++;
+            for (LocalDate ws = firstWeek; !ws.isAfter(lastWeekStart); ws = ws.plusWeeks(1)) {
+                try {
+                    created += weeklyReportBatchRunner.createReportIfAbsent(u.getId(), ws);
+                } catch (Exception e) {
+                    log.warn("[WeeklyReport] 백필 실패 user={} week={}: {}", u.getId(), ws, e.getMessage());
+                }
+            }
+        }
+        log.info("[WeeklyReport] 백필 완료 — 신규 생성: {}건, 주간 대상 유저: {}명", created, usersProcessed);
+        return Map.of("created", created, "usersProcessed", usersProcessed);
+    }
+
+    /** {@link WeeklyReportBatchRunner}에서 주 단위 트랜잭션으로 호출하기 위한 진입점 */
+    public void createWeeklyReportForUser(User user, LocalDate weekStart, LocalDate weekEnd) {
+        generateReportForUser(user, weekStart, weekEnd);
+    }
+
+    private LocalDate getFirstWeekStartForUser(User user) {
+        Optional<LocalDateTime> minH = historyRepository.findMinCreatedAtByUserId(user.getId());
+        LocalDate anchor = minH.isPresent()
+                ? toSeoulDateFromStoredUtc(minH.get())
+                : toSeoulDateFromStoredUtc(user.getCreatedAt());
+        return getWeekStart(anchor);
+    }
+
+    private LocalDate toSeoulDateFromStoredUtc(LocalDateTime storedUtc) {
+        return storedUtc.atZone(ZoneOffset.UTC).withZoneSameInstant(ZONE_SEOUL).toLocalDate();
     }
 
     // 특정 유저의 주간 리포트 생성 (배치 또는 온디맨드)

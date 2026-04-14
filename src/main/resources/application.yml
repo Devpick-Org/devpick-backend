@@ -7,6 +7,11 @@ spring:
 server:
   port: 8080
 
+# 운영 수동 배치: WEEKLY_REPORT_TRIGGER_KEY 설정 시 POST /internal/reports/weekly/run-batch + X-Internal-Key
+app:
+  weekly-report:
+    trigger-key: ${WEEKLY_REPORT_TRIGGER_KEY:}
+
 # Actuator: EC2/로드밸런서에서 /actuator/health 사용 시 노출 필요
 management:
   endpoints:

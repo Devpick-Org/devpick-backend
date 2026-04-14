@@ -65,6 +65,8 @@ class WeeklyReportServiceTest {
     private AiReportClient aiReportClient;
     @Mock
     private ObjectMapper objectMapper;
+    @Mock
+    private WeeklyReportBatchRunner weeklyReportBatchRunner;
 
     private UUID userId;
     private UUID reportId;
