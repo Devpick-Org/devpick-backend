@@ -3,6 +3,8 @@ package com.devpick.domain.report.entity;
 import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "report_activities", indexes = {
@@ -30,15 +32,19 @@ public class ReportActivity extends BaseCreatedEntity {
     @Builder.Default
     private Integer scrapsCount = 0;
 
-    @Column(name = "top_tags", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "top_tags")
     private String topTags;
 
-    @Column(name = "prev_week_comparison", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "prev_week_comparison")
     private String prevWeekComparison;
 
-    @Column(name = "daily_activities", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "daily_activities")
     private String dailyActivities;
 
-    @Column(name = "tag_activities", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "tag_activities")
     private String tagActivities;
 }
