@@ -71,10 +71,9 @@ public class AiQuizService {
             return mergeWithAttempt(cached, lastAttempt);
         }
 
-        // 2. DynamoDB 캐시 조회
+        // 2. DynamoDB(ai_quizzes) — 문서가 있으면 만료 여부와 관계없이 반환 (요약과 동일, 배치 적재 건도 서빙).
         Optional<AiQuizDocument> docOpt = aiQuizRepository.findByContentIdAndLevel(contentId.toString(), aiLevel);
-        if (docOpt.isPresent() && docOpt.get().getExpiresAt() != null
-                && docOpt.get().getExpiresAt().isAfter(LocalDateTime.now())) {
+        if (docOpt.isPresent()) {
             AiQuizDocument doc = docOpt.get();
             saveToRedis(redisKey, AiQuizResponse.of(doc, null));
             return AiQuizResponse.of(doc, lastAttempt);

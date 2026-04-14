@@ -164,6 +164,55 @@ class AiQuizServiceTest {
     }
 
     @Test
+    @DisplayName("getQuiz — DynamoDB 문서가 만료(expiresAt 과거)여도 그대로 반환, FastAPI 미호출")
+    void getQuiz_dynamoDbExpiredDoc_stillReturnsWithoutRegeneration() throws JsonProcessingException {
+        AiQuizDocument expiredDoc = AiQuizDocument.builder()
+                .contentId(contentId.toString()).level(aiLevel).title("Spring 가이드")
+                .questions(document.getQuestions()).passingCount(1).estimatedMinutes(5)
+                .cachedAt(LocalDateTime.now().minusDays(10))
+                .expiresAt(LocalDateTime.now().minusDays(1))
+                .build();
+
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(quizAttemptRepository.findTopByUser_IdAndContent_IdOrderByCreatedAtDesc(userId, contentId))
+                .willReturn(Optional.empty());
+        given(valueOps.get(anyString())).willReturn(null);
+        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
+                .willReturn(Optional.of(expiredDoc));
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        AiQuizResponse response = aiQuizService.getQuiz(userId, contentId, level);
+
+        assertThat(response.title()).isEqualTo("Spring 가이드");
+        verify(aiServerClient, never()).fetchQuiz(any(), any());
+    }
+
+    @Test
+    @DisplayName("getQuiz — DynamoDB expiresAt이 null이어도 문서 반환, FastAPI 미호출")
+    void getQuiz_dynamoDbNullExpiresAt_returnsDoc() throws JsonProcessingException {
+        AiQuizDocument noExpiry = AiQuizDocument.builder()
+                .contentId(contentId.toString()).level(aiLevel).title("Spring 가이드")
+                .questions(document.getQuestions()).passingCount(1).estimatedMinutes(5)
+                .cachedAt(LocalDateTime.now())
+                .expiresAt(null)
+                .build();
+
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(quizAttemptRepository.findTopByUser_IdAndContent_IdOrderByCreatedAtDesc(userId, contentId))
+                .willReturn(Optional.empty());
+        given(valueOps.get(anyString())).willReturn(null);
+        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
+                .willReturn(Optional.of(noExpiry));
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        AiQuizResponse response = aiQuizService.getQuiz(userId, contentId, level);
+
+        assertThat(response.title()).isEqualTo("Spring 가이드");
+        assertThat(response.expiresAt()).isNull();
+        verify(aiServerClient, never()).fetchQuiz(any(), any());
+    }
+
+    @Test
     @DisplayName("getQuiz — Redis 미스, DynamoDB 히트 시 FastAPI 미호출 (aiLevel 키 사용)")
     void getQuiz_dynamoDbCacheHit_returnsCached() throws JsonProcessingException {
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
