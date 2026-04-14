@@ -20,11 +20,15 @@ import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
 @Service
@@ -213,14 +217,23 @@ public class ContentService {
                 .map(ct -> ct.getTag().getId())
                 .toList();
 
+        int requestedSize = pageable.getPageSize();
+        // 태그+최신순 상위만 쓰면 글마다 추천이 거의 동일해져서, 넓은 후보 풀 후 contentId 시드 셔플
+        int poolSize = Math.min(150, Math.max(requestedSize * 15, 50));
+
         Page<Content> page;
         if (tagIds.isEmpty()) {
-            page = contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(pageable);
+            page = contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(PageRequest.of(0, poolSize));
         } else {
-            page = contentRepository.findRecommendationsByTagIds(tagIds, contentId, pageable);
+            page = contentRepository.findRecommendationsByTagIds(tagIds, contentId, PageRequest.of(0, poolSize));
         }
 
-        List<ContentSummaryResponse> contents = page.getContent().stream()
+        List<Content> pool = new ArrayList<>(page.getContent());
+        long seed = contentId.getMostSignificantBits() ^ contentId.getLeastSignificantBits();
+        Collections.shuffle(pool, new Random(seed));
+        List<Content> picked = pool.stream().limit(requestedSize).toList();
+
+        List<ContentSummaryResponse> contents = picked.stream()
                 .map(c -> {
                     String preview = aiSummaryService.findCachedCoreSummary(c.getId(), FEED_SUMMARY_LEVEL)
                             .filter(s -> !s.isBlank())
@@ -236,8 +249,8 @@ public class ContentService {
 
         return new ContentListResponse(
                 contents,
-                page.getNumber(),
-                page.getSize(),
+                0,
+                requestedSize,
                 page.getTotalElements(),
                 page.getTotalPages()
         );

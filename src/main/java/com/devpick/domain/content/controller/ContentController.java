@@ -149,7 +149,7 @@ public class ContentController {
         contentService.removeLike(userId, contentId);
     }
 
-    @Operation(summary = "추천 콘텐츠 조회", description = "특정 콘텐츠의 태그를 기반으로 유사한 추천 콘텐츠를 반환합니다. 태그가 없으면 최신 콘텐츠를 반환합니다.")
+    @Operation(summary = "추천 콘텐츠 조회", description = "태그 일치 콘텐츠를 PostgreSQL에서 조회한 뒤 다양화합니다(임베딩 미사용). 태그가 없으면 최신 콘텐츠 풀에서 동일 방식입니다.")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
