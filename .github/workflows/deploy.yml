@@ -15,7 +15,14 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          # EC2에서 Gradle 빌드·이미지 생성이 길 수 있음 (기본 10m 초과 시 여기만 늘리면 됨)
+          command_timeout: 20m
           script: |
+            set -euo pipefail
             cd ~/devpick-backend
-            git pull origin developV2
+            git fetch origin developV2
+            git checkout developV2
+            git reset --hard origin/developV2
+            # 이전 배포에서 남은 동일 이름 컨테이너/고아 컨테이너로 인한 Conflict 방지 (볼륨은 유지)
+            docker compose down --remove-orphans || true
             docker compose up -d --build
