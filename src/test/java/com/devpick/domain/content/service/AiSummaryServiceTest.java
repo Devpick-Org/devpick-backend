@@ -7,6 +7,9 @@ import com.devpick.domain.content.entity.ContentSource;
 import com.devpick.domain.content.repository.AiSummaryRepository;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.report.repository.HistoryRepository;
+import com.devpick.domain.user.entity.Job;
+import com.devpick.domain.user.entity.Level;
+import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -20,6 +23,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Instant;
@@ -37,6 +41,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -113,6 +118,34 @@ class AiSummaryServiceTest {
 
         assertThat(response.coreSummary()).isEqualTo("핵심 요약");
         verify(aiSummaryRepository, never()).findByContentIdAndLevel(any(), any());
+    }
+
+    @Test
+    @DisplayName("getSummary — 동일 콘텐츠 다른 레벨 조회 시 ai_summary_viewed 히스토리 1회만 저장")
+    void getSummary_differentLevels_dedupesAiSummaryHistory() throws JsonProcessingException {
+        User userEntity = User.builder()
+                .email("u@test.dev")
+                .nickname("tester")
+                .job(Job.BACKEND)
+                .level(Level.JUNIOR)
+                .build();
+        ReflectionTestUtils.setField(userEntity, "id", userId);
+        ReflectionTestUtils.setField(content, "id", contentId);
+
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(userEntity));
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(historyRepository.existsByUser_IdAndContent_IdAndActionType(
+                userId, contentId, "ai_summary_viewed")).willReturn(false, true);
+
+        given(valueOps.get(anyString())).willReturn(null);
+        given(aiSummaryRepository.findByContentIdAndLevel(eq(contentId.toString()), anyString()))
+                .willReturn(Optional.of(document));
+        given(objectMapper.writeValueAsString(any())).willReturn("{}");
+
+        aiSummaryService.getSummary(userId, contentId, "JUNIOR");
+        aiSummaryService.getSummary(userId, contentId, "MIDDLE");
+
+        verify(historyRepository, times(1)).save(any());
     }
 
     @Test

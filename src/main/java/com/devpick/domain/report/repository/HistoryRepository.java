@@ -15,6 +15,10 @@ import java.util.UUID;
 
 public interface HistoryRepository extends JpaRepository<History, UUID> {
 
+    /** 동일 콘텐츠 AI 요약 조회 히스토리 중복 방지용 */
+    boolean existsByUser_IdAndContent_IdAndActionType(
+            UUID userId, UUID contentId, String actionType);
+
     @Query("SELECT MIN(h.createdAt) FROM History h WHERE h.user.id = :userId")
     Optional<LocalDateTime> findMinCreatedAtByUserId(@Param("userId") UUID userId);
 

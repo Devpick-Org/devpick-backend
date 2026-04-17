@@ -103,6 +103,10 @@ public class AiSummaryService {
     private void recordHistory(UUID userId, UUID contentId) {
         userRepository.findByIdAndIsActiveTrue(userId).ifPresent(user ->
                 contentRepository.findByIdAndIsAvailableTrue(contentId).ifPresent(content -> {
+                    if (historyRepository.existsByUser_IdAndContent_IdAndActionType(
+                            userId, contentId, "ai_summary_viewed")) {
+                        return;
+                    }
                     historyRepository.save(History.builder()
                             .user(user)
                             .actionType("ai_summary_viewed")
