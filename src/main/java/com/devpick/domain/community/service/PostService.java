@@ -12,6 +12,7 @@ import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.AnswerLikeRepository;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.CommentRepository;
+import com.devpick.domain.community.client.AiQuestionCleanupClient;
 import com.devpick.domain.community.repository.PostLikeRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.domain.point.entity.PointAction;
@@ -29,8 +30,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -53,6 +56,7 @@ public class PostService {
     private final CommentRepository commentRepository;
     private final AnswerLikeRepository answerLikeRepository;
     private final FileStorageService fileStorageService;
+    private final AiQuestionCleanupClient aiQuestionCleanupClient;
 
     @Transactional
     public PostDetailResponse createPost(UUID userId, PostCreateRequest request) {
@@ -196,5 +200,24 @@ public class PostService {
         aiQuestionRepository.deleteByPostId(postId);
         historyRepository.deleteByPostId(postId);
         postRepository.delete(post);
+
+        scheduleAiQuestionCleanup(postId);
+    }
+
+    /**
+     * DB 커밋 후 AI 서버에 질문 문서 삭제를 요청한다. 트랜잭션이 없으면(단위 테스트 등) 즉시 스케줄한다.
+     */
+    private void scheduleAiQuestionCleanup(UUID postId) {
+        Runnable task = () -> aiQuestionCleanupClient.notifyQuestionDeleted(postId);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    task.run();
+                }
+            });
+        } else {
+            task.run();
+        }
     }
 }

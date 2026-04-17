@@ -11,6 +11,7 @@ import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.AnswerLikeRepository;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.CommentRepository;
+import com.devpick.domain.community.client.AiQuestionCleanupClient;
 import com.devpick.domain.community.repository.PostLikeRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.global.storage.FileStorageService;
@@ -44,6 +45,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -75,6 +77,8 @@ class PostServiceTest {
     private AnswerLikeRepository answerLikeRepository;
     @Mock
     private FileStorageService fileStorageService;
+    @Mock
+    private AiQuestionCleanupClient aiQuestionCleanupClient;
 
     private UUID userId;
     private UUID postId;
@@ -226,6 +230,7 @@ class PostServiceTest {
         postService.deletePost(userId, postId);
 
         verify(postRepository).delete(post);
+        verify(aiQuestionCleanupClient).notifyQuestionDeleted(eq(postId));
     }
 
     @Test
@@ -237,6 +242,7 @@ class PostServiceTest {
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.COMMUNITY_POST_NOT_FOUND));
+        verify(aiQuestionCleanupClient, never()).notifyQuestionDeleted(any());
     }
 
     @Test
@@ -250,6 +256,7 @@ class PostServiceTest {
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.COMMUNITY_UNAUTHORIZED_POST_ACTION));
         verify(postRepository, never()).delete(any());
+        verify(aiQuestionCleanupClient, never()).notifyQuestionDeleted(any());
     }
 
     @Test
@@ -268,6 +275,7 @@ class PostServiceTest {
         verify(aiQuestionRepository).deleteByPostId(postId);
         verify(historyRepository).deleteByPostId(postId);
         verify(postRepository).delete(post);
+        verify(aiQuestionCleanupClient).notifyQuestionDeleted(eq(postId));
     }
 
     @Test
