@@ -37,11 +37,13 @@ public record ContentSummaryResponse(
         List<String> tags = content.getContentTags().stream()
                 .map(ct -> ct.getTag().getName())
                 .toList();
+        String sourceName = content.getSource().getName();
+        boolean stackOverflow = ContentSourceNames.isStackOverflow(sourceName);
         return new ContentSummaryResponse(
                 content.getId(),
                 content.getTitle(),
                 content.getAuthor(),
-                content.getSource().getName(),
+                sourceName,
                 preview,
                 content.getThumbnailUrl(),
                 content.getThumbnailWidth(),
@@ -51,11 +53,11 @@ public record ContentSummaryResponse(
                 content.getPublishedAt() != null ? content.getPublishedAt().toInstant(ZoneOffset.UTC) : null,
                 isScrapped,
                 isLiked,
-                content.getScore(),
+                stackOverflow ? null : content.getScore(),
                 content.getLikes(),
-                content.getViewCount(),
+                stackOverflow ? null : content.getViewCount(),
                 content.getCommentsCount(),
-                content.getIsAnswered()
+                stackOverflow ? null : content.getIsAnswered()
         );
     }
 }

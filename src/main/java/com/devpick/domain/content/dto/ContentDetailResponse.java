@@ -39,31 +39,34 @@ public record ContentDetailResponse(
         List<String> tags = content.getContentTags().stream()
                 .map(ct -> ct.getTag().getName())
                 .toList();
+        String sourceName = content.getSource().getName();
+        boolean stackOverflow = ContentSourceNames.isStackOverflow(sourceName);
+        boolean showOriginal = content.getIsOriginalVisible() && !stackOverflow;
         return new ContentDetailResponse(
                 content.getId(),
                 content.getTitle(),
                 content.getAuthor(),
-                content.getSource().getName(),
+                sourceName,
                 content.getPreview(),
                 content.getThumbnailUrl(),
                 content.getThumbnailWidth(),
                 content.getThumbnailHeight(),
                 content.getCanonicalUrl(),
-                content.getIsOriginalVisible() ? content.getOriginalContent() : null,
-                content.getIsOriginalVisible(),
+                showOriginal ? content.getOriginalContent() : null,
+                stackOverflow ? false : content.getIsOriginalVisible(),
                 content.getLicenseType(),
                 content.getPublishedAt() != null ? content.getPublishedAt().toInstant(ZoneOffset.UTC) : null,
                 tags,
                 isScrapped,
                 isLiked,
-                content.getScore(),
+                stackOverflow ? null : content.getScore(),
                 content.getLikes(),
-                content.getViewCount(),
+                stackOverflow ? null : content.getViewCount(),
                 content.getCommentsCount(),
-                content.getIsAnswered(),
-                content.getQuestionContent(),
-                content.getAcceptedAnswer(),
-                content.getTopAnswers()
+                stackOverflow ? null : content.getIsAnswered(),
+                stackOverflow ? null : content.getQuestionContent(),
+                stackOverflow ? null : content.getAcceptedAnswer(),
+                stackOverflow ? null : content.getTopAnswers()
         );
     }
 }
