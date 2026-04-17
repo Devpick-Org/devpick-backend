@@ -110,10 +110,10 @@ public class AnswerService {
         // 포인트 환불: ANSWER_WRITE (항상), ANSWER_ADOPTED (채택된 경우)
         pointService.refundAnswerPoints(answer.getUser(), Boolean.TRUE.equals(answer.getIsAdopted()));
 
-        // 자식 레코드 순서대로 삭제 (FK 제약조건 준수)
+        // 댓글 삭제 전에 comment_created 등 answer·comment를 참조하는 history 제거 (DP-324)
+        historyRepository.deleteByAnswerId(answerId);
         commentRepository.deleteByAnswerId(answerId);
         answerLikeRepository.deleteByAnswerId(answerId);
-        historyRepository.deleteByAnswerId(answerId);
         answerRepository.delete(answer);
     }
 

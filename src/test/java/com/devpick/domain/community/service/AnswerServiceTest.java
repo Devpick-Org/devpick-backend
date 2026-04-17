@@ -39,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -190,13 +191,18 @@ class AnswerServiceTest {
     }
 
     @Test
-    @DisplayName("deleteAnswer — 성공 시 답변 삭제")
+    @DisplayName("deleteAnswer — 성공 시 답변 삭제 (history → 댓글 순, DP-324)")
     void deleteAnswer_success_deletesAnswer() {
         given(answerRepository.findById(answerId)).willReturn(Optional.of(answer));
 
         answerService.deleteAnswer(userId, postId, answerId);
 
-        verify(answerRepository).delete(answer);
+        var order = inOrder(pointService, historyRepository, commentRepository, answerLikeRepository, answerRepository);
+        order.verify(pointService).refundAnswerPoints(answer.getUser(), false);
+        order.verify(historyRepository).deleteByAnswerId(answerId);
+        order.verify(commentRepository).deleteByAnswerId(answerId);
+        order.verify(answerLikeRepository).deleteByAnswerId(answerId);
+        order.verify(answerRepository).delete(answer);
     }
 
     @Test

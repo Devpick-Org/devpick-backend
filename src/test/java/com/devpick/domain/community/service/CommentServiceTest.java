@@ -196,6 +196,7 @@ class CommentServiceTest {
 
         commentService.deleteComment(userId, postId, answerId, commentId);
 
+        verify(historyRepository).deleteByCommentId(commentId);
         verify(commentRepository).delete(comment);
     }
 

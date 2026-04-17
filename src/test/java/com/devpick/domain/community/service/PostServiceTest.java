@@ -20,6 +20,7 @@ import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.domain.user.entity.User;
+import com.devpick.domain.point.entity.PointAction;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -46,6 +47,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -260,21 +262,32 @@ class PostServiceTest {
     }
 
     @Test
-    @DisplayName("deletePost — 성공 시 자식 레코드 순서대로 모두 삭제")
+    @DisplayName("deletePost — 성공 시 history 먼저 제거 후 자식 삭제 (DP-324)")
     void deletePost_success_deletesAllChildRecords() {
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
 
         postService.deletePost(userId, postId);
 
-        verify(commentRepository).deleteByPostId(postId);
-        verify(answerLikeRepository).deleteByPostId(postId);
-        verify(historyRepository).deleteByAnswerPostId(postId);
-        verify(answerRepository).deleteByPostId(postId);
-        verify(postLikeRepository).deleteByPostId(postId);
-        verify(aiAnswerRepository).deleteByPostId(postId);
-        verify(aiQuestionRepository).deleteByPostId(postId);
-        verify(historyRepository).deleteByPostId(postId);
-        verify(postRepository).delete(post);
+        var order = inOrder(
+                pointService,
+                historyRepository,
+                commentRepository,
+                answerLikeRepository,
+                answerRepository,
+                postLikeRepository,
+                aiAnswerRepository,
+                aiQuestionRepository,
+                postRepository);
+        order.verify(pointService).refundLatestByAction(post.getUser(), PointAction.QUESTION_WRITE);
+        order.verify(historyRepository).deleteByAnswerPostId(postId);
+        order.verify(historyRepository).deleteByPostId(postId);
+        order.verify(commentRepository).deleteByPostId(postId);
+        order.verify(answerLikeRepository).deleteByPostId(postId);
+        order.verify(answerRepository).deleteByPostId(postId);
+        order.verify(postLikeRepository).deleteByPostId(postId);
+        order.verify(aiAnswerRepository).deleteByPostId(postId);
+        order.verify(aiQuestionRepository).deleteByPostId(postId);
+        order.verify(postRepository).delete(post);
         verify(aiQuestionCleanupClient).notifyQuestionDeleted(eq(postId));
     }
 

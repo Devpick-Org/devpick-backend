@@ -190,15 +190,16 @@ public class PostService {
         // 포인트 환불: QUESTION_WRITE
         pointService.refundLatestByAction(post.getUser(), PointAction.QUESTION_WRITE);
 
-        // 자식 레코드 순서대로 삭제 (FK 제약조건 준수)
+        // 댓글·답변 삭제 전에 history 제거 (comment_id / answer_id / post_id 참조, DP-324)
+        historyRepository.deleteByAnswerPostId(postId);
+        historyRepository.deleteByPostId(postId);
+
         commentRepository.deleteByPostId(postId);
         answerLikeRepository.deleteByPostId(postId);
-        historyRepository.deleteByAnswerPostId(postId);
         answerRepository.deleteByPostId(postId);
         postLikeRepository.deleteByPostId(postId);
         aiAnswerRepository.deleteByPostId(postId);
         aiQuestionRepository.deleteByPostId(postId);
-        historyRepository.deleteByPostId(postId);
         postRepository.delete(post);
 
         scheduleAiQuestionCleanup(postId);
