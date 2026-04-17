@@ -95,11 +95,12 @@ public class AuthService {
             throw new DevpickException(ErrorCode.AUTH_USER_NOT_FOUND);
         }
 
-        pointService.earn(user, PointAction.DAILY_LOGIN);
-        historyRepository.save(History.builder()
-                .user(user)
-                .actionType("daily_login")
-                .build());
+        if (pointService.earn(user, PointAction.DAILY_LOGIN)) {
+            historyRepository.save(History.builder()
+                    .user(user)
+                    .actionType("daily_login")
+                    .build());
+        }
         return tokenService.issueTokenPair(user);
     }
 

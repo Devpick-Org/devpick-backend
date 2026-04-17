@@ -3,6 +3,7 @@ package com.devpick.domain.user.service;
 import com.devpick.domain.user.dto.LoginRequest;
 import com.devpick.domain.user.dto.LoginResponse;
 import com.devpick.domain.user.dto.RecoverRequest;
+import com.devpick.domain.point.entity.PointAction;
 import com.devpick.domain.user.dto.SignupRequest;
 import com.devpick.domain.user.dto.SignupResponse;
 import com.devpick.domain.user.entity.User;
@@ -168,6 +169,7 @@ class AuthServiceTest {
 
         given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
         given(passwordEncoder.matches(request.password(), user.getPasswordHash())).willReturn(true);
+        given(pointService.earn(user, PointAction.DAILY_LOGIN)).willReturn(true);
         given(tokenService.issueTokenPair(user)).willReturn(mockResponse);
 
         // when
@@ -177,7 +179,27 @@ class AuthServiceTest {
         assertThat(response.accessToken()).isEqualTo("mockAccessToken");
         assertThat(response.refreshTokenValue()).isEqualTo("mockRefreshToken");
         assertThat(response.email()).isEqualTo(request.email());
+        verify(pointService).earn(user, PointAction.DAILY_LOGIN);
+        verify(historyRepository).save(any());
         verify(tokenService).issueTokenPair(user);
+    }
+
+    @Test
+    @DisplayName("로그인 — KST 당일 이미 출석 포인트가 있으면 daily_login 히스토리를 남기지 않는다")
+    void login_success_dailyAlreadyEarned_skipsHistory() {
+        LoginRequest request = new LoginRequest("test@devpick.kr", "password123!");
+        User user = User.createVerifiedEmailUser("test@devpick.kr", "encodedPassword", "하영");
+        LoginResponse mockResponse = new LoginResponse(
+                "mockAccessToken", UUID.randomUUID(), user.getEmail(), user.getNickname(), "mockRefreshToken");
+
+        given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
+        given(passwordEncoder.matches(request.password(), user.getPasswordHash())).willReturn(true);
+        given(pointService.earn(user, PointAction.DAILY_LOGIN)).willReturn(false);
+        given(tokenService.issueTokenPair(user)).willReturn(mockResponse);
+
+        authService.login(request);
+
+        verify(historyRepository, never()).save(any());
     }
 
     @Test

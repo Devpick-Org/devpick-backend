@@ -9,6 +9,7 @@ import com.devpick.domain.user.entity.SocialAccount;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.SocialAccountRepository;
 import com.devpick.domain.point.service.PointService;
+import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -50,6 +51,7 @@ class SocialAuthServiceTest {
     @Mock private StringRedisTemplate redisTemplate;
     @Mock private ValueOperations<String, String> valueOperations;
     @Mock private PointService pointService;
+    @Mock private HistoryRepository historyRepository;
 
     private SocialAuthService socialAuthService;
 
@@ -58,10 +60,12 @@ class SocialAuthServiceTest {
         given(gitHubClient.getProviderName()).willReturn("github");
         given(googleClient.getProviderName()).willReturn("google");
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(pointService.earn(any(), any())).willReturn(true);
         socialAuthService = new SocialAuthService(
                 List.of(gitHubClient, googleClient),
                 oAuthStateService, nicknameGenerator,
-                userRepository, socialAccountRepository, tokenService, redisTemplate, pointService);
+                userRepository, socialAccountRepository, tokenService, redisTemplate, pointService,
+                historyRepository);
     }
 
     // ── generateAuthorizationUrl ──────────────────────────────────────────────
@@ -123,6 +127,7 @@ class SocialAuthServiceTest {
 
         assertThat(response.isNewUser()).isFalse();
         verify(userRepository, never()).save(any());
+        verify(historyRepository).save(any());
     }
 
     // ── login - GitHub (신규 계정) ──────────────────────────────────────────────
