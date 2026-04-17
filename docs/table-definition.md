@@ -56,7 +56,7 @@
 
 - `CONTENT_SCRAP` = 5
 - `CONTENT_LIKE` = 2
-- `AI_SUMMARY_VIEW` = 3
+- `AI_SUMMARY_VIEW` = 3 (과거 적립 로그용; AI 요약 조회 시 신규 적립 없음)
 - `AI_QUIZ_PASS` = 5
 - `QUESTION_WRITE` = 10
 - `ANSWER_WRITE` = 15

@@ -4,8 +4,6 @@ import com.devpick.domain.content.document.AiSummaryDocument;
 import com.devpick.domain.content.dto.AiSummaryResponse;
 import com.devpick.domain.content.repository.AiSummaryRepository;
 import com.devpick.domain.content.repository.ContentRepository;
-import com.devpick.domain.point.entity.PointAction;
-import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.repository.UserRepository;
@@ -37,7 +35,6 @@ public class AiSummaryService {
     private final HistoryRepository historyRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
-    private final PointService pointService;
 
     /**
      * AI 요약 조회 — Redis → DynamoDB(ai_summaries)만 사용.
@@ -111,7 +108,6 @@ public class AiSummaryService {
                             .actionType("ai_summary_viewed")
                             .content(content)
                             .build());
-                    pointService.earn(user, PointAction.AI_SUMMARY_VIEW);
                 })
         );
     }

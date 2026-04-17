@@ -121,7 +121,6 @@ AiSummaryController.getSummary()
       (level SK는 beginner/junior/mid/senior)
       ┌─ HIT ──────────────────────────────────────┐
       │  HistoryRepository.save(ai_summary_viewed) │
-      │  PointService.earn(AI_SUMMARY_VIEW)        │
       │  → 응답 반환                               │
       └────────────────────────────────────────────┘
       │ MISS
@@ -131,7 +130,6 @@ AiSummaryController.getSummary()
       ┌─ 문서 있음 (만료 여부 무관, 배치가 적재) ────┐
       │  Redis.set("summary:...", TTL 7일)          │
       │  HistoryRepository.save(ai_summary_viewed)   │
-      │  PointService.earn(AI_SUMMARY_VIEW)          │
       │  → AiSummaryResponse 반환                    │
       └──────────────────────────────────────────────┘
       │ 없음 (배치/파이프라인이 아직 미생성)
@@ -316,7 +314,7 @@ Jira 티켓 → Done 자동 전환
 | 액션 | 포인트 | 중복 방지 |
 |------|--------|-----------|
 | AI_QUIZ_PASS | 5점 | contentId 기준 (같은 글 재통과 불가) |
-| AI_SUMMARY_VIEW | (코드 확인 필요) | — |
+| AI_SUMMARY_VIEW | 적립 중단 (히스토리만 기록) | — |
 | QUESTION_WRITE | (코드 확인 필요) | 없음 (매번 적립) |
 | CONTENT_SCRAP | (코드 확인 필요) | contentId 기준 |
 | CONTENT_LIKE | (코드 확인 필요) | contentId 기준 |

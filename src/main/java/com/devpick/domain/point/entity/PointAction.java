@@ -9,6 +9,8 @@ public enum PointAction {
 
     CONTENT_SCRAP(5),
     CONTENT_LIKE(2),
+    /** 과거 point_logs 조회 호환용 — AI 요약 조회 시 신규 적립 없음 */
+    @Deprecated
     AI_SUMMARY_VIEW(3),
     AI_QUIZ_PASS(5),
     QUESTION_WRITE(10),

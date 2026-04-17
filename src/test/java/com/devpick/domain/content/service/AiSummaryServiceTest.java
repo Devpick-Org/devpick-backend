@@ -6,7 +6,6 @@ import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.ContentSource;
 import com.devpick.domain.content.repository.AiSummaryRepository;
 import com.devpick.domain.content.repository.ContentRepository;
-import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
@@ -60,8 +59,6 @@ class AiSummaryServiceTest {
     private ObjectMapper objectMapper;
     @Mock
     private ValueOperations<String, String> valueOps;
-    @Mock
-    private PointService pointService;
 
     private UUID userId;
     private UUID contentId;

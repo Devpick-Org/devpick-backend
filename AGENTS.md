@@ -39,11 +39,10 @@
 에이전트는 **사용자에게 명령만 안내하지 말고**, 가능하면 아래를 레포 루트에서 실행한다.
 
 ```bash
-# 컴파일
-./gradlew compileJava compileTestJava --no-daemon
-
-# 전체 빌드 + 테스트 (CI와 동일)
-./gradlew build --no-daemon
+# Cursor/일부 환경에서는 GRADLE_USER_HOME이 샌드박스 캐시로 잡혀 Gradle이 멈추거나
+# "immutable workspace ... metadata file" 오류가 난다. 아래처럼 매번 ~/.gradle 로 고정한다.
+GRADLE_USER_HOME="$HOME/.gradle" ./gradlew compileJava compileTestJava --no-daemon
+GRADLE_USER_HOME="$HOME/.gradle" ./gradlew build --no-daemon
 ```
 
 - 테스트 실패 시: `build/reports/tests/test/index.html` 확인

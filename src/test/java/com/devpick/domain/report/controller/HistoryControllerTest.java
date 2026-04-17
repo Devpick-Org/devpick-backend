@@ -160,7 +160,7 @@ class HistoryControllerTest {
     }
 
     @Test
-    @DisplayName("GET /history - ai_summary_viewed 액션은 points 3을 반환한다")
+    @DisplayName("GET /history - ai_summary_viewed 액션은 points가 null이다 (적립 없음)")
     void getLearningHistory_aiSummaryViewedAction_returnsPoints3() throws Exception {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "ai_summary_viewed", null,
