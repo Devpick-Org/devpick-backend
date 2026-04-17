@@ -276,6 +276,7 @@
         "properties": {
           "id": { "type": "string", "format": "uuid" },
           "title": { "type": "string" },
+          "translatedTitle": { "type": "string", "nullable": true, "description": "AI 번역 제목. 없으면 null." },
           "author": { "type": "string" },
           "sourceName": { "type": "string" },
           "preview": { "type": "string" },
@@ -302,6 +303,7 @@
         "properties": {
           "id": { "type": "string", "format": "uuid" },
           "title": { "type": "string" },
+          "translatedTitle": { "type": "string", "nullable": true, "description": "AI 번역 제목. 없으면 null." },
           "author": { "type": "string" },
           "sourceName": { "type": "string" },
           "preview": { "type": "string" },

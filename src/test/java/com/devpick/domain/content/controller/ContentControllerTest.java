@@ -75,7 +75,7 @@ class ContentControllerTest {
     @DisplayName("GET /contents - 피드 조회 성공 시 200과 콘텐츠 목록 반환")
     void getFeed_success() throws Exception {
         ContentSummaryResponse summary = new ContentSummaryResponse(
-                UUID.randomUUID(), "Spring Boot 가이드", "홍근", "Velog",
+                UUID.randomUUID(), "Spring Boot 가이드", null, "홍근", "Velog",
                 "입문 가이드", null, null, null, "https://velog.io/@test/spring",
                 List.of("Spring"), Instant.now(), false, false,
                 null, null, null, null, null);
@@ -93,7 +93,7 @@ class ContentControllerTest {
     @DisplayName("GET /contents/search - 검색 성공 시 200과 검색 결과 반환")
     void search_success() throws Exception {
         ContentSummaryResponse summary = new ContentSummaryResponse(
-                UUID.randomUUID(), "React 훅 가이드", "홍근", "Velog",
+                UUID.randomUUID(), "React 훅 가이드", null, "홍근", "Velog",
                 "훅 설명", null, null, null, "https://velog.io/@test/react",
                 List.of("React"), Instant.now(), false, false,
                 null, null, null, null, null);
@@ -111,7 +111,7 @@ class ContentControllerTest {
     void getDetail_success() throws Exception {
         UUID contentId = UUID.randomUUID();
         ContentDetailResponse response = new ContentDetailResponse(
-                contentId, "Spring Boot 가이드", "홍근", "Velog",
+                contentId, "Spring Boot 가이드", null, "홍근", "Velog",
                 "입문 가이드", null, null, null, "https://velog.io/@test/spring",
                 null, false, null, Instant.now(),
                 List.of("Spring"), false, false,
@@ -211,7 +211,7 @@ class ContentControllerTest {
     void getRecommendations_success() throws Exception {
         UUID contentId = UUID.randomUUID();
         ContentSummaryResponse summary = new ContentSummaryResponse(
-                UUID.randomUUID(), "추천 콘텐츠", "작성자", "Velog",
+                UUID.randomUUID(), "추천 콘텐츠", null, "작성자", "Velog",
                 "설명", null, null, null, "https://velog.io/@test/rec",
                 List.of("Spring"), Instant.now(), false, false,
                 null, null, null, null, null);

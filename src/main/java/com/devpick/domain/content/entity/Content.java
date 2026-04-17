@@ -29,6 +29,9 @@ public class Content extends BaseTimeEntity {
     @Column(length = 500, nullable = false)
     private String title;
 
+    @Column(name = "translated_title", length = 500)
+    private String translatedTitle;
+
     @Column(length = 100)
     private String author;
 

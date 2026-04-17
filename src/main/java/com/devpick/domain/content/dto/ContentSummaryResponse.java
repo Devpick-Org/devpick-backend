@@ -10,6 +10,7 @@ import java.util.UUID;
 public record ContentSummaryResponse(
         UUID id,
         String title,
+        String translatedTitle,
         String author,
         String sourceName,
         String preview,
@@ -42,6 +43,7 @@ public record ContentSummaryResponse(
         return new ContentSummaryResponse(
                 content.getId(),
                 content.getTitle(),
+                content.getTranslatedTitle(),
                 content.getAuthor(),
                 sourceName,
                 preview,

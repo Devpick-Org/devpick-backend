@@ -3,9 +3,18 @@ spring:
     active: local
   application:
     name: devpick-backend
+  # 모든 프로파일 공통 — 미설정 시 기본 max-file-size=1MB 로 1.5MB 첨부가 413 처리될 수 있음 (DP-346)
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 12MB
 
 server:
   port: 8080
+  tomcat:
+    max-http-form-post-size: 12MB
+    max-swallow-size: 12MB
 
 # 운영 수동 배치: WEEKLY_REPORT_TRIGGER_KEY 설정 시 POST /internal/reports/weekly/run-batch + X-Internal-Key
 app:
