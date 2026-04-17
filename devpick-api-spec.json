@@ -1271,7 +1271,8 @@
       "get": {
         "tags": ["Content"],
         "summary": "콘텐츠 검색",
-        "security": [{ "bearerAuth": [] }],
+        "description": "키워드·태그로 검색합니다. 비로그인 호출 가능하며, `Authorization: Bearer`가 있으면 스크랩·좋아요 여부가 반영됩니다.",
+        "security": [],
         "parameters": [
           { "name": "query", "in": "query", "schema": { "type": "string" }, "description": "검색 키워드" },
           {
@@ -1296,8 +1297,7 @@
                 }
               }
             }
-          },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
+          }
         }
       }
     },

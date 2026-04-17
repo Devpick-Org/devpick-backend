@@ -48,10 +48,9 @@ public class ContentController {
         return ApiResponse.ok(contentService.getFeed(userId, pageable));
     }
 
-    @Operation(summary = "콘텐츠 검색", description = "키워드 또는 태그로 콘텐츠를 검색합니다. query와 tags를 동시에 사용할 수 있습니다.")
+    @Operation(summary = "콘텐츠 검색", description = "키워드 또는 태그로 콘텐츠를 검색합니다. query와 tags를 동시에 사용할 수 있습니다. 비로그인 호출 가능하며, 토큰이 있으면 스크랩·좋아요 여부가 반영됩니다.")
     @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "검색 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "검색 성공")
     })
     @GetMapping("/search")
     public ApiResponse<ContentListResponse> search(

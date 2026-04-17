@@ -182,17 +182,23 @@ public class ContentService {
 
     @Transactional(readOnly = true)
     public ContentListResponse search(UUID userId, String query, List<String> tags, Pageable pageable) {
-        Page<Content> page = contentRepository.searchContents(query, tags, pageable);
+        List<String> normalizedTags = (tags == null || tags.isEmpty())
+                ? tags
+                : tags.stream().map(String::toLowerCase).toList();
+        Page<Content> page = contentRepository.searchContents(query, normalizedTags, pageable);
 
+        boolean loggedIn = userId != null;
         List<ContentSummaryResponse> contents = page.getContent().stream()
                 .map(c -> {
                     String preview = aiSummaryService.findCachedCoreSummary(c.getId(), FEED_SUMMARY_LEVEL)
                             .filter(s -> !s.isBlank())
                             .orElse(c.getPreview());
+                    boolean scrapped = loggedIn && scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId());
+                    boolean liked = loggedIn && likeRepository.existsByUser_IdAndContent_Id(userId, c.getId());
                     return ContentSummaryResponse.of(
                             c,
-                            scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
-                            likeRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
+                            scrapped,
+                            liked,
                             preview
                     );
                 })

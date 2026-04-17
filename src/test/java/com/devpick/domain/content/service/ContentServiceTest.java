@@ -39,6 +39,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -402,7 +403,23 @@ class ContentServiceTest {
         ContentListResponse response = contentService.search(userId, "Spring", List.of("Spring"), PageRequest.of(0, 20));
 
         assertThat(response.contents()).hasSize(1);
-        verify(contentRepository).searchContents(any(), any(), any());
+        verify(contentRepository).searchContents(eq("Spring"), eq(List.of("spring")), any());
+    }
+
+    @Test
+    @DisplayName("search — 비로그인(userId null)이면 스크랩·좋아요 조회 없이 false")
+    void search_nullUserId_noScrapLikeLookup() {
+        given(contentRepository.searchContents(any(), any(), any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+
+        ContentListResponse response = contentService.search(null, "Spring", null, PageRequest.of(0, 20));
+
+        assertThat(response.contents()).hasSize(1);
+        assertThat(response.contents().get(0).isScrapped()).isFalse();
+        assertThat(response.contents().get(0).isLiked()).isFalse();
+        verify(scrapRepository, never()).existsByUser_IdAndContent_Id(any(), any());
+        verify(likeRepository, never()).existsByUser_IdAndContent_Id(any(), any());
     }
 
     @Test

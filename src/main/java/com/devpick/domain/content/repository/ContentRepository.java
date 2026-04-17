@@ -22,8 +22,10 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
 
     @Query("SELECT DISTINCT c FROM Content c LEFT JOIN c.contentTags ct LEFT JOIN ct.tag t " +
            "WHERE c.isAvailable = true " +
-           "AND (:query IS NULL OR c.title LIKE %:query% OR c.author LIKE %:query%) " +
-           "AND (:#{#tags == null || #tags.isEmpty()} = true OR t.name IN :tags) " +
+           "AND (COALESCE(TRIM(:query), '') = '' OR " +
+           "LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(c.author) LIKE LOWER(CONCAT('%', :query, '%'))) " +
+           "AND (:#{#tags == null || #tags.isEmpty()} = true OR LOWER(t.name) IN :tags) " +
            "ORDER BY c.publishedAt DESC")
     Page<Content> searchContents(@Param("query") String query, @Param("tags") List<String> tags, Pageable pageable);
 
