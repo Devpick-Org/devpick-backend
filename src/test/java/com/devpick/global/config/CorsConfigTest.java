@@ -28,7 +28,7 @@ class CorsConfigTest {
     }
 
     @Test
-    @DisplayName("허용된 오리진 — localhost:3000, devpick.kr 포함")
+    @DisplayName("허용된 오리진 — localhost:3000/3001, devpick.kr 포함")
     void corsConfig_허용_오리진() {
         CorsConfigurationSource source = corsConfig.corsConfigurationSource();
         MockHttpServletRequest request = new MockHttpServletRequest();
@@ -39,6 +39,7 @@ class CorsConfigTest {
         assertThat(config).isNotNull();
         assertThat(config.getAllowedOrigins()).containsExactlyInAnyOrder(
                 "http://localhost:3000",
+                "http://localhost:3001",
                 "https://devpick.kr",
                 "https://www.devpick.kr",
                 "https://trace-web.netlify.app"

@@ -22,6 +22,7 @@ public class CorsConfig {
 
         List<String> origins = new ArrayList<>(List.of(
                 "http://localhost:3000",
+                "http://localhost:3001",
                 "https://devpick.kr",
                 "https://www.devpick.kr",
                 "https://trace-web.netlify.app"
