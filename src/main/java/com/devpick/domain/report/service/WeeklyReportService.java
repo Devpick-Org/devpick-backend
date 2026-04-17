@@ -64,13 +64,18 @@ public class WeeklyReportService {
                 .toList();
     }
 
-    // DP-256: 이번 주 리포트 조회 — 없으면 온디맨드 생성 (OpenAPI·프론트 기대와 일치)
+    /**
+     * 주간 리포트 홈 — 직전 주(월~일) 배치로 생성된 스냅샷만 반환한다.
+     * 이번 주 온디맨드 생성은 하지 않는다(미완 주간이라 수치가 0으로 고정되는 문제 방지).
+     */
     @Transactional
     public WeeklyReportResponse getCurrentWeekReport(UUID userId) {
-        LocalDate weekStart = getWeekStart(todaySeoul());
-        WeeklyReportResponse response = generateOrGetReport(userId, weekStart);
+        LocalDate weekStart = getWeekStart(todaySeoul().minusWeeks(1));
+        WeeklyReport report = weeklyReportRepository
+                .findWithActivitiesByUser_IdAndWeekStart(userId, weekStart)
+                .orElseThrow(() -> new DevpickException(ErrorCode.REPORT_NOT_FOUND));
         recordWeeklyReportViewed(userId);
-        return response;
+        return toResponse(report);
     }
 
     // DP-256: 특정 reportId로 리포트 조회
@@ -208,6 +213,25 @@ public class WeeklyReportService {
         long scrapsCount = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
                 user.getId(), "scrapped", from, to);
 
+        LocalDate prevWeekStart = weekStart.minusWeeks(1);
+        LocalDate prevWeekEnd = prevWeekStart.plusDays(6);
+        ZonedDateTime prevFromZ = prevWeekStart.atStartOfDay(ZONE_SEOUL);
+        ZonedDateTime prevToZ = prevWeekEnd.atTime(23, 59, 59, 999_999_999).atZone(ZONE_SEOUL);
+        LocalDateTime prevFrom = LocalDateTime.ofInstant(prevFromZ.toInstant(), ZoneOffset.UTC);
+        LocalDateTime prevTo = LocalDateTime.ofInstant(prevToZ.toInstant(), ZoneOffset.UTC);
+
+        long prevContentsRead = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
+                user.getId(), "content_opened", prevFrom, prevTo);
+        long prevQuestionsCreated = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
+                user.getId(), "question_created", prevFrom, prevTo);
+        long prevScrapsCount = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
+                user.getId(), "scrapped", prevFrom, prevTo);
+        String prevWeekComparisonJson = toJson(Map.of(
+                "contentsRead", prevContentsRead,
+                "questionsCreated", prevQuestionsCreated,
+                "scrapsCount", prevScrapsCount
+        ));
+
         List<Object[]> tagRows = historyRepository.findTopTagsByUserAndPeriod(user.getId(), from, to);
         String topTagsJson = serializeTopTags(tagRows, 3);
         String tagActivitiesJson = serializeTagActivities(tagRows);
@@ -226,6 +250,7 @@ public class WeeklyReportService {
                 .questionsCreated((int) questionsCreated)
                 .scrapsCount((int) scrapsCount)
                 .topTags(topTagsJson)
+                .prevWeekComparison(prevWeekComparisonJson)
                 .dailyActivities(dailyActivitiesJson)
                 .tagActivities(tagActivitiesJson)
                 .build();

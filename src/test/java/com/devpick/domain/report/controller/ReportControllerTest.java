@@ -127,7 +127,7 @@ class ReportControllerTest {
     }
 
     @Test
-    @DisplayName("GET /reports/weekly - 이번 주 리포트 조회 성공 시 200 반환")
+    @DisplayName("GET /reports/weekly - 직전 주 리포트 조회 성공 시 200 반환")
     void getCurrentWeekReport_success_returns200() throws Exception {
         given(weeklyReportService.getCurrentWeekReport(userId)).willReturn(reportResponse);
 
@@ -166,10 +166,10 @@ class ReportControllerTest {
     }
 
     @Test
-    @DisplayName("GET /reports/weekly - 사용자 없으면 404 반환")
-    void getCurrentWeekReport_userNotFound_returns404() throws Exception {
+    @DisplayName("GET /reports/weekly - 직전 주 스냅샷 없으면 404 반환")
+    void getCurrentWeekReport_reportNotFound_returns404() throws Exception {
         given(weeklyReportService.getCurrentWeekReport(userId))
-                .willThrow(new DevpickException(ErrorCode.USER_NOT_FOUND));
+                .willThrow(new DevpickException(ErrorCode.REPORT_NOT_FOUND));
 
         mockMvc.perform(get("/reports/weekly"))
                 .andExpect(status().isNotFound())

@@ -23,7 +23,8 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
 
     @Query("SELECT ct.tag.name, COUNT(ct.tag.name) FROM History h " +
            "JOIN h.content c JOIN c.contentTags ct " +
-           "WHERE h.user.id = :userId AND h.actionType = 'content_opened' " +
+           "WHERE h.user.id = :userId " +
+           "AND h.actionType IN ('content_opened', 'ai_summary_viewed', 'scrapped') " +
            "AND h.createdAt BETWEEN :from AND :to " +
            "GROUP BY ct.tag.name ORDER BY COUNT(ct.tag.name) DESC")
     List<Object[]> findTopTagsByUserAndPeriod(

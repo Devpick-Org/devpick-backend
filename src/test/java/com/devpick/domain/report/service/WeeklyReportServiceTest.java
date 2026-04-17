@@ -17,6 +17,7 @@ import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +31,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
@@ -44,11 +46,14 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class WeeklyReportServiceTest {
+
+    private static final ZoneId ZONE_SEOUL = ZoneId.of("Asia/Seoul");
 
     @InjectMocks
     private WeeklyReportService weeklyReportService;
@@ -72,13 +77,19 @@ class WeeklyReportServiceTest {
     private UUID reportId;
     private User user;
     private WeeklyReport report;
+    /** GET /reports/weekly 가 반환하는 직전 주 리포트 엔티티 */
+    private WeeklyReport reportPrevWeek;
+    /** 직전 주 월요일 — GET /reports/weekly(현재 구현)가 조회하는 주간 */
+    private LocalDate prevWeekStart;
     private LocalDate weekStart;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws JsonProcessingException {
         userId = UUID.randomUUID();
         reportId = UUID.randomUUID();
-        weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate todaySeoul = LocalDate.now(ZONE_SEOUL);
+        weekStart = todaySeoul.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        prevWeekStart = weekStart.minusWeeks(1);
 
         user = User.builder()
                 .email("test@devpick.kr")
@@ -106,16 +117,33 @@ class WeeklyReportServiceTest {
         activities.add(activity);
         ReflectionTestUtils.setField(report, "activities", activities);
 
+        reportPrevWeek = WeeklyReport.builder()
+                .user(user)
+                .weekStart(prevWeekStart)
+                .weekEnd(prevWeekStart.plusDays(6))
+                .status("generated")
+                .build();
+        ReflectionTestUtils.setField(reportPrevWeek, "id", reportId);
+        ReflectionTestUtils.setField(reportPrevWeek, "activities", new ArrayList<>(activities));
+
         // AI 인사이트는 아직 FastAPI 미구현 — 모든 조회 테스트에 기본 null 반환
         lenient().when(reportInsightRepository.findByReportId(anyString())).thenReturn(Optional.empty());
+
+        lenient().doAnswer(invocation -> {
+            try {
+                Object arg = invocation.getArgument(0);
+                return new ObjectMapper().writeValueAsString(arg);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+        }).when(objectMapper).writeValueAsString(any());
     }
 
     @Test
-    @DisplayName("getCurrentWeekReport — 이번 주 리포트 정상 반환 및 weekly_report_viewed 기록")
+    @DisplayName("getCurrentWeekReport — 직전 주 리포트 정상 반환 및 weekly_report_viewed 기록")
     void getCurrentWeekReport_success_returnsReportAndRecordsHistory() {
-        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
-        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
-                .willReturn(Optional.of(report));
+        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, prevWeekStart))
+                .willReturn(Optional.of(reportPrevWeek));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
         WeeklyReportResponse response = weeklyReportService.getCurrentWeekReport(userId);
@@ -129,9 +157,8 @@ class WeeklyReportServiceTest {
     @Test
     @DisplayName("getCurrentWeekReport — 유저 없으면 히스토리 기록 안 함 (리포트는 정상 반환)")
     void getCurrentWeekReport_userNotFound_doesNotRecordHistory() {
-        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
-        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
-                .willReturn(Optional.of(report));
+        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, prevWeekStart))
+                .willReturn(Optional.of(reportPrevWeek));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
 
         WeeklyReportResponse response = weeklyReportService.getCurrentWeekReport(userId);
@@ -141,34 +168,39 @@ class WeeklyReportServiceTest {
     }
 
     @Test
-    @DisplayName("getCurrentWeekReport — 리포트 없으면 온디맨드 생성 후 반환")
-    void getCurrentWeekReport_notExists_createsReport() throws Exception {
-        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(false);
-        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(eq(userId), any(), any(), any()))
-                .willReturn(0L);
-        given(historyRepository.findTopTagsByUserAndPeriod(eq(userId), any(), any()))
-                .willReturn(List.of());
-        given(historyRepository.findDailyActivityCountsByUserAndPeriod(eq(userId), any(), any()))
-                .willReturn(List.of());
-        given(objectMapper.writeValueAsString(any())).willReturn("[]");
-        given(weeklyReportRepository.save(any(WeeklyReport.class))).willReturn(report);
+    @DisplayName("getCurrentWeekReport — 직전 주 스냅샷 없으면 REPORT_NOT_FOUND (온디맨드 생성 안 함)")
+    void getCurrentWeekReport_notFound_throws() {
+        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, prevWeekStart))
+                .willReturn(Optional.empty());
 
-        WeeklyReportResponse response = weeklyReportService.getCurrentWeekReport(userId);
-
-        assertThat(response.reportId()).isEqualTo(reportId);
-        verify(weeklyReportRepository).save(any(WeeklyReport.class));
-        verify(historyRepository).save(any());
+        assertThatThrownBy(() -> weeklyReportService.getCurrentWeekReport(userId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.REPORT_NOT_FOUND));
+        verify(weeklyReportRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("getCurrentWeekReport — weekStart/weekEnd가 null이면 Instant null 반환")
     void getCurrentWeekReport_nullWeekDates_returnsNullInstants() {
-        ReflectionTestUtils.setField(report, "weekStart", null);
-        ReflectionTestUtils.setField(report, "weekEnd", null);
-        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
-        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
-                .willReturn(Optional.of(report));
+        WeeklyReport nullWeekReport = WeeklyReport.builder()
+                .user(user)
+                .weekStart(null)
+                .weekEnd(null)
+                .status("generated")
+                .build();
+        ReflectionTestUtils.setField(nullWeekReport, "id", reportId);
+        ReflectionTestUtils.setField(nullWeekReport, "activities", new ArrayList<>(List.of(
+                ReportActivity.builder()
+                        .contentsRead(5)
+                        .questionsCreated(2)
+                        .scrapsCount(3)
+                        .topTags("[]")
+                        .build()
+        )));
+
+        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, prevWeekStart))
+                .willReturn(Optional.of(nullWeekReport));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
         WeeklyReportResponse response = weeklyReportService.getCurrentWeekReport(userId);
@@ -180,16 +212,15 @@ class WeeklyReportServiceTest {
     @Test
     @DisplayName("getCurrentWeekReport — weekStart/weekEnd가 Instant 타입으로 반환됨")
     void getCurrentWeekReport_weekStartIsInstantType() {
-        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
-        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
-                .willReturn(Optional.of(report));
+        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, prevWeekStart))
+                .willReturn(Optional.of(reportPrevWeek));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
         WeeklyReportResponse response = weeklyReportService.getCurrentWeekReport(userId);
 
         assertThat(response.weekStart()).isInstanceOf(Instant.class);
         assertThat(response.weekEnd()).isInstanceOf(Instant.class);
-        assertThat(response.weekStart()).isEqualTo(weekStart.atStartOfDay().toInstant(ZoneOffset.UTC));
+        assertThat(response.weekStart()).isEqualTo(prevWeekStart.atStartOfDay().toInstant(ZoneOffset.UTC));
     }
 
     @Test
@@ -203,16 +234,19 @@ class WeeklyReportServiceTest {
                 .dailyActivities("[{\"dayOfWeek\":\"MON\",\"count\":5}]")
                 .tagActivities("[{\"tagName\":\"Java\",\"count\":5}]")
                 .build();
-        List<ReportActivity> activities = new ArrayList<>();
-        activities.add(activityWithChart);
-        ReflectionTestUtils.setField(report, "activities", activities);
+        WeeklyReport reportWithChart = WeeklyReport.builder()
+                .user(user)
+                .weekStart(prevWeekStart)
+                .weekEnd(prevWeekStart.plusDays(6))
+                .status("generated")
+                .build();
+        ReflectionTestUtils.setField(reportWithChart, "id", reportId);
+        ReflectionTestUtils.setField(reportWithChart, "activities", List.of(activityWithChart));
 
-        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
-        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
-                .willReturn(Optional.of(report));
+        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, prevWeekStart))
+                .willReturn(Optional.of(reportWithChart));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
-        // 실제 ObjectMapper 사용을 위해 파싱 로직 검증 (null JSONB인 경우 빈 리스트 반환)
         WeeklyReportResponse response = weeklyReportService.getCurrentWeekReport(userId);
 
         assertThat(response.chartData()).isNotNull();
@@ -229,9 +263,8 @@ class WeeklyReportServiceTest {
                 .nextWeek("Spring Boot 기초부터 시작해보세요")
                 .build();
 
-        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);
-        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, weekStart))
-                .willReturn(Optional.of(report));
+        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, prevWeekStart))
+                .willReturn(Optional.of(reportPrevWeek));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(reportInsightRepository.findByReportId(reportId.toString())).willReturn(Optional.of(insight));
 
