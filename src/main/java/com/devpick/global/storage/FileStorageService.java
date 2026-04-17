@@ -62,7 +62,7 @@ public class FileStorageService {
         validateProfileContentType(file);
         String ext = resolveExtension(file);
         String key = "profiles/" + userId + "/" + UUID.randomUUID() + ext;
-        putObject(key, file, file.getContentType());
+        putObject(key, file, file.getContentType(), "inline");
         return buildPublicUrl(key);
     }
 
@@ -75,7 +75,7 @@ public class FileStorageService {
         String ext = resolveExtension(file);
         String key = "attachments/" + userId + "/" + UUID.randomUUID() + ext;
         String ct = StringUtils.hasText(contentType) ? contentType : "application/octet-stream";
-        putObject(key, file, ct);
+        putObject(key, file, ct, contentDispositionForPostAttachment(ct, file.getOriginalFilename()));
         String url = buildPublicUrl(key);
         return new PostAttachmentDTO(type, url, file.getOriginalFilename());
     }
@@ -111,13 +111,36 @@ public class FileStorageService {
         throw new DevpickException(ErrorCode.FILE_UPLOAD_INVALID_TYPE);
     }
 
-    private void putObject(String key, MultipartFile file, String contentType) {
+    /** 이미지는 inline, 그 외(PDF 등)는 attachment로 저장해 클릭 시 다운로드 유도 */
+    private static String contentDispositionForPostAttachment(String contentType, String originalFilename) {
+        String ct = contentType.toLowerCase(Locale.ROOT);
+        if (ct.startsWith("image/")) {
+            return "inline";
+        }
+        String safe = sanitizeFilenameForContentDisposition(originalFilename);
+        return "attachment; filename=\"" + safe + "\"";
+    }
+
+    private static String sanitizeFilenameForContentDisposition(String originalFilename) {
+        if (!StringUtils.hasText(originalFilename)) {
+            return "file";
+        }
+        String base = originalFilename.trim();
+        int slash = Math.max(base.lastIndexOf('/'), base.lastIndexOf('\\'));
+        if (slash >= 0 && slash < base.length() - 1) {
+            base = base.substring(slash + 1);
+        }
+        return base.replace("\"", "'").replaceAll("[\\r\\n]", "_");
+    }
+
+    private void putObject(String key, MultipartFile file, String contentType, String contentDisposition) {
         try {
-            PutObjectRequest req = PutObjectRequest.builder()
+            PutObjectRequest.Builder b = PutObjectRequest.builder()
                     .bucket(bucket)
                     .key(key)
                     .contentType(contentType)
-                    .build();
+                    .contentDisposition(contentDisposition);
+            PutObjectRequest req = b.build();
             try (InputStream in = file.getInputStream()) {
                 s3Client.putObject(req, RequestBody.fromInputStream(in, file.getSize()));
             }
