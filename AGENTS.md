@@ -116,3 +116,19 @@ https://3-39-96-126.sslip.io
 | 메일·OAuth | `RESEND_API_KEY`, `GITHUB_*`, `GOOGLE_*`, `FRONTEND_URL` |
 
 값 변경·유출 시에는 RDS 비밀번호·JWT·내부 키 순으로 **로테이션**한다.
+
+---
+
+## 9. 로컬 프론트 + 로컬 백엔드 연동 (테스트)
+
+운영 API(`api.devpick.kr`)를 쓰면 OAuth `redirect_uri` 가 운영 프론트로 잡혀 **localhost 소셜 로그인**이 끝까지 맞지 않을 수 있다. 로컬에서 끝까지 보려면 아래를 맞춘다.
+
+1. **백엔드**: 레포 루트에서 `.env.example` → `.env` 복사 후 `SPRING_PROFILES_ACTIVE=local`, `FRONTEND_URL=http://localhost:3000` (또는 실제 쓰는 포트), `GITHUB_*` / `GOOGLE_*` 채움. GitHub·Google 개발자 콘솔에 콜백 등록:  
+   `http://localhost:3000/auth/github/callback`, `http://localhost:3000/auth/google/callback`.
+2. **백엔드 기동**: `GRADLE_USER_HOME="$HOME/.gradle" ./gradlew bootRun --no-daemon` (또는 팀 표준). 기본 포트 8080 가정.
+3. **프론트 (`devpick-frontend`)**: 기존 `.env.local` 을 **지우지 않고**, 여기에 한 줄 추가하거나 `npm run dev:local` 사용.  
+   `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/v1`  
+   샘플: 레포의 `env.local.sample` 참고.
+4. 브라우저는 **`http://localhost:3000`** 으로 접속 (OAuth 리다이렉트·CORS·`FRONTEND_URL` 과 일치).
+
+위는 **로컬 검증용**이며, 운영 배포·EC2 환경 변수 설명은 §8과 동일하게 유지한다.
