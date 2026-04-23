@@ -67,6 +67,8 @@ class ContentServiceTest {
     private com.devpick.domain.point.service.PointService pointService;
     @Mock
     private AiSummaryService aiSummaryService;
+    @Mock
+    private ContentViewLogService contentViewLogService;
 
     private UUID userId;
     private UUID contentId;
@@ -196,7 +198,7 @@ class ContentServiceTest {
         given(scrapRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
         given(likeRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
 
-        ContentDetailResponse response = contentService.getDetail(userId, contentId);
+        ContentDetailResponse response = contentService.getDetail(userId, contentId, "Mozilla/5.0");
 
         assertThat(response.title()).isEqualTo("Spring Boot 가이드");
         assertThat(response.sourceName()).isEqualTo("Velog");
@@ -222,7 +224,7 @@ class ContentServiceTest {
     void getDetail_contentNotFound_throwsException() {
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> contentService.getDetail(userId, contentId))
+        assertThatThrownBy(() -> contentService.getDetail(userId, contentId, "Mozilla/5.0"))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.CONTENT_NOT_FOUND));
@@ -322,7 +324,7 @@ class ContentServiceTest {
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> contentService.getDetail(userId, contentId))
+        assertThatThrownBy(() -> contentService.getDetail(userId, contentId, "Mozilla/5.0"))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.USER_NOT_FOUND));
@@ -373,7 +375,7 @@ class ContentServiceTest {
         given(scrapRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(true);
         given(likeRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(true);
 
-        ContentDetailResponse response = contentService.getDetail(userId, contentId);
+        ContentDetailResponse response = contentService.getDetail(userId, contentId, "Mozilla/5.0");
 
         assertThat(response.isScrapped()).isTrue();
         assertThat(response.isLiked()).isTrue();
@@ -500,10 +502,38 @@ class ContentServiceTest {
         given(scrapRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
         given(likeRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
 
-        ContentDetailResponse response = contentService.getDetail(userId, contentId);
+        ContentDetailResponse response = contentService.getDetail(userId, contentId, "Mozilla/5.0");
 
         // isOriginalVisible 기본값 false → originalContent는 null이어야 함
         assertThat(response.isOriginalVisible()).isFalse();
         assertThat(response.originalContent()).isNull();
+    }
+
+    @Test
+    @DisplayName("getDetail — 정상 요청 시 contentViewLogService.record 호출")
+    void getDetail_success_recordsViewLog() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(scrapRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
+
+        contentService.getDetail(userId, contentId, "Mozilla/5.0");
+
+        verify(contentViewLogService).record(any(Content.class), eq(userId), eq("Mozilla/5.0"));
+    }
+
+    @Test
+    @DisplayName("getDetail — 뷰 로그 기록 실패해도 ContentDetailResponse 정상 반환")
+    void getDetail_viewLogThrows_stillReturnsDetail() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(scrapRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(userId, contentId)).willReturn(false);
+        org.mockito.Mockito.doThrow(new RuntimeException("DB 오류"))
+                .when(contentViewLogService).record(any(), any(), any());
+
+        ContentDetailResponse response = contentService.getDetail(userId, contentId, "Mozilla/5.0");
+
+        assertThat(response.title()).isEqualTo("Spring Boot 가이드");
     }
 }

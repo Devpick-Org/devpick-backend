@@ -19,6 +19,7 @@ import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +34,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ContentService {
 
     private static final String FEED_SUMMARY_LEVEL = "JUNIOR";
@@ -45,6 +47,7 @@ public class ContentService {
     private final UserTagRepository userTagRepository;
     private final PointService pointService;
     private final AiSummaryService aiSummaryService;
+    private final ContentViewLogService contentViewLogService;
 
     @Transactional(readOnly = true)
     public ContentListResponse getFeed(UUID userId, Pageable pageable) {
@@ -86,7 +89,7 @@ public class ContentService {
     }
 
     @Transactional
-    public ContentDetailResponse getDetail(UUID userId, UUID contentId) {
+    public ContentDetailResponse getDetail(UUID userId, UUID contentId, String userAgent) {
         Content content = contentRepository.findByIdAndIsAvailableTrue(contentId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
 
@@ -95,6 +98,12 @@ public class ContentService {
 
         boolean isScrapped = scrapRepository.existsByUser_IdAndContent_Id(userId, contentId);
         boolean isLiked = likeRepository.existsByUser_IdAndContent_Id(userId, contentId);
+
+        try {
+            contentViewLogService.record(content, userId, userAgent);
+        } catch (Exception e) {
+            log.warn("뷰 로그 기록 실패 (무시): contentId={}", contentId);
+        }
 
         return ContentDetailResponse.of(content, isScrapped, isLiked);
     }

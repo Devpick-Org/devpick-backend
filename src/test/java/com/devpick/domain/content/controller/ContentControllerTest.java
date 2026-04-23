@@ -116,7 +116,7 @@ class ContentControllerTest {
                 null, false, null, Instant.now(),
                 List.of("Spring"), false, false,
                 null, null, null, null, null, null, null, null);
-        given(contentService.getDetail(userId, contentId)).willReturn(response);
+        given(contentService.getDetail(eq(userId), eq(contentId), any())).willReturn(response);
 
         mockMvc.perform(get("/contents/" + contentId))
                 .andExpect(status().isOk())
@@ -129,7 +129,7 @@ class ContentControllerTest {
     @DisplayName("GET /contents/{contentId} - 콘텐츠 없으면 404 반환")
     void getDetail_notFound_returns404() throws Exception {
         UUID contentId = UUID.randomUUID();
-        given(contentService.getDetail(userId, contentId))
+        given(contentService.getDetail(eq(userId), eq(contentId), any()))
                 .willThrow(new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
 
         mockMvc.perform(get("/contents/" + contentId))
