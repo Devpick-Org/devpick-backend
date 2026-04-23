@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.UUID;
 
@@ -72,8 +73,10 @@ public class ContentController {
     @GetMapping("/{contentId}")
     public ApiResponse<ContentDetailResponse> getDetail(
             @AuthenticationPrincipal UUID userId,
-            @Parameter(description = "콘텐츠 ID (UUID)", required = true) @PathVariable UUID contentId) {
-        return ApiResponse.ok(contentService.getDetail(userId, contentId));
+            @Parameter(description = "콘텐츠 ID (UUID)", required = true) @PathVariable UUID contentId,
+            HttpServletRequest request) {
+        String userAgent = request.getHeader("User-Agent");
+        return ApiResponse.ok(contentService.getDetail(userId, contentId, userAgent));
     }
 
     @Operation(summary = "원문 확인(학습 기록)", description = "외부 원문 링크를 연 시점에 호출합니다. 학습 히스토리(content_opened)가 기록됩니다.")
