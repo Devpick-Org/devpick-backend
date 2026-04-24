@@ -2,6 +2,7 @@ package com.devpick.domain.report.dto;
 
 import com.devpick.domain.point.entity.PointAction;
 import com.devpick.domain.report.entity.History;
+import com.devpick.global.util.MarkdownPreviewUtils;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -39,7 +40,7 @@ public record HistoryItemResponse(
         AnswerInfo answerInfo = history.getAnswer() != null
                 ? new AnswerInfo(
                         history.getAnswer().getId(),
-                        truncate(history.getAnswer().getContent(), 100))
+                        truncate(MarkdownPreviewUtils.stripForPreview(history.getAnswer().getContent()), 100))
                 : null;
 
         CommentInfo commentInfo = history.getComment() != null

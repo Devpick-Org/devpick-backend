@@ -1,5 +1,6 @@
 package com.devpick.domain.report.service;
 
+import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.report.dto.ActivityPageResponse;
@@ -293,6 +294,84 @@ class HistoryServiceTest {
         verify(historyRepository).findHistoryIdsByActionTypesAndDateRange(
                 eq(userId), eq(actionTypes), any(), any(), any(Pageable.class));
         verify(historyRepository, never()).findHistoryIdsByActionTypes(any(), any(), any());
+    }
+
+    // ============================================================
+    // answer preview — markdown stripping (DP-368)
+    // ============================================================
+
+    @Test
+    @DisplayName("답변 미리보기 - 마크다운 문법 제거 후 반환")
+    void historyAnswerInfo_withMarkdown_stripsMarkdown() {
+        Answer answer = mock(Answer.class);
+        UUID answerId = UUID.randomUUID();
+        given(answer.getId()).willReturn(answerId);
+        given(answer.getContent()).willReturn("**핵심 요약**: `useEffect`는 렌더링 후 실행됩니다.");
+
+        History history = History.builder()
+                .user(user).actionType("answer_written").answer(answer).build();
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
+
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findHistoryIdsExcludingContentLiked(eq(userId), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
+
+        HistoryPageResponse response = historyService.getHistory(userId, null, null, null, pageable);
+
+        String preview = response.items().get(0).answer().preview();
+        assertThat(preview).doesNotContain("**").doesNotContain("`");
+        assertThat(preview).contains("핵심 요약").contains("useEffect");
+    }
+
+    @Test
+    @DisplayName("답변 미리보기 - 마크다운 제거 후 100자 초과 시 잘림 처리")
+    void historyAnswerInfo_withLongContentAfterStrip_truncated() {
+        Answer answer = mock(Answer.class);
+        given(answer.getId()).willReturn(UUID.randomUUID());
+        String longContent = "a".repeat(120);
+        given(answer.getContent()).willReturn(longContent);
+
+        History history = History.builder()
+                .user(user).actionType("answer_written").answer(answer).build();
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
+
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findHistoryIdsExcludingContentLiked(eq(userId), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
+
+        HistoryPageResponse response = historyService.getHistory(userId, null, null, null, pageable);
+
+        String preview = response.items().get(0).answer().preview();
+        assertThat(preview).endsWith("...");
+        assertThat(preview).hasSize(103); // 100 chars + "..."
+    }
+
+    @Test
+    @DisplayName("답변 미리보기 - answer null이면 answerInfo null 반환")
+    void historyAnswerInfo_whenAnswerNull_returnsNullAnswerInfo() {
+        History history = History.builder()
+                .user(user).actionType("question_created").answer(null).build();
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
+
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findHistoryIdsExcludingContentLiked(eq(userId), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
+
+        HistoryPageResponse response = historyService.getHistory(userId, null, null, null, pageable);
+
+        assertThat(response.items().get(0).answer()).isNull();
     }
 
     @Test
