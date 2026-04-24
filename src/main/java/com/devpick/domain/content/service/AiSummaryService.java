@@ -69,7 +69,7 @@ public class AiSummaryService {
      * 백엔드 level 값을 AI 서버 DynamoDB SK로 정규화한다.
      * BEGINNER→beginner, JUNIOR→junior, MIDDLE→mid, SENIOR→senior
      */
-    static String toAiServerLevel(String level) {
+    public static String toAiServerLevel(String level) {
         return switch (level.toUpperCase()) {
             case "MIDDLE" -> "mid";
             default -> level.toLowerCase();
