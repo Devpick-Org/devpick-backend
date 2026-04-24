@@ -76,6 +76,13 @@ public class AiSummaryService {
         };
     }
 
+    public static String fromAiServerLevel(String aiLevel) {
+        return switch (aiLevel.toLowerCase()) {
+            case "mid" -> "MIDDLE";
+            default -> aiLevel.toUpperCase();
+        };
+    }
+
     private String buildRedisKey(UUID contentId, String aiLevel) {
         return "summary:" + contentId + ":" + aiLevel;
     }

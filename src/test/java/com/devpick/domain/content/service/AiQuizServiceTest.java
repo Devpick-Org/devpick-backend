@@ -4,15 +4,20 @@ import com.devpick.domain.content.client.AiServerClient;
 import com.devpick.domain.content.document.AiQuizDocument;
 import com.devpick.domain.content.dto.AiQuizResponse;
 import com.devpick.domain.content.dto.AiQuizResult;
+import com.devpick.domain.content.dto.QuizHistoryListResponse;
+import com.devpick.domain.content.dto.QuizResultResponse;
 import com.devpick.domain.content.dto.QuizSubmitRequest;
 import com.devpick.domain.content.dto.QuizSubmitResponse;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.ContentSource;
 import com.devpick.domain.content.entity.QuizAttempt;
+import com.devpick.domain.content.entity.QuizAttemptAnswer;
 import com.devpick.domain.content.repository.AiQuizRepository;
 import com.devpick.domain.content.repository.ContentRepository;
+import com.devpick.domain.content.repository.QuizAttemptAnswerRepository;
 import com.devpick.domain.content.repository.QuizAttemptRepository;
 import com.devpick.domain.point.entity.PointAction;
+import com.devpick.domain.point.repository.PointLogRepository;
 import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.Job;
@@ -27,23 +32,30 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -67,6 +79,8 @@ class AiQuizServiceTest {
     @Mock private ValueOperations<String, String> valueOps;
     @Mock private PointService pointService;
     @Mock private QuizAttemptRepository quizAttemptRepository;
+    @Mock private QuizAttemptAnswerRepository quizAttemptAnswerRepository;
+    @Mock private PointLogRepository pointLogRepository;
 
     private UUID userId;
     private UUID contentId;
@@ -92,10 +106,12 @@ class AiQuizServiceTest {
                 .canonicalUrl("https://velog.io/@test/spring")
                 .originalContent("Spring Framework 본문 내용입니다.")
                 .build();
+        ReflectionTestUtils.setField(content, "id", contentId);
 
         user = User.builder()
                 .email("test@devpick.kr").nickname("tester")
                 .job(Job.BACKEND).level(Level.JUNIOR).build();
+        ReflectionTestUtils.setField(user, "id", userId);
 
         AiQuizDocument.Option opt1 = AiQuizDocument.Option.builder().id("opt-1").text("선택지1").build();
         AiQuizDocument.Option opt2 = AiQuizDocument.Option.builder().id("opt-2").text("선택지2").build();
@@ -282,7 +298,7 @@ class AiQuizServiceTest {
     @Test
     @DisplayName("submitQuiz — 통과 시 attempt 저장 + 히스토리 기록 + 포인트 적립")
     void submitQuiz_passed_savesAttemptAndEarnsPoints() {
-        QuizSubmitRequest request = new QuizSubmitRequest(level, 4, 5, true);
+        QuizSubmitRequest request = new QuizSubmitRequest(level, 4, 5, true, null);
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(pointService.earn(eq(user), eq(PointAction.AI_QUIZ_PASS), eq(contentId))).willReturn(true);
@@ -300,7 +316,7 @@ class AiQuizServiceTest {
     @Test
     @DisplayName("submitQuiz — 실패 시 attempt 저장, 히스토리/포인트 미기록")
     void submitQuiz_failed_savesAttemptButNoHistoryOrPoints() {
-        QuizSubmitRequest request = new QuizSubmitRequest(level, 2, 5, false);
+        QuizSubmitRequest request = new QuizSubmitRequest(level, 2, 5, false, null);
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
@@ -316,7 +332,7 @@ class AiQuizServiceTest {
     @Test
     @DisplayName("submitQuiz — 중복 통과 시 pointsEarned=0 반환, attempt는 저장")
     void submitQuiz_duplicatePass_pointsEarnedZero() {
-        QuizSubmitRequest request = new QuizSubmitRequest(level, 5, 5, true);
+        QuizSubmitRequest request = new QuizSubmitRequest(level, 5, 5, true, null);
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(pointService.earn(eq(user), eq(PointAction.AI_QUIZ_PASS), eq(contentId))).willReturn(false);
@@ -331,7 +347,7 @@ class AiQuizServiceTest {
     @Test
     @DisplayName("submitQuiz — 콘텐츠 없으면 CONTENT_NOT_FOUND 예외")
     void submitQuiz_contentNotFound_throwsException() {
-        QuizSubmitRequest request = new QuizSubmitRequest(level, 3, 5, true);
+        QuizSubmitRequest request = new QuizSubmitRequest(level, 3, 5, true, null);
         given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> aiQuizService.submitQuiz(userId, contentId, request))
@@ -384,5 +400,186 @@ class AiQuizServiceTest {
 
         assertThat(response.questions()).hasSize(1);
         assertThat(response.questions().get(0).type()).isEqualTo("multiple_choice");
+    }
+
+    @Test
+    @DisplayName("submitQuiz — answers 포함 시 quiz_attempt_answers에 일괄 저장")
+    void submitQuiz_withAnswers_savesAnswers() {
+        List<QuizSubmitRequest.AnswerItem> answers = List.of(
+                new QuizSubmitRequest.AnswerItem("q-1", "opt-1", null, true),
+                new QuizSubmitRequest.AnswerItem("q-2", "opt-2", null, false)
+        );
+        QuizSubmitRequest request = new QuizSubmitRequest(level, 1, 2, false, answers);
+        QuizAttempt savedAttempt = QuizAttempt.builder()
+                .user(user).content(content).level(level).score(1).totalQuestions(2).passed(false).build();
+
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(quizAttemptRepository.save(any())).willReturn(savedAttempt);
+
+        aiQuizService.submitQuiz(userId, contentId, request);
+
+        verify(quizAttemptAnswerRepository).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("getQuizHistory — 이력 없는 유저 → 빈 리스트 반환")
+    void getQuizHistory_empty_returnsEmptyList() {
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any())).willReturn(Page.empty());
+
+        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", Pageable.ofSize(10));
+
+        assertThat(result.content()).isEmpty();
+        assertThat(result.totalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("getQuizHistory — 이력 있는 유저 → 항목 반환")
+    void getQuizHistory_withAttempts_returnsItems() {
+        QuizAttempt attempt = QuizAttempt.builder()
+                .user(user).content(content).level(aiLevel).score(1).totalQuestions(3).passed(false).build();
+        ReflectionTestUtils.setField(attempt, "id", UUID.randomUUID());
+        ReflectionTestUtils.setField(attempt, "createdAt", LocalDateTime.now());
+
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any()))
+                .willReturn(new PageImpl<>(List.of(attempt)));
+        given(aiQuizRepository.batchFindFirstQuestions(anyList())).willReturn(Map.of());
+
+        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", Pageable.ofSize(10));
+
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().getFirst().contentId()).isEqualTo(contentId);
+        assertThat(result.content().getFirst().level()).isEqualTo("JUNIOR");
+    }
+
+    @Test
+    @DisplayName("getQuizHistory — sort=oldest → createdAt ASC 정렬 적용")
+    void getQuizHistory_oldestSort_appliesAscSort() {
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any())).willReturn(Page.empty());
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+
+        aiQuizService.getQuizHistory(userId, "oldest", Pageable.ofSize(10));
+
+        verify(quizAttemptRepository).findHistoryByUserId(eq(userId), pageableCaptor.capture());
+        Sort.Order order = pageableCaptor.getValue().getSort().getOrderFor("createdAt");
+        assertThat(order).isNotNull();
+        assertThat(order.getDirection()).isEqualTo(Sort.Direction.ASC);
+    }
+
+    @Test
+    @DisplayName("getQuizHistory — DynamoDB에서 첫 번째 문제 텍스트 조회 시 preview에 반영")
+    void getQuizHistory_withPreview_returnsFirstQuestion() {
+        QuizAttempt attempt = QuizAttempt.builder()
+                .user(user).content(content).level(aiLevel).score(1).totalQuestions(3).passed(false).build();
+        ReflectionTestUtils.setField(attempt, "id", UUID.randomUUID());
+        ReflectionTestUtils.setField(attempt, "createdAt", LocalDateTime.now());
+
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any()))
+                .willReturn(new PageImpl<>(List.of(attempt)));
+        given(aiQuizRepository.batchFindFirstQuestions(anyList()))
+                .willReturn(Map.of(contentId + "|" + aiLevel, "Spring의 DI란 무엇인가요?"));
+
+        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", Pageable.ofSize(10));
+
+        assertThat(result.content().getFirst().preview()).isEqualTo("Spring의 DI란 무엇인가요?");
+    }
+
+    @Test
+    @DisplayName("getQuizHistory — preview가 blank이면 null 반환")
+    void getQuizHistory_blankPreview_returnsNull() {
+        QuizAttempt attempt = QuizAttempt.builder()
+                .user(user).content(content).level(aiLevel).score(1).totalQuestions(3).passed(false).build();
+        ReflectionTestUtils.setField(attempt, "id", UUID.randomUUID());
+        ReflectionTestUtils.setField(attempt, "createdAt", LocalDateTime.now());
+
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any()))
+                .willReturn(new PageImpl<>(List.of(attempt)));
+        given(aiQuizRepository.batchFindFirstQuestions(anyList()))
+                .willReturn(Map.of(contentId + "|" + aiLevel, "   "));
+
+        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", Pageable.ofSize(10));
+
+        assertThat(result.content().getFirst().preview()).isNull();
+    }
+
+    @Test
+    @DisplayName("getQuizHistory — DynamoDB 예외 시 preview null로 fallback")
+    void getQuizHistory_dynamoDbException_previewFallback() {
+        QuizAttempt attempt = QuizAttempt.builder()
+                .user(user).content(content).level(aiLevel).score(1).totalQuestions(3).passed(false).build();
+        ReflectionTestUtils.setField(attempt, "id", UUID.randomUUID());
+        ReflectionTestUtils.setField(attempt, "createdAt", LocalDateTime.now());
+
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any()))
+                .willReturn(new PageImpl<>(List.of(attempt)));
+        given(aiQuizRepository.batchFindFirstQuestions(anyList()))
+                .willThrow(new RuntimeException("DynamoDB 연결 실패"));
+
+        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", Pageable.ofSize(10));
+
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().getFirst().preview()).isNull();
+    }
+
+    @Test
+    @DisplayName("getQuizResult — 타인의 attempt 조회 시도 → QUIZ_ATTEMPT_FORBIDDEN 예외")
+    void getQuizResult_otherUsersAttempt_throwsForbidden() {
+        UUID otherUserId = UUID.randomUUID();
+        User otherUser = User.builder()
+                .email("other@devpick.kr").nickname("other").job(Job.BACKEND).level(Level.JUNIOR).build();
+        ReflectionTestUtils.setField(otherUser, "id", otherUserId);
+
+        UUID attemptId = UUID.randomUUID();
+        QuizAttempt attempt = QuizAttempt.builder()
+                .user(otherUser).content(content).level(aiLevel).score(2).totalQuestions(3).passed(false).build();
+        ReflectionTestUtils.setField(attempt, "id", attemptId);
+
+        given(quizAttemptRepository.findById(attemptId)).willReturn(Optional.of(attempt));
+
+        assertThatThrownBy(() -> aiQuizService.getQuizResult(userId, attemptId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.QUIZ_ATTEMPT_FORBIDDEN));
+    }
+
+    @Test
+    @DisplayName("getQuizResult — 존재하지 않는 attempt → QUIZ_ATTEMPT_NOT_FOUND 예외")
+    void getQuizResult_notFound_throwsException() {
+        UUID attemptId = UUID.randomUUID();
+        given(quizAttemptRepository.findById(attemptId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> aiQuizService.getQuizResult(userId, attemptId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.QUIZ_ATTEMPT_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("getQuizResult — 정상 조회 시 quiz + myAnswers 포함")
+    void getQuizResult_success_returnsQuizAndMyAnswers() {
+        UUID attemptId = UUID.randomUUID();
+        QuizAttempt attempt = QuizAttempt.builder()
+                .user(user).content(content).level(aiLevel).score(2).totalQuestions(3).passed(false).build();
+        ReflectionTestUtils.setField(attempt, "id", attemptId);
+        ReflectionTestUtils.setField(attempt, "createdAt", LocalDateTime.now());
+
+        QuizAttemptAnswer answer = QuizAttemptAnswer.builder()
+                .attempt(attempt).questionId("q-1").selectedOptionId("opt-1").correct(true).build();
+
+        given(quizAttemptRepository.findById(attemptId)).willReturn(Optional.of(attempt));
+        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
+                .willReturn(Optional.of(document));
+        given(quizAttemptAnswerRepository.findByAttempt_Id(attemptId)).willReturn(List.of(answer));
+        given(pointLogRepository.sumPointsByUser_IdAndActionAndReferenceId(userId, PointAction.AI_QUIZ_PASS, contentId))
+                .willReturn(0);
+
+        QuizResultResponse result = aiQuizService.getQuizResult(userId, attemptId);
+
+        assertThat(result.attemptId()).isEqualTo(attemptId);
+        assertThat(result.quiz()).isNotNull();
+        assertThat(result.quiz().questions()).hasSize(1);
+        assertThat(result.myAnswers()).hasSize(1);
+        assertThat(result.myAnswers().getFirst().questionId()).isEqualTo("q-1");
+        assertThat(result.myAnswers().getFirst().isCorrect()).isTrue();
     }
 }

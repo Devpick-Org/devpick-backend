@@ -68,6 +68,8 @@ public enum ErrorCode {
     AI_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "AI_002", "AI 서버 응답 시간이 초과되었습니다."),
     AI_SUMMARY_NOT_FOUND(HttpStatus.NOT_FOUND, "AI_003", "AI 요약을 찾을 수 없습니다."),
     AI_QUIZ_NOT_FOUND(HttpStatus.NOT_FOUND, "AI_004", "퀴즈를 찾을 수 없습니다."),
+    QUIZ_ATTEMPT_NOT_FOUND(HttpStatus.NOT_FOUND, "AI_005", "퀴즈 시도 이력을 찾을 수 없습니다."),
+    QUIZ_ATTEMPT_FORBIDDEN(HttpStatus.FORBIDDEN, "AI_006", "퀴즈 이력에 접근 권한이 없습니다."),
 
     // Community
     COMMUNITY_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMUNITY_001", "게시글을 찾을 수 없습니다."),

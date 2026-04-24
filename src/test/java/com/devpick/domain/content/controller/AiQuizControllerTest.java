@@ -162,7 +162,7 @@ class AiQuizControllerTest {
     @Test
     @DisplayName("POST /contents/{contentId}/quiz/submit - 통과 시 pointsEarned 반환")
     void submitQuiz_passed_returns200WithPoints() throws Exception {
-        QuizSubmitRequest request = new QuizSubmitRequest("JUNIOR", 4, 5, true);
+        QuizSubmitRequest request = new QuizSubmitRequest("JUNIOR", 4, 5, true, null);
         QuizSubmitResponse submitResponse = new QuizSubmitResponse(true, 4, 5, 5);
         given(aiQuizService.submitQuiz(eq(userId), eq(contentId), any())).willReturn(submitResponse);
 
@@ -178,7 +178,7 @@ class AiQuizControllerTest {
     @Test
     @DisplayName("POST /contents/{contentId}/quiz/submit - 실패 시 pointsEarned=0 반환")
     void submitQuiz_failed_returns200WithZeroPoints() throws Exception {
-        QuizSubmitRequest request = new QuizSubmitRequest("JUNIOR", 2, 5, false);
+        QuizSubmitRequest request = new QuizSubmitRequest("JUNIOR", 2, 5, false, null);
         QuizSubmitResponse submitResponse = new QuizSubmitResponse(false, 2, 5, 0);
         given(aiQuizService.submitQuiz(eq(userId), eq(contentId), any())).willReturn(submitResponse);
 
@@ -193,7 +193,7 @@ class AiQuizControllerTest {
     @Test
     @DisplayName("POST /contents/{contentId}/quiz/submit - 콘텐츠 없으면 404 반환")
     void submitQuiz_contentNotFound_returns404() throws Exception {
-        QuizSubmitRequest request = new QuizSubmitRequest("JUNIOR", 3, 5, true);
+        QuizSubmitRequest request = new QuizSubmitRequest("JUNIOR", 3, 5, true, null);
         given(aiQuizService.submitQuiz(eq(userId), eq(contentId), any()))
                 .willThrow(new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
 
