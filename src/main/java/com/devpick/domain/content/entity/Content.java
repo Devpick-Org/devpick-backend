@@ -106,6 +106,10 @@ public class Content extends BaseTimeEntity {
     @Convert(converter = StackOverflowAnswerListConverter.class)
     private List<StackOverflowAnswerDto> topAnswers;
 
+    // YouTube 전용 필드 저장 (JSON 문자열: videoId, channelName, duration, viewCount)
+    @Column(name = "extra", columnDefinition = "jsonb")
+    private String extra;
+
     @OneToMany(mappedBy = "content", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ContentTag> contentTags = new ArrayList<>();
