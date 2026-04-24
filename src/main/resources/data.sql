@@ -75,3 +75,8 @@ WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Medium_watcha');
 INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at)
 SELECT gen_random_uuid(), 'Kakao_Tech', 'https://tech.kakao.com/feed/', 'rss_crawl', true, NOW()
 WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'Kakao_Tech');
+
+-- DP-413: YouTube 수집 소스 추가 (AI 레포가 YouTube Data API로 수집 후 POST /internal/contents 전달)
+INSERT INTO content_sources (id, name, url, collect_method, is_active, created_at)
+SELECT gen_random_uuid(), 'YouTube', 'https://www.youtube.com', 'api', true, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM content_sources WHERE name = 'YouTube');
