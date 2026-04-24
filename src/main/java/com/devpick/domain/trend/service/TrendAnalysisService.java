@@ -23,9 +23,6 @@ import java.util.List;
 @Slf4j
 public class TrendAnalysisService {
 
-    private static final Duration LATEST_CACHE_TTL = Duration.ofHours(6);
-    private static final Duration PERIOD_CACHE_TTL = Duration.ofHours(24);
-
     private final TrendSnapshotRepository trendSnapshotRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -41,7 +38,7 @@ public class TrendAnalysisService {
                 .orElseThrow(() -> new DevpickException(ErrorCode.TREND_NOT_FOUND));
 
         TrendAnalysisResponse response = parsePayload(snapshot.getPayload());
-        saveToRedis(key, response, LATEST_CACHE_TTL);
+        saveToRedis(key, response, resolveTtl(unit));
         return response;
     }
 
@@ -56,7 +53,7 @@ public class TrendAnalysisService {
                 .orElseThrow(() -> new DevpickException(ErrorCode.TREND_NOT_FOUND));
 
         TrendAnalysisResponse response = parsePayload(snapshot.getPayload());
-        saveToRedis(key, response, PERIOD_CACHE_TTL);
+        saveToRedis(key, response, resolveTtl(unit));
         return response;
     }
 
@@ -72,6 +69,14 @@ public class TrendAnalysisService {
         } catch (Exception e) {
             log.warn("트렌드 캐시 무효화 실패 (무시): unit={}, scope={}", unit, scope);
         }
+    }
+
+    private Duration resolveTtl(String unit) {
+        return switch (unit) {
+            case "daily"   -> Duration.ofHours(25);
+            case "monthly" -> Duration.ofDays(32);
+            default        -> Duration.ofDays(8);  // weekly
+        };
     }
 
     private TrendAnalysisResponse getFromRedis(String key) {
