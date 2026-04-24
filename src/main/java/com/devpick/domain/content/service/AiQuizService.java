@@ -4,14 +4,20 @@ import com.devpick.domain.content.client.AiServerClient;
 import com.devpick.domain.content.document.AiQuizDocument;
 import com.devpick.domain.content.dto.AiQuizResponse;
 import com.devpick.domain.content.dto.AiQuizResult;
+import com.devpick.domain.content.dto.QuizHistoryItemResponse;
+import com.devpick.domain.content.dto.QuizHistoryListResponse;
+import com.devpick.domain.content.dto.QuizResultResponse;
 import com.devpick.domain.content.dto.QuizSubmitRequest;
 import com.devpick.domain.content.dto.QuizSubmitResponse;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.QuizAttempt;
+import com.devpick.domain.content.entity.QuizAttemptAnswer;
 import com.devpick.domain.content.repository.AiQuizRepository;
 import com.devpick.domain.content.repository.ContentRepository;
+import com.devpick.domain.content.repository.QuizAttemptAnswerRepository;
 import com.devpick.domain.content.repository.QuizAttemptRepository;
 import com.devpick.domain.point.entity.PointAction;
+import com.devpick.domain.point.repository.PointLogRepository;
 import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
@@ -23,6 +29,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -50,6 +61,8 @@ public class AiQuizService {
     private final ObjectMapper objectMapper;
     private final PointService pointService;
     private final QuizAttemptRepository quizAttemptRepository;
+    private final QuizAttemptAnswerRepository quizAttemptAnswerRepository;
+    private final PointLogRepository pointLogRepository;
 
     @Transactional
     public AiQuizResponse getQuiz(UUID userId, UUID contentId, String level) {
@@ -100,7 +113,7 @@ public class AiQuizService {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
 
-            quizAttemptRepository.save(QuizAttempt.builder()
+            QuizAttempt savedAttempt = quizAttemptRepository.save(QuizAttempt.builder()
                     .user(user)
                     .content(content)
                     .level(request.level())
@@ -108,6 +121,19 @@ public class AiQuizService {
                     .totalQuestions(request.totalQuestions())
                     .passed(request.passed())
                     .build());
+
+            if (request.answers() != null && !request.answers().isEmpty()) {
+                List<QuizAttemptAnswer> answers = request.answers().stream()
+                        .map(a -> QuizAttemptAnswer.builder()
+                                .attempt(savedAttempt)
+                                .questionId(a.questionId())
+                                .selectedOptionId(a.selectedOptionId())
+                                .answerText(a.answerText())
+                                .correct(a.isCorrect())
+                                .build())
+                        .toList();
+                quizAttemptAnswerRepository.saveAll(answers);
+            }
 
             if (request.passed()) {
                 historyRepository.save(History.builder()
@@ -127,6 +153,81 @@ public class AiQuizService {
                 request.score(),
                 request.totalQuestions(),
                 pointsEarned
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public QuizHistoryListResponse getQuizHistory(UUID userId, String sort, Pageable pageable) {
+        Sort jpaSort = "oldest".equalsIgnoreCase(sort)
+                ? Sort.by(Sort.Direction.ASC, "createdAt")
+                : Sort.by(Sort.Direction.DESC, "createdAt");
+        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), jpaSort);
+
+        Page<QuizAttempt> page = quizAttemptRepository.findHistoryByUserId(userId, sortedPageable);
+
+        if (page.isEmpty()) {
+            return new QuizHistoryListResponse(List.of(), page.getNumber(), page.getSize(), 0L, 0);
+        }
+
+        List<String[]> keys = page.getContent().stream()
+                .map(a -> new String[]{a.getContent().getId().toString(), a.getLevel()})
+                .toList();
+
+        Map<String, String> previewMap;
+        try {
+            previewMap = aiQuizRepository.batchFindFirstQuestions(keys);
+        } catch (Exception e) {
+            log.warn("퀴즈 preview 배치 조회 실패 — fallback 적용: {}", e.getMessage());
+            previewMap = Map.of();
+        }
+        final Map<String, String> finalPreviewMap = previewMap;
+
+        List<QuizHistoryItemResponse> items = page.getContent().stream()
+                .map(a -> QuizHistoryItemResponse.of(a, finalPreviewMap))
+                .toList();
+
+        return new QuizHistoryListResponse(items, page.getNumber(), page.getSize(),
+                page.getTotalElements(), page.getTotalPages());
+    }
+
+    @Transactional(readOnly = true)
+    public QuizResultResponse getQuizResult(UUID userId, UUID attemptId) {
+        QuizAttempt attempt = quizAttemptRepository.findById(attemptId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.QUIZ_ATTEMPT_NOT_FOUND));
+
+        if (!attempt.getUser().getId().equals(userId)) {
+            throw new DevpickException(ErrorCode.QUIZ_ATTEMPT_FORBIDDEN);
+        }
+
+        QuizResultResponse.QuizData quizData = null;
+        try {
+            Optional<AiQuizDocument> doc = aiQuizRepository.findByContentIdAndLevel(
+                    attempt.getContent().getId().toString(), attempt.getLevel());
+            if (doc.isPresent()) {
+                quizData = new QuizResultResponse.QuizData(doc.get().getQuestions(), doc.get().getPassingCount());
+            }
+        } catch (Exception e) {
+            log.warn("퀴즈 DynamoDB 조회 실패: {}", e.getMessage());
+        }
+
+        List<QuizAttemptAnswer> answers = quizAttemptAnswerRepository.findByAttempt_Id(attemptId);
+        List<QuizResultResponse.MyAnswer> myAnswers = answers.stream()
+                .map(a -> new QuizResultResponse.MyAnswer(
+                        a.getQuestionId(), a.getSelectedOptionId(), a.getAnswerText(), a.isCorrect()))
+                .toList();
+
+        int pointsEarned = pointLogRepository.sumPointsByUser_IdAndActionAndReferenceId(
+                userId, PointAction.AI_QUIZ_PASS, attempt.getContent().getId());
+
+        return new QuizResultResponse(
+                attempt.getId(),
+                attempt.getContent().getId(),
+                attempt.getScore(),
+                attempt.getTotalQuestions(),
+                attempt.isPassed(),
+                pointsEarned,
+                quizData,
+                myAnswers
         );
     }
 
