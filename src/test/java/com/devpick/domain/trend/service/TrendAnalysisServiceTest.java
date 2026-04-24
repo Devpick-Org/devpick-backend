@@ -18,18 +18,22 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.util.List;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -74,7 +78,7 @@ class TrendAnalysisServiceTest {
                 .generatedAt(LocalDateTime.now())
                 .build();
 
-        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
     @Test
@@ -178,5 +182,32 @@ class TrendAnalysisServiceTest {
 
         assertThat(result).isNotNull();
         assertThat(result.unit()).isEqualTo(UNIT);
+    }
+
+    @Test
+    @DisplayName("evictCache — periodStart 없으면 latest 키 1개만 삭제한다")
+    void evictCache_withoutPeriodStart_deletesLatestKey() {
+        trendAnalysisService.evictCache(UNIT, SCOPE, null);
+
+        verify(redisTemplate).delete(List.of("trend:analysis:" + UNIT + ":" + SCOPE + ":latest"));
+    }
+
+    @Test
+    @DisplayName("evictCache — periodStart 있으면 latest + 기간 키 2개 삭제한다")
+    void evictCache_withPeriodStart_deletesBothKeys() {
+        trendAnalysisService.evictCache(UNIT, SCOPE, PERIOD_START);
+
+        verify(redisTemplate).delete(List.of(
+                "trend:analysis:" + UNIT + ":" + SCOPE + ":latest",
+                "trend:analysis:" + UNIT + ":" + SCOPE + ":" + PERIOD_START));
+    }
+
+    @Test
+    @DisplayName("evictCache — Redis 삭제 실패해도 예외를 던지지 않는다")
+    void evictCache_redisThrows_noException() {
+        given(redisTemplate.delete(any(List.class))).willThrow(new RuntimeException("Redis 연결 실패"));
+
+        assertThatCode(() -> trendAnalysisService.evictCache(UNIT, SCOPE, null))
+                .doesNotThrowAnyException();
     }
 }
