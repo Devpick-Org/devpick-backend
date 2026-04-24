@@ -26,7 +26,7 @@ public class InternalTrendCacheController {
 
     private final TrendAnalysisService trendAnalysisService;
 
-    @Value("${app.trend.cache-evict-key:}")
+    @Value("${ai.server.internal-key:}")
     private String cacheEvictKey;
 
     @DeleteMapping("/cache")
