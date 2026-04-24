@@ -3,10 +3,13 @@ package com.devpick.domain.report.service;
 import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.content.entity.Content;
+import com.devpick.domain.content.repository.AiSummaryRepository;
 import com.devpick.domain.report.dto.ActivityPageResponse;
 import com.devpick.domain.report.dto.HistoryPageResponse;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
+import com.devpick.domain.user.entity.Job;
+import com.devpick.domain.user.entity.Level;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
@@ -30,6 +33,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -37,8 +41,11 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -52,6 +59,9 @@ class HistoryServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private AiSummaryRepository aiSummaryRepository;
+
     @InjectMocks
     private HistoryService historyService;
 
@@ -62,9 +72,12 @@ class HistoryServiceTest {
     @BeforeEach
     void setUp() {
         userId = UUID.randomUUID();
-        user = User.builder().email("test@devpick.kr").nickname("하영").build();
+        user = User.builder().email("test@devpick.kr").nickname("하영")
+                .job(Job.BACKEND).level(Level.JUNIOR).build();
         ReflectionTestUtils.setField(user, "id", userId);
         pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"));
+        lenient().when(aiSummaryRepository.batchFindCoreSummaries(anyList(), anyString()))
+                .thenReturn(Map.of());
     }
 
     // ============================================================
@@ -294,6 +307,95 @@ class HistoryServiceTest {
         verify(historyRepository).findHistoryIdsByActionTypesAndDateRange(
                 eq(userId), eq(actionTypes), any(), any(), any(Pageable.class));
         verify(historyRepository, never()).findHistoryIdsByActionTypes(any(), any(), any());
+    }
+
+    // ============================================================
+    // content preview — AI 요약 매핑 (DP-370)
+    // ============================================================
+
+    @Test
+    @DisplayName("콘텐츠 미리보기 - AI 요약 있으면 coreSummary로 반환")
+    void getLearningHistory_contentWithSummary_returnsCoreSummary() {
+        Content content = mock(Content.class);
+        UUID contentId = UUID.randomUUID();
+        given(content.getId()).willReturn(contentId);
+        given(content.getTitle()).willReturn("Spring Security");
+        given(content.getPreview()).willReturn("원문 미리보기");
+
+        History history = History.builder()
+                .user(user).actionType("content_opened").content(content).build();
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
+
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findHistoryIdsExcludingContentLiked(eq(userId), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
+        given(aiSummaryRepository.batchFindCoreSummaries(anyList(), anyString()))
+                .willReturn(Map.of(contentId, "Spring Security는 인증/인가 프레임워크입니다."));
+
+        HistoryPageResponse response = historyService.getHistory(userId, null, null, null, pageable);
+
+        assertThat(response.items().get(0).content().preview())
+                .isEqualTo("Spring Security는 인증/인가 프레임워크입니다.");
+    }
+
+    @Test
+    @DisplayName("콘텐츠 미리보기 - AI 요약 없으면 원문 preview fallback")
+    void getLearningHistory_contentWithoutSummary_fallsBackToPreview() {
+        Content content = mock(Content.class);
+        UUID contentId = UUID.randomUUID();
+        given(content.getId()).willReturn(contentId);
+        given(content.getTitle()).willReturn("JPA 기초");
+        given(content.getPreview()).willReturn("원문 미리보기 텍스트");
+
+        History history = History.builder()
+                .user(user).actionType("content_opened").content(content).build();
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
+
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findHistoryIdsExcludingContentLiked(eq(userId), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
+        given(aiSummaryRepository.batchFindCoreSummaries(anyList(), anyString()))
+                .willReturn(Map.of()); // 요약 없음
+
+        HistoryPageResponse response = historyService.getHistory(userId, null, null, null, pageable);
+
+        assertThat(response.items().get(0).content().preview()).isEqualTo("원문 미리보기 텍스트");
+    }
+
+    @Test
+    @DisplayName("콘텐츠 미리보기 - DynamoDB 조회 실패 시 원문 preview fallback")
+    void getLearningHistory_summaryFetchFails_fallsBackToPreview() {
+        Content content = mock(Content.class);
+        UUID contentId = UUID.randomUUID();
+        given(content.getId()).willReturn(contentId);
+        given(content.getTitle()).willReturn("Redis 캐시");
+        given(content.getPreview()).willReturn("Redis 관련 원문");
+
+        History history = History.builder()
+                .user(user).actionType("content_opened").content(content).build();
+        UUID historyId = UUID.randomUUID();
+        ReflectionTestUtils.setField(history, "id", historyId);
+
+        Page<UUID> idPage = new PageImpl<>(List.of(historyId), pageable, 1);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.findHistoryIdsExcludingContentLiked(eq(userId), any(Pageable.class)))
+                .willReturn(idPage);
+        given(historyRepository.findHistoriesWithAssociationsByIds(List.of(historyId)))
+                .willReturn(List.of(history));
+        given(aiSummaryRepository.batchFindCoreSummaries(anyList(), anyString()))
+                .willThrow(new RuntimeException("DynamoDB 연결 실패"));
+
+        HistoryPageResponse response = historyService.getHistory(userId, null, null, null, pageable);
+
+        assertThat(response.items().get(0).content().preview()).isEqualTo("Redis 관련 원문");
     }
 
     // ============================================================

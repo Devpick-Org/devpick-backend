@@ -6,6 +6,7 @@ import com.devpick.global.util.MarkdownPreviewUtils;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.UUID;
 
 public record HistoryItemResponse(
@@ -24,12 +25,16 @@ public record HistoryItemResponse(
     public record CommentInfo(UUID id, String preview) {}
 
     public static HistoryItemResponse of(History history) {
-        ContentInfo contentInfo = history.getContent() != null
-                ? new ContentInfo(
-                        history.getContent().getId(),
-                        history.getContent().getTitle(),
-                        history.getContent().getPreview())
-                : null;
+        return of(history, Map.of());
+    }
+
+    public static HistoryItemResponse of(History history, Map<UUID, String> summaryMap) {
+        ContentInfo contentInfo = null;
+        if (history.getContent() != null) {
+            UUID contentId = history.getContent().getId();
+            String preview = summaryMap.getOrDefault(contentId, history.getContent().getPreview());
+            contentInfo = new ContentInfo(contentId, history.getContent().getTitle(), preview);
+        }
 
         PostInfo postInfo = history.getPost() != null
                 ? new PostInfo(
