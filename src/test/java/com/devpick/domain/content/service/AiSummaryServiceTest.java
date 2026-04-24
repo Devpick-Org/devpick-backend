@@ -303,4 +303,13 @@ class AiSummaryServiceTest {
         assertThat(AiSummaryService.toAiServerLevel("BEGINNER")).isEqualTo("beginner");
         assertThat(AiSummaryService.toAiServerLevel("SENIOR")).isEqualTo("senior");
     }
+
+    @Test
+    @DisplayName("fromAiServerLevel — mid는 MIDDLE로, 나머지는 uppercase로 변환")
+    void fromAiServerLevel_convertsCorrectly() {
+        assertThat(AiSummaryService.fromAiServerLevel("mid")).isEqualTo("MIDDLE");
+        assertThat(AiSummaryService.fromAiServerLevel("junior")).isEqualTo("JUNIOR");
+        assertThat(AiSummaryService.fromAiServerLevel("beginner")).isEqualTo("BEGINNER");
+        assertThat(AiSummaryService.fromAiServerLevel("senior")).isEqualTo("SENIOR");
+    }
 }
