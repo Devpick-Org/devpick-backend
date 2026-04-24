@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -56,6 +58,20 @@ public class TrendAnalysisService {
         TrendAnalysisResponse response = parsePayload(snapshot.getPayload());
         saveToRedis(key, response, PERIOD_CACHE_TTL);
         return response;
+    }
+
+    public void evictCache(String unit, String scope, LocalDate periodStart) {
+        List<String> keys = new ArrayList<>();
+        keys.add("trend:analysis:" + unit + ":" + scope + ":latest");
+        if (periodStart != null) {
+            keys.add("trend:analysis:" + unit + ":" + scope + ":" + periodStart);
+        }
+        try {
+            redisTemplate.delete(keys);
+            log.info("트렌드 캐시 무효화 완료: unit={}, scope={}, periodStart={}", unit, scope, periodStart);
+        } catch (Exception e) {
+            log.warn("트렌드 캐시 무효화 실패 (무시): unit={}, scope={}", unit, scope);
+        }
     }
 
     private TrendAnalysisResponse getFromRedis(String key) {
