@@ -58,6 +58,7 @@ public class SecurityConfig {
 .requestMatchers("/dev/**").permitAll()
                         // 공개 읽기: 콘텐츠 피드·게시글·타인 프로필·트렌드 (비로그인 시 개인화 없이 최신순 피드 제공)
                         .requestMatchers(HttpMethod.GET, "/trends/keywords").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/trends/analysis", "/trends/analysis/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/contents").permitAll()
                         .requestMatchers(HttpMethod.GET, "/contents/search").permitAll()
                         .requestMatchers(HttpMethod.GET, "/posts").permitAll()

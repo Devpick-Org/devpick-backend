@@ -97,6 +97,9 @@ public enum ErrorCode {
     // Badge
     BADGE_NOT_FOUND(HttpStatus.NOT_FOUND, "BADGE_001", "배지 정보를 찾을 수 없습니다."),
 
+    // Trend
+    TREND_NOT_FOUND(HttpStatus.NOT_FOUND, "TREND_001", "트렌드 분석 결과가 없습니다."),
+
     // File / storage
     FILE_STORAGE_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "FILE_001", "파일 저장소가 설정되지 않았습니다."),
     FILE_UPLOAD_INVALID_TYPE(HttpStatus.BAD_REQUEST, "FILE_002", "허용되지 않는 파일 형식입니다."),
