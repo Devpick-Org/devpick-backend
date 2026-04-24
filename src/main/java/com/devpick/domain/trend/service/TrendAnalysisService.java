@@ -15,14 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class TrendAnalysisService {
-
-    private static final Duration LATEST_CACHE_TTL = Duration.ofHours(6);
-    private static final Duration PERIOD_CACHE_TTL = Duration.ofHours(24);
 
     private final TrendSnapshotRepository trendSnapshotRepository;
     private final StringRedisTemplate redisTemplate;
@@ -39,7 +38,7 @@ public class TrendAnalysisService {
                 .orElseThrow(() -> new DevpickException(ErrorCode.TREND_NOT_FOUND));
 
         TrendAnalysisResponse response = parsePayload(snapshot.getPayload());
-        saveToRedis(key, response, LATEST_CACHE_TTL);
+        saveToRedis(key, response, resolveTtl(unit));
         return response;
     }
 
@@ -54,8 +53,30 @@ public class TrendAnalysisService {
                 .orElseThrow(() -> new DevpickException(ErrorCode.TREND_NOT_FOUND));
 
         TrendAnalysisResponse response = parsePayload(snapshot.getPayload());
-        saveToRedis(key, response, PERIOD_CACHE_TTL);
+        saveToRedis(key, response, resolveTtl(unit));
         return response;
+    }
+
+    public void evictCache(String unit, String scope, LocalDate periodStart) {
+        List<String> keys = new ArrayList<>();
+        keys.add("trend:analysis:" + unit + ":" + scope + ":latest");
+        if (periodStart != null) {
+            keys.add("trend:analysis:" + unit + ":" + scope + ":" + periodStart);
+        }
+        try {
+            redisTemplate.delete(keys);
+            log.info("트렌드 캐시 무효화 완료: unit={}, scope={}, periodStart={}", unit, scope, periodStart);
+        } catch (Exception e) {
+            log.warn("트렌드 캐시 무효화 실패 (무시): unit={}, scope={}", unit, scope);
+        }
+    }
+
+    private Duration resolveTtl(String unit) {
+        return switch (unit) {
+            case "daily"   -> Duration.ofHours(25);
+            case "monthly" -> Duration.ofDays(32);
+            default        -> Duration.ofDays(8);  // weekly
+        };
     }
 
     private TrendAnalysisResponse getFromRedis(String key) {
