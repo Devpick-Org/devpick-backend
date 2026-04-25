@@ -1,6 +1,5 @@
 package com.devpick.domain.community.client;
 
-import com.devpick.domain.community.dto.RelatedContentItem;
 import com.devpick.domain.community.entity.AiQuestion;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.user.entity.Level;
@@ -85,7 +84,6 @@ class AiAnswerClientTest {
                 content,
                 List.of("핵심 포인트 1", "핵심 포인트 2"),
                 List.of("Spring", "Java"),
-                List.of(new RelatedContentItem("content-uuid-1", "Spring IoC 설명")),
                 0.92
         );
     }
@@ -101,7 +99,6 @@ class AiAnswerClientTest {
         assertThat(result.answerContent()).isEqualTo("AI가 생성한 답변");
         assertThat(result.keyPoints()).containsExactly("핵심 포인트 1", "핵심 포인트 2");
         assertThat(result.suggestedTags()).containsExactly("Spring", "Java");
-        assertThat(result.relatedContents()).hasSize(1);
         assertThat(result.confidence()).isEqualTo(0.92);
     }
 
@@ -149,7 +146,7 @@ class AiAnswerClientTest {
     @DisplayName("answerContent가 null이면 AI_SERVER_ERROR 예외가 발생한다")
     void generateAnswer_nullContent_throwsAiServerError() {
         AiAnswerClient.AiAnswerFastApiResponse fakeResponse =
-                new AiAnswerClient.AiAnswerFastApiResponse(null, List.of(), List.of(), List.of(), 0.0);
+                new AiAnswerClient.AiAnswerFastApiResponse(null, List.of(), List.of(), 0.0);
         mockWebClientChain(fakeResponse);
 
         assertThatThrownBy(() -> aiAnswerClient.generateAnswer(post, null))

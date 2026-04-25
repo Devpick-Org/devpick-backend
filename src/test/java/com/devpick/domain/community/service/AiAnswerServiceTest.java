@@ -2,7 +2,6 @@ package com.devpick.domain.community.service;
 
 import com.devpick.domain.community.client.AiAnswerClient;
 import com.devpick.domain.community.dto.AiAnswerResponse;
-import com.devpick.domain.community.dto.RelatedContentItem;
 import com.devpick.domain.community.entity.AiAnswer;
 import com.devpick.domain.community.entity.AiQuestion;
 import com.devpick.domain.community.entity.Post;
@@ -65,7 +64,6 @@ class AiAnswerServiceTest {
                 "AI가 생성한 답변",
                 List.of("핵심 포인트 1", "핵심 포인트 2"),
                 List.of("Spring", "Java"),
-                List.of(new RelatedContentItem("content-uuid-1", "Spring IoC 설명")),
                 0.88
         );
     }
@@ -92,7 +90,6 @@ class AiAnswerServiceTest {
                 .content("기존 AI 답변")
                 .keyPoints(List.of("포인트 1"))
                 .suggestedTags(List.of("Java"))
-                .relatedContents(List.of())
                 .confidence(0.9)
                 .build();
         UUID answerId = UUID.randomUUID();
@@ -107,6 +104,7 @@ class AiAnswerServiceTest {
         assertThat(result.content()).isEqualTo("기존 AI 답변");
         assertThat(result.keyPoints()).containsExactly("포인트 1");
         assertThat(result.confidence()).isEqualTo(0.9);
+        assertThat(result.suggestedTags()).containsExactly("Java");
         verify(aiAnswerClient, never()).generateAnswer(any(), any());
         verify(aiAnswerRepository, never()).save(any());
     }
@@ -119,7 +117,6 @@ class AiAnswerServiceTest {
                 .content("AI가 생성한 답변")
                 .keyPoints(fakeAiResponse.keyPoints())
                 .suggestedTags(fakeAiResponse.suggestedTags())
-                .relatedContents(fakeAiResponse.relatedContents())
                 .confidence(fakeAiResponse.confidence())
                 .build();
         UUID answerId = UUID.randomUUID();
@@ -137,7 +134,6 @@ class AiAnswerServiceTest {
         assertThat(result.content()).isEqualTo("AI가 생성한 답변");
         assertThat(result.keyPoints()).containsExactly("핵심 포인트 1", "핵심 포인트 2");
         assertThat(result.suggestedTags()).containsExactly("Spring", "Java");
-        assertThat(result.relatedContents()).hasSize(1);
         assertThat(result.confidence()).isEqualTo(0.88);
         assertThat(result.isAdopted()).isFalse();
         verify(aiAnswerClient).generateAnswer(post, null);
@@ -158,7 +154,6 @@ class AiAnswerServiceTest {
                 .content("refined 기반 답변")
                 .keyPoints(fakeAiResponse.keyPoints())
                 .suggestedTags(fakeAiResponse.suggestedTags())
-                .relatedContents(fakeAiResponse.relatedContents())
                 .confidence(fakeAiResponse.confidence())
                 .build();
         UUID answerId = UUID.randomUUID();

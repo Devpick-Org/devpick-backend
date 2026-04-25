@@ -1,6 +1,5 @@
 package com.devpick.domain.community.client;
 
-import com.devpick.domain.community.dto.RelatedContentItem;
 import com.devpick.domain.community.entity.AiQuestion;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.global.common.exception.DevpickException;
@@ -32,7 +31,6 @@ public class AiAnswerClient {
             @JsonProperty("answer_content") String answerContent,
             @JsonProperty("key_points") List<String> keyPoints,
             @JsonProperty("suggested_tags") List<String> suggestedTags,
-            @JsonProperty("related_contents") List<RelatedContentItem> relatedContents,
             double confidence
     ) {}
 

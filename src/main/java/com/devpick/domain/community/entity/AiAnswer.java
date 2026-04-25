@@ -1,6 +1,5 @@
 package com.devpick.domain.community.entity;
 
-import com.devpick.domain.community.dto.RelatedContentItem;
 import com.devpick.global.config.StringListConverter;
 import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
@@ -36,10 +35,6 @@ public class AiAnswer extends BaseCreatedEntity {
     @Convert(converter = StringListConverter.class)
     @Column(name = "suggested_tags", columnDefinition = "jsonb")
     private List<String> suggestedTags;
-
-    @Convert(converter = RelatedContentListConverter.class)
-    @Column(name = "related_contents", columnDefinition = "jsonb")
-    private List<RelatedContentItem> relatedContents;
 
     @Column
     private Double confidence;

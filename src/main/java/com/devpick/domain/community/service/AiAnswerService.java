@@ -41,7 +41,6 @@ public class AiAnswerService {
                             .content(aiResponse.answerContent())
                             .keyPoints(aiResponse.keyPoints())
                             .suggestedTags(aiResponse.suggestedTags())
-                            .relatedContents(aiResponse.relatedContents())
                             .confidence(aiResponse.confidence())
                             .build());
                     return AiAnswerResponse.of(saved);

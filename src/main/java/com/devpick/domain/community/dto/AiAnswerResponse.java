@@ -13,7 +13,6 @@ public record AiAnswerResponse(
         String content,
         List<String> keyPoints,
         List<String> suggestedTags,
-        List<RelatedContentItem> relatedContents,
         Double confidence,
         Boolean isAdopted,
         Instant createdAt
@@ -25,7 +24,6 @@ public record AiAnswerResponse(
                 aiAnswer.getContent(),
                 aiAnswer.getKeyPoints(),
                 aiAnswer.getSuggestedTags(),
-                aiAnswer.getRelatedContents(),
                 aiAnswer.getConfidence(),
                 aiAnswer.getIsAdopted(),
                 aiAnswer.getCreatedAt() != null ? aiAnswer.getCreatedAt().toInstant(ZoneOffset.UTC) : null
