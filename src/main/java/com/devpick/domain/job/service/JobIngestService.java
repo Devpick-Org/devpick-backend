@@ -177,14 +177,14 @@ public class JobIngestService {
 
     private List<String> cleanLines(List<String> raw, int limit) {
         if (raw == null) {
-            return List.of();
+            return new ArrayList<>();
         }
-        return raw.stream()
+        return new ArrayList<>(raw.stream()
                 .filter(s -> s != null && !s.isBlank())
                 .map(String::trim)
                 .distinct()
                 .limit(limit)
-                .toList();
+                .toList());
     }
 
     private <E extends Enum<E>> E parseEnum(String raw, Class<E> type, E fallback) {

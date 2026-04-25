@@ -143,6 +143,10 @@ public class JobPosting extends BaseTimeEntity {
         this.parseStatus = JobParseStatus.OK;
         List<String> ts = new ArrayList<>(this.requiredSkills);
         ts.addAll(this.preferredSkills);
-        this.techStack = ts.stream().map(String::trim).filter(s -> !s.isEmpty()).distinct().toList();
+        this.techStack = new ArrayList<>(ts.stream()
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .toList());
     }
 }
