@@ -1,6 +1,7 @@
 package com.devpick.domain.community.controller;
 
 import com.devpick.domain.community.dto.AiAnswerResponse;
+import com.devpick.domain.community.dto.RelatedContentItem;
 import com.devpick.domain.community.service.AiAnswerService;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -59,7 +60,12 @@ class AiAnswerControllerTest {
 
         aiAnswerResponse = new AiAnswerResponse(
                 UUID.randomUUID(), postId,
-                "AI가 생성한 답변 내용입니다.", false,
+                "AI가 생성한 답변 내용입니다.",
+                List.of("핵심 포인트 1", "핵심 포인트 2"),
+                List.of("Spring", "Java"),
+                List.of(new RelatedContentItem("content-uuid-1", "Spring IoC 설명")),
+                0.88,
+                false,
                 Instant.now()
         );
     }
@@ -73,6 +79,10 @@ class AiAnswerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.content").value("AI가 생성한 답변 내용입니다."))
+                .andExpect(jsonPath("$.data.keyPoints[0]").value("핵심 포인트 1"))
+                .andExpect(jsonPath("$.data.suggestedTags[0]").value("Spring"))
+                .andExpect(jsonPath("$.data.relatedContents[0].content_id").value("content-uuid-1"))
+                .andExpect(jsonPath("$.data.confidence").value(0.88))
                 .andExpect(jsonPath("$.data.isAdopted").value(false));
     }
 

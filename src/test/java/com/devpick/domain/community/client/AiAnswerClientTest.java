@@ -1,5 +1,6 @@
 package com.devpick.domain.community.client;
 
+import com.devpick.domain.community.dto.RelatedContentItem;
 import com.devpick.domain.community.entity.AiQuestion;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.user.entity.Level;
@@ -18,6 +19,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -78,16 +80,29 @@ class AiAnswerClientTest {
         }
     }
 
+    private AiAnswerClient.AiAnswerFastApiResponse buildResponse(String content) {
+        return new AiAnswerClient.AiAnswerFastApiResponse(
+                content,
+                List.of("핵심 포인트 1", "핵심 포인트 2"),
+                List.of("Spring", "Java"),
+                List.of(new RelatedContentItem("content-uuid-1", "Spring IoC 설명")),
+                0.92
+        );
+    }
+
     @Test
-    @DisplayName("AI 서버 정상 응답 시 answerContent를 반환한다")
-    void generateAnswer_success_returnsContent() {
-        AiAnswerClient.AiAnswerFastApiResponse fakeResponse =
-                new AiAnswerClient.AiAnswerFastApiResponse("AI가 생성한 답변");
+    @DisplayName("AI 서버 정상 응답 시 전체 응답 객체를 반환한다")
+    void generateAnswer_success_returnsFullResponse() {
+        AiAnswerClient.AiAnswerFastApiResponse fakeResponse = buildResponse("AI가 생성한 답변");
         mockWebClientChain(fakeResponse);
 
-        String result = aiAnswerClient.generateAnswer(post, null);
+        AiAnswerClient.AiAnswerFastApiResponse result = aiAnswerClient.generateAnswer(post, null);
 
-        assertThat(result).isEqualTo("AI가 생성한 답변");
+        assertThat(result.answerContent()).isEqualTo("AI가 생성한 답변");
+        assertThat(result.keyPoints()).containsExactly("핵심 포인트 1", "핵심 포인트 2");
+        assertThat(result.suggestedTags()).containsExactly("Spring", "Java");
+        assertThat(result.relatedContents()).hasSize(1);
+        assertThat(result.confidence()).isEqualTo(0.92);
     }
 
     @Test
@@ -100,13 +115,12 @@ class AiAnswerClientTest {
                 .refinedContent("Spring의 IoC 컨테이너 동작 방식을 설명해주세요.")
                 .build();
 
-        AiAnswerClient.AiAnswerFastApiResponse fakeResponse =
-                new AiAnswerClient.AiAnswerFastApiResponse("refined 기반 AI 답변");
+        AiAnswerClient.AiAnswerFastApiResponse fakeResponse = buildResponse("refined 기반 AI 답변");
         mockWebClientChain(fakeResponse);
 
-        String result = aiAnswerClient.generateAnswer(post, aiQuestion);
+        AiAnswerClient.AiAnswerFastApiResponse result = aiAnswerClient.generateAnswer(post, aiQuestion);
 
-        assertThat(result).isEqualTo("refined 기반 AI 답변");
+        assertThat(result.answerContent()).isEqualTo("refined 기반 AI 답변");
     }
 
     @Test
@@ -135,7 +149,7 @@ class AiAnswerClientTest {
     @DisplayName("answerContent가 null이면 AI_SERVER_ERROR 예외가 발생한다")
     void generateAnswer_nullContent_throwsAiServerError() {
         AiAnswerClient.AiAnswerFastApiResponse fakeResponse =
-                new AiAnswerClient.AiAnswerFastApiResponse(null);
+                new AiAnswerClient.AiAnswerFastApiResponse(null, List.of(), List.of(), List.of(), 0.0);
         mockWebClientChain(fakeResponse);
 
         assertThatThrownBy(() -> aiAnswerClient.generateAnswer(post, null))
