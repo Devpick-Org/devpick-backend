@@ -18,8 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
-import java.util.List;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
