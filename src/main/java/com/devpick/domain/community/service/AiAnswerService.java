@@ -33,12 +33,15 @@ public class AiAnswerService {
         return aiAnswerRepository.findByPost_Id(postId)
                 .map(AiAnswerResponse::of)
                 .orElseGet(() -> {
-                    // refine 결과가 있으면 refined 데이터를 사용, 없으면 original 그대로 전달
                     AiQuestion aiQuestion = aiQuestionRepository.findByPost_Id(postId).orElse(null);
-                    String content = aiAnswerClient.generateAnswer(post, aiQuestion);
+                    AiAnswerClient.AiAnswerFastApiResponse aiResponse =
+                            aiAnswerClient.generateAnswer(post, aiQuestion);
                     AiAnswer saved = aiAnswerRepository.save(AiAnswer.builder()
                             .post(post)
-                            .content(content)
+                            .content(aiResponse.answerContent())
+                            .keyPoints(aiResponse.keyPoints())
+                            .suggestedTags(aiResponse.suggestedTags())
+                            .confidence(aiResponse.confidence())
                             .build());
                     return AiAnswerResponse.of(saved);
                 });

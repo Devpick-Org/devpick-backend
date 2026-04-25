@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import java.util.List;
 
 public record TopContentItem(
+        Integer rank,
         String id,
         String title,
         @JsonAlias("translated_title") String translatedTitle,

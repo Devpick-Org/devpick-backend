@@ -12,6 +12,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -27,17 +28,13 @@ public class AiAnswerClient {
     private String internalKey;
 
     public record AiAnswerFastApiResponse(
-            @JsonProperty("answer_content") String answerContent
+            @JsonProperty("answer_content") String answerContent,
+            @JsonProperty("key_points") List<String> keyPoints,
+            @JsonProperty("suggested_tags") List<String> suggestedTags,
+            double confidence
     ) {}
 
-    /**
-     * AI 서버에 답변 생성을 요청한다.
-     * refined 데이터가 있으면 그것을, 없으면 original 데이터를 refined 필드에도 전달한다.
-     *
-     * @param post       원본 게시글
-     * @param aiQuestion refine 결과 (없으면 null)
-     */
-    public String generateAnswer(Post post, AiQuestion aiQuestion) {
+    public AiAnswerFastApiResponse generateAnswer(Post post, AiQuestion aiQuestion) {
         try {
             String refinedTitle = aiQuestion != null ? aiQuestion.getRefinedTitle() : post.getTitle();
             String refinedContent = aiQuestion != null ? aiQuestion.getRefinedContent() : post.getContent();
@@ -61,7 +58,7 @@ public class AiAnswerClient {
             if (response == null || response.answerContent() == null) {
                 throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
             }
-            return response.answerContent();
+            return response;
         } catch (WebClientResponseException e) {
             throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
         }

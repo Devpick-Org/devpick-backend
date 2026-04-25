@@ -59,7 +59,11 @@ class AiAnswerControllerTest {
 
         aiAnswerResponse = new AiAnswerResponse(
                 UUID.randomUUID(), postId,
-                "AI가 생성한 답변 내용입니다.", false,
+                "AI가 생성한 답변 내용입니다.",
+                List.of("핵심 포인트 1", "핵심 포인트 2"),
+                List.of("Spring", "Java"),
+                0.88,
+                false,
                 Instant.now()
         );
     }
@@ -73,6 +77,9 @@ class AiAnswerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.content").value("AI가 생성한 답변 내용입니다."))
+                .andExpect(jsonPath("$.data.keyPoints[0]").value("핵심 포인트 1"))
+                .andExpect(jsonPath("$.data.suggestedTags[0]").value("Spring"))
+                .andExpect(jsonPath("$.data.confidence").value(0.88))
                 .andExpect(jsonPath("$.data.isAdopted").value(false));
     }
 

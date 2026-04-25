@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -47,6 +48,7 @@ class AiAnswerServiceTest {
 
     private UUID postId;
     private Post post;
+    private AiAnswerClient.AiAnswerFastApiResponse fakeAiResponse;
 
     @BeforeEach
     void setUp() {
@@ -57,6 +59,13 @@ class AiAnswerServiceTest {
                 .level(Level.JUNIOR)
                 .build();
         ReflectionTestUtils.setField(post, "id", postId);
+
+        fakeAiResponse = new AiAnswerClient.AiAnswerFastApiResponse(
+                "AI가 생성한 답변",
+                List.of("핵심 포인트 1", "핵심 포인트 2"),
+                List.of("Spring", "Java"),
+                0.88
+        );
     }
 
     @Test
@@ -79,6 +88,9 @@ class AiAnswerServiceTest {
         AiAnswer existing = AiAnswer.builder()
                 .post(post)
                 .content("기존 AI 답변")
+                .keyPoints(List.of("포인트 1"))
+                .suggestedTags(List.of("Java"))
+                .confidence(0.9)
                 .build();
         UUID answerId = UUID.randomUUID();
         ReflectionTestUtils.setField(existing, "id", answerId);
@@ -90,17 +102,22 @@ class AiAnswerServiceTest {
 
         assertThat(result.id()).isEqualTo(answerId);
         assertThat(result.content()).isEqualTo("기존 AI 답변");
-        assertThat(result.postId()).isEqualTo(postId);
+        assertThat(result.keyPoints()).containsExactly("포인트 1");
+        assertThat(result.confidence()).isEqualTo(0.9);
+        assertThat(result.suggestedTags()).containsExactly("Java");
         verify(aiAnswerClient, never()).generateAnswer(any(), any());
         verify(aiAnswerRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("AI 답변이 없으면 FastAPI를 호출하고 저장 후 반환한다 (refined 없을 때)")
-    void generateOrGetAnswer_noExisting_callsFastApiAndSaves() {
+    @DisplayName("AI 답변이 없으면 FastAPI를 호출하고 전체 필드를 저장 후 반환한다")
+    void generateOrGetAnswer_noExisting_callsFastApiAndSavesAllFields() {
         AiAnswer saved = AiAnswer.builder()
                 .post(post)
                 .content("AI가 생성한 답변")
+                .keyPoints(fakeAiResponse.keyPoints())
+                .suggestedTags(fakeAiResponse.suggestedTags())
+                .confidence(fakeAiResponse.confidence())
                 .build();
         UUID answerId = UUID.randomUUID();
         ReflectionTestUtils.setField(saved, "id", answerId);
@@ -108,13 +125,16 @@ class AiAnswerServiceTest {
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
         given(aiAnswerRepository.findByPost_Id(postId)).willReturn(Optional.empty());
         given(aiQuestionRepository.findByPost_Id(postId)).willReturn(Optional.empty());
-        given(aiAnswerClient.generateAnswer(post, null)).willReturn("AI가 생성한 답변");
+        given(aiAnswerClient.generateAnswer(post, null)).willReturn(fakeAiResponse);
         given(aiAnswerRepository.save(any(AiAnswer.class))).willReturn(saved);
 
         AiAnswerResponse result = aiAnswerService.generateOrGetAnswer(postId);
 
         assertThat(result.id()).isEqualTo(answerId);
         assertThat(result.content()).isEqualTo("AI가 생성한 답변");
+        assertThat(result.keyPoints()).containsExactly("핵심 포인트 1", "핵심 포인트 2");
+        assertThat(result.suggestedTags()).containsExactly("Spring", "Java");
+        assertThat(result.confidence()).isEqualTo(0.88);
         assertThat(result.isAdopted()).isFalse();
         verify(aiAnswerClient).generateAnswer(post, null);
         verify(aiAnswerRepository).save(any(AiAnswer.class));
@@ -132,6 +152,9 @@ class AiAnswerServiceTest {
         AiAnswer saved = AiAnswer.builder()
                 .post(post)
                 .content("refined 기반 답변")
+                .keyPoints(fakeAiResponse.keyPoints())
+                .suggestedTags(fakeAiResponse.suggestedTags())
+                .confidence(fakeAiResponse.confidence())
                 .build();
         UUID answerId = UUID.randomUUID();
         ReflectionTestUtils.setField(saved, "id", answerId);
@@ -139,7 +162,7 @@ class AiAnswerServiceTest {
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
         given(aiAnswerRepository.findByPost_Id(postId)).willReturn(Optional.empty());
         given(aiQuestionRepository.findByPost_Id(postId)).willReturn(Optional.of(aiQuestion));
-        given(aiAnswerClient.generateAnswer(post, aiQuestion)).willReturn("refined 기반 답변");
+        given(aiAnswerClient.generateAnswer(post, aiQuestion)).willReturn(fakeAiResponse);
         given(aiAnswerRepository.save(any(AiAnswer.class))).willReturn(saved);
 
         AiAnswerResponse result = aiAnswerService.generateOrGetAnswer(postId);

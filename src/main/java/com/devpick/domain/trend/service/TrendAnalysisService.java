@@ -42,21 +42,6 @@ public class TrendAnalysisService {
         return response;
     }
 
-    @Transactional(readOnly = true)
-    public TrendAnalysisResponse getByPeriod(String unit, String scope, LocalDate periodStart) {
-        String key = "trend:analysis:" + unit + ":" + scope + ":" + periodStart;
-        TrendAnalysisResponse cached = getFromRedis(key);
-        if (cached != null) return cached;
-
-        TrendSnapshot snapshot = trendSnapshotRepository
-                .findByUnitAndScopeAndPeriodStart(unit, scope, periodStart)
-                .orElseThrow(() -> new DevpickException(ErrorCode.TREND_NOT_FOUND));
-
-        TrendAnalysisResponse response = parsePayload(snapshot.getPayload());
-        saveToRedis(key, response, resolveTtl(unit));
-        return response;
-    }
-
     public void evictCache(String unit, String scope, LocalDate periodStart) {
         List<String> keys = new ArrayList<>();
         keys.add("trend:analysis:" + unit + ":" + scope + ":latest");
