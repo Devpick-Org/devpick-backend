@@ -92,7 +92,12 @@ public final class JobApiModels {
             String rawJdText,
             Boolean imageOnlyJd,
             List<String> requiredSkills,
-            List<String> preferredSkills
+            List<String> preferredSkills,
+            List<String> responsibilities,
+            List<String> requirements,
+            List<String> preferredQualifications,
+            List<String> benefits,
+            List<String> hiringProcess
     ) {}
 
     public record ContentPickResponse(

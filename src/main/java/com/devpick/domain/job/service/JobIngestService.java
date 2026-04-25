@@ -154,10 +154,37 @@ public class JobIngestService {
         } else if (posting.getApplyUrl() == null || posting.getApplyUrl().isBlank()) {
             posting.setApplyUrl(posting.getSourceUrl());
         }
+        if (req.responsibilities() != null) {
+            posting.setResponsibilities(cleanLines(req.responsibilities(), 20));
+        }
+        if (req.requirements() != null) {
+            posting.setRequirementBullets(cleanLines(req.requirements(), 20));
+        }
+        if (req.preferredQualifications() != null) {
+            posting.setPreferredQualificationBullets(cleanLines(req.preferredQualifications(), 20));
+        }
+        if (req.benefits() != null) {
+            posting.setBenefits(cleanLines(req.benefits(), 20));
+        }
+        if (req.hiringProcess() != null) {
+            posting.setHiringProcess(cleanLines(req.hiringProcess(), 12));
+        }
 
         if (posting.getDeadline() != null && posting.getDeadline().isBefore(LocalDate.now())) {
             posting.setStatus(JobPostingStatus.EXPIRED);
         }
+    }
+
+    private List<String> cleanLines(List<String> raw, int limit) {
+        if (raw == null) {
+            return List.of();
+        }
+        return raw.stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(String::trim)
+                .distinct()
+                .limit(limit)
+                .toList();
     }
 
     private <E extends Enum<E>> E parseEnum(String raw, Class<E> type, E fallback) {
