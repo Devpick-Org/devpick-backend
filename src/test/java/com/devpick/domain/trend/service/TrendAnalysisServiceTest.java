@@ -66,7 +66,7 @@ class TrendAnalysisServiceTest {
     void setUp() throws Exception {
         sampleResponse = new TrendAnalysisResponse(
                 UNIT, PERIOD_START, LocalDate.of(2026, 4, 20),
-                "2026년 4월 3주차", List.of(), "요약 텍스트", "컬렉션 요약");
+                "2026년 4월 3주차", List.of(), "요약 텍스트", "컬렉션 요약", List.of());
 
         String payload = objectMapper.writeValueAsString(sampleResponse);
         sampleSnapshot = TrendSnapshot.builder()

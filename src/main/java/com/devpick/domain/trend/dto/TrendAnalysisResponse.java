@@ -12,5 +12,6 @@ public record TrendAnalysisResponse(
         @JsonAlias("date_label") String dateLabel,
         @JsonAlias("top_posts") List<TopContentItem> topPosts,
         @JsonAlias("top_posts_summary") String topPostsSummary,
-        @JsonAlias("collection_summary") String collectionSummary
+        @JsonAlias("collection_summary") String collectionSummary,
+        @JsonAlias("trending_tags") List<TrendingTagItem> trendingTags
 ) {}

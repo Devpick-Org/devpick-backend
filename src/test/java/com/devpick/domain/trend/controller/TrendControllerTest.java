@@ -93,7 +93,7 @@ class TrendControllerTest {
     void getLatestAnalysis_success_returns200() throws Exception {
         TrendAnalysisResponse response = new TrendAnalysisResponse(
                 "weekly", LocalDate.of(2026, 4, 14), LocalDate.of(2026, 4, 20),
-                "2026년 4월 3주차", List.of(), "요약", "컬렉션 요약");
+                "2026년 4월 3주차", List.of(), "요약", "컬렉션 요약", List.of());
         given(trendAnalysisService.getLatest(eq("weekly"), eq("global"))).willReturn(response);
 
         mockMvc.perform(get("/trends/analysis"))
@@ -120,7 +120,7 @@ class TrendControllerTest {
         LocalDate periodStart = LocalDate.of(2026, 4, 14);
         TrendAnalysisResponse response = new TrendAnalysisResponse(
                 "weekly", periodStart, LocalDate.of(2026, 4, 20),
-                "2026년 4월 3주차", List.of(), "요약", "컬렉션 요약");
+                "2026년 4월 3주차", List.of(), "요약", "컬렉션 요약", List.of());
         given(trendAnalysisService.getByPeriod(eq("weekly"), eq("global"), eq(periodStart)))
                 .willReturn(response);
 
