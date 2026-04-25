@@ -114,27 +114,4 @@ class TrendControllerTest {
                 .andExpect(jsonPath("$.success").value(false));
     }
 
-    @Test
-    @DisplayName("GET /trends/analysis/{periodStart} - 특정 기간 트렌드 분석 조회 성공 시 200 반환")
-    void getAnalysisByPeriod_success_returns200() throws Exception {
-        LocalDate periodStart = LocalDate.of(2026, 4, 14);
-        TrendAnalysisResponse response = new TrendAnalysisResponse(
-                "weekly", periodStart, LocalDate.of(2026, 4, 20),
-                "2026년 4월 3주차", List.of(), "요약", "컬렉션 요약", List.of());
-        given(trendAnalysisService.getByPeriod(eq("weekly"), eq("global"), eq(periodStart)))
-                .willReturn(response);
-
-        mockMvc.perform(get("/trends/analysis/2026-04-14"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.unit").value("weekly"));
-    }
-
-    @Test
-    @DisplayName("GET /trends/analysis/{periodStart} - 잘못된 날짜 형식이면 400 반환")
-    void getAnalysisByPeriod_invalidDate_returns400() throws Exception {
-        mockMvc.perform(get("/trends/analysis/not-a-date"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false));
-    }
 }

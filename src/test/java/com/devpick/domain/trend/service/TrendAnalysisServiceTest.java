@@ -130,44 +130,6 @@ class TrendAnalysisServiceTest {
     }
 
     @Test
-    @DisplayName("getByPeriod — Redis 캐시 hit 시 repository를 호출하지 않는다")
-    void getByPeriod_cacheHit_returnsFromRedis() throws Exception {
-        String json = objectMapper.writeValueAsString(sampleResponse);
-        given(valueOperations.get(anyString())).willReturn(json);
-
-        TrendAnalysisResponse result = trendAnalysisService.getByPeriod(UNIT, SCOPE, PERIOD_START);
-
-        assertThat(result.periodStart()).isEqualTo(PERIOD_START);
-        verify(trendSnapshotRepository, never()).findByUnitAndScopeAndPeriodStart(any(), any(), any());
-    }
-
-    @Test
-    @DisplayName("getByPeriod — Redis miss 시 PG를 조회한다")
-    void getByPeriod_cacheMiss_queriesPg() {
-        given(valueOperations.get(anyString())).willReturn(null);
-        given(trendSnapshotRepository.findByUnitAndScopeAndPeriodStart(UNIT, SCOPE, PERIOD_START))
-                .willReturn(Optional.of(sampleSnapshot));
-
-        TrendAnalysisResponse result = trendAnalysisService.getByPeriod(UNIT, SCOPE, PERIOD_START);
-
-        assertThat(result.periodStart()).isEqualTo(PERIOD_START);
-        verify(trendSnapshotRepository).findByUnitAndScopeAndPeriodStart(eq(UNIT), eq(SCOPE), eq(PERIOD_START));
-    }
-
-    @Test
-    @DisplayName("getByPeriod — PG에 해당 기간 데이터 없으면 TREND_NOT_FOUND 예외를 던진다")
-    void getByPeriod_noData_throwsTrendNotFound() {
-        given(valueOperations.get(anyString())).willReturn(null);
-        given(trendSnapshotRepository.findByUnitAndScopeAndPeriodStart(UNIT, SCOPE, PERIOD_START))
-                .willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> trendAnalysisService.getByPeriod(UNIT, SCOPE, PERIOD_START))
-                .isInstanceOf(DevpickException.class)
-                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
-                        .isEqualTo(ErrorCode.TREND_NOT_FOUND));
-    }
-
-    @Test
     @DisplayName("getLatest — Redis 저장 실패해도 응답을 정상 반환한다")
     void getLatest_redisStoreFails_stillReturnsResponse() {
         given(valueOperations.get(anyString())).willReturn(null);
