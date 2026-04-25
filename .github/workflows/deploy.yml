@@ -26,10 +26,28 @@ jobs:
             # 이전 배포에서 남은 동일 이름 컨테이너/고아 컨테이너로 인한 Conflict 방지 (볼륨은 유지)
             docker compose down --remove-orphans || true
             docker compose up -d --build
-            # 저품질/더미 채용공고 DB에서 제거 (배포마다 idempotent)
-            for i in $(seq 1 30); do
-              docker compose exec -T postgres pg_isready -U devpick -d devpick && break
-              sleep 2
-            done
-            docker compose exec -T postgres psql -U devpick -d devpick -v ON_ERROR_STOP=1 \
-              < scripts/delete-low-quality-job-postings.sql
+            # 저품질/더미 채용공고 삭제 — 앱과 동일 DB 사용(.env의 DB_HOST). compose postgres는 로컬 전용이라 비어 있을 수 있음.
+            set +u
+            set -a
+            [ -f .env ] && . ./.env
+            set +a
+            set -u
+            DB_HOST="${DB_HOST:-postgres}"
+            DB_PORT="${DB_PORT:-5432}"
+            DB_USERNAME="${DB_USERNAME:-devpick}"
+            DB_NAME="${DB_NAME:-devpick}"
+            if [ "$DB_HOST" = "postgres" ]; then
+              for i in $(seq 1 30); do
+                docker compose exec -T postgres pg_isready -U "$DB_USERNAME" -d "$DB_NAME" && break
+                sleep 2
+              done
+              docker compose exec -T postgres psql -U "$DB_USERNAME" -d "$DB_NAME" -v ON_ERROR_STOP=1 \
+                < scripts/delete-low-quality-job-postings.sql
+            else
+              : "${DB_PASSWORD:?DB_PASSWORD is required when DB_HOST is not postgres}"
+              export PGPASSWORD="$DB_PASSWORD"
+              docker run --rm --network host -e PGPASSWORD \
+                -v "$(pwd)/scripts/delete-low-quality-job-postings.sql:/cleanup.sql:ro" \
+                postgres:16-alpine \
+                psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f /cleanup.sql
+            fi
