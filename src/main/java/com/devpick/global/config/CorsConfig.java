@@ -25,7 +25,8 @@ public class CorsConfig {
                 "http://localhost:3001",
                 "https://devpick.kr",
                 "https://www.devpick.kr",
-                "https://trace-web.netlify.app"
+                "https://trace-web.netlify.app",
+                "https://traceapp-orcin.vercel.app"
         ));
         if (extraOrigin != null && !extraOrigin.isBlank()) {
             origins.add(extraOrigin);

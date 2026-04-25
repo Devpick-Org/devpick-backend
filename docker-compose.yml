@@ -40,6 +40,8 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      # Vercel 프리뷰 URL 등 코드에 없는 origin — 비우면 CorsConfig 기본 목록만 사용
+      CORS_EXTRA_ORIGIN: ${CORS_EXTRA_ORIGIN:-}
       AI_SERVER_URL: ${AI_SERVER_URL:-http://host.docker.internal:8000}
       AI_SERVER_TIMEOUT_MS: ${AI_SERVER_TIMEOUT_MS:-90000}
       AI_SERVER_INTERNAL_KEY: ${AI_SERVER_INTERNAL_KEY:-}
