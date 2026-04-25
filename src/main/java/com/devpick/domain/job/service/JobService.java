@@ -83,7 +83,8 @@ public class JobService {
                 parseCategorySpec(category),
                 parseExperienceSpec(experienceLevel),
                 JobPostingSpecifications.locationContains(location),
-                JobPostingSpecifications.anyTechStack(techStack)
+                JobPostingSpecifications.anyTechStack(techStack),
+                JobPostingSpecifications.listableQuality()
         );
 
         Set<UUID> bookmarked = new HashSet<>(jobBookmarkRepository.findJobPostingIdsByUserId(userId));
@@ -162,11 +163,18 @@ public class JobService {
         }
     }
 
+    private void ensureListableJob(JobPosting p) {
+        if (!JobPostingSpecifications.passesListableQuality(p.getTitle(), p.getCompanyName())) {
+            throw new DevpickException(ErrorCode.JOB_NOT_FOUND);
+        }
+    }
+
     /** 면접 Q&A 목록 등에서 카드용 매칭 점수 계산 */
     @Transactional(readOnly = true)
     public int computeMatchScoreForJob(UUID userId, UUID jobId) {
         JobPosting p = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
+        ensureListableJob(p);
         Map<String, Integer> userSkills = loadUserSkillProfile(userId);
         return JobMatchingCalculator.compute(p, userSkills).matchScore();
     }
@@ -175,6 +183,7 @@ public class JobService {
     public JobDetailResponse getJobDetail(UUID userId, UUID jobId) {
         JobPosting p = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
+        ensureListableJob(p);
         boolean bookmarked = jobBookmarkRepository.existsByUserIdAndJobPosting_Id(userId, jobId);
         Map<String, Integer> userSkills = loadUserSkillProfile(userId);
         JsonNode resumeRoot = loadResumeJson(userId);
@@ -212,6 +221,7 @@ public class JobService {
     public void bookmark(UUID userId, UUID jobId) {
         JobPosting p = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
+        ensureListableJob(p);
         if (jobBookmarkRepository.existsByUserIdAndJobPosting_Id(userId, jobId)) {
             return;
         }
@@ -233,6 +243,7 @@ public class JobService {
     public SkillGapResponse skillGap(UUID userId, UUID jobId) {
         JobPosting p = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
+        ensureListableJob(p);
         Map<String, Integer> userSkills = loadUserSkillProfile(userId);
         List<String> missing = p.getRequiredSkills().stream()
                 .filter(s -> !skillMet(userSkills, s))

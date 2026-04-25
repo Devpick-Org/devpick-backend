@@ -26,3 +26,10 @@ jobs:
             # 이전 배포에서 남은 동일 이름 컨테이너/고아 컨테이너로 인한 Conflict 방지 (볼륨은 유지)
             docker compose down --remove-orphans || true
             docker compose up -d --build
+            # 저품질/더미 채용공고 DB에서 제거 (배포마다 idempotent)
+            for i in $(seq 1 30); do
+              docker compose exec -T postgres pg_isready -U devpick -d devpick && break
+              sleep 2
+            done
+            docker compose exec -T postgres psql -U devpick -d devpick -v ON_ERROR_STOP=1 \
+              < scripts/delete-low-quality-job-postings.sql

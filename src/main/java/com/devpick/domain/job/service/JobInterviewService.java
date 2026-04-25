@@ -5,6 +5,7 @@ import com.devpick.domain.job.entity.JobInterviewQa;
 import com.devpick.domain.job.entity.JobPosting;
 import com.devpick.domain.job.repository.JobInterviewQaRepository;
 import com.devpick.domain.job.repository.JobPostingRepository;
+import com.devpick.domain.job.repository.JobPostingSpecifications;
 import com.devpick.domain.resume.repository.MasterResumeRepository;
 import com.devpick.domain.resume.service.ResumeCryptoService;
 import com.devpick.domain.job.dto.JobApiModels.InterviewQaListItemResponse;
@@ -33,6 +34,8 @@ public class JobInterviewService {
     @Transactional(readOnly = true)
     public List<InterviewQaListItemResponse> listForUser(UUID userId) {
         return jobInterviewQaRepository.findAllByUserIdWithPostingOrderByUpdatedAtDesc(userId).stream()
+                .filter(q -> JobPostingSpecifications.passesListableQuality(
+                        q.getJobPosting().getTitle(), q.getJobPosting().getCompanyName()))
                 .map(q -> {
                     JobPosting job = q.getJobPosting();
                     int score = jobService.computeMatchScoreForJob(userId, job.getId());
@@ -59,6 +62,9 @@ public class JobInterviewService {
     public String generateAndSave(UUID userId, UUID jobId) {
         JobPosting job = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
+        if (!JobPostingSpecifications.passesListableQuality(job.getTitle(), job.getCompanyName())) {
+            throw new DevpickException(ErrorCode.JOB_NOT_FOUND);
+        }
         var resume = masterResumeRepository.findByUserId(userId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.RESUME_NOT_FOUND));
         String resumeJson;
