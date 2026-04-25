@@ -51,9 +51,12 @@ public class ContentService {
 
     @Transactional(readOnly = true)
     public ContentListResponse getFeed(UUID userId, Pageable pageable) {
-        List<UUID> tagIds = userTagRepository.findByUser_Id(userId).stream()
+        boolean loggedIn = userId != null;
+        List<UUID> tagIds = loggedIn
+                ? userTagRepository.findByUser_Id(userId).stream()
                 .map(ut -> ut.getTag().getId())
-                .toList();
+                .toList()
+                : List.of();
 
         Page<Content> page;
         if (tagIds.isEmpty()) {
@@ -70,10 +73,12 @@ public class ContentService {
                     String preview = aiSummaryService.findCachedCoreSummary(c.getId(), FEED_SUMMARY_LEVEL)
                             .filter(s -> !s.isBlank())
                             .orElse(c.getPreview());
+                    boolean scrapped = loggedIn && scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId());
+                    boolean liked = loggedIn && likeRepository.existsByUser_IdAndContent_Id(userId, c.getId());
                     return ContentSummaryResponse.of(
                             c,
-                            scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
-                            likeRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
+                            scrapped,
+                            liked,
                             preview
                     );
                 })
@@ -93,11 +98,14 @@ public class ContentService {
         Content content = contentRepository.findByIdAndIsAvailableTrue(contentId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
 
-        userRepository.findByIdAndIsActiveTrue(userId)
-                .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
+        boolean loggedIn = userId != null;
+        if (loggedIn) {
+            userRepository.findByIdAndIsActiveTrue(userId)
+                    .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
+        }
 
-        boolean isScrapped = scrapRepository.existsByUser_IdAndContent_Id(userId, contentId);
-        boolean isLiked = likeRepository.existsByUser_IdAndContent_Id(userId, contentId);
+        boolean isScrapped = loggedIn && scrapRepository.existsByUser_IdAndContent_Id(userId, contentId);
+        boolean isLiked = loggedIn && likeRepository.existsByUser_IdAndContent_Id(userId, contentId);
 
         try {
             contentViewLogService.record(content, userId, userAgent);
@@ -248,15 +256,18 @@ public class ContentService {
         Collections.shuffle(pool, new Random(seed));
         List<Content> picked = pool.stream().limit(requestedSize).toList();
 
+        boolean loggedIn = userId != null;
         List<ContentSummaryResponse> contents = picked.stream()
                 .map(c -> {
                     String preview = aiSummaryService.findCachedCoreSummary(c.getId(), FEED_SUMMARY_LEVEL)
                             .filter(s -> !s.isBlank())
                             .orElse(c.getPreview());
+                    boolean scrapped = loggedIn && scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId());
+                    boolean liked = loggedIn && likeRepository.existsByUser_IdAndContent_Id(userId, c.getId());
                     return ContentSummaryResponse.of(
                             c,
-                            scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
-                            likeRepository.existsByUser_IdAndContent_Id(userId, c.getId()),
+                            scrapped,
+                            liked,
                             preview
                     );
                 })

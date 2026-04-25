@@ -24,6 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -74,6 +75,10 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
+        // @Value 미주입(단위 테스트) — 운영과 동일한 쿠키 속성으로 검증
+        ReflectionTestUtils.setField(authController, "authCookieSecure", true);
+        ReflectionTestUtils.setField(authController, "refreshTokenSameSite", "None");
+        ReflectionTestUtils.setField(authController, "hasSessionSameSite", "Lax");
         mockMvc = MockMvcBuilders
                 .standaloneSetup(authController)
                 .setControllerAdvice(new GlobalExceptionHandler())

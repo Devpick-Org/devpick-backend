@@ -105,7 +105,13 @@ public enum ErrorCode {
     // File / storage
     FILE_STORAGE_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "FILE_001", "파일 저장소가 설정되지 않았습니다."),
     FILE_UPLOAD_INVALID_TYPE(HttpStatus.BAD_REQUEST, "FILE_002", "허용되지 않는 파일 형식입니다."),
-    FILE_UPLOAD_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_003", "업로드 가능한 파일 크기를 초과했습니다.");
+    FILE_UPLOAD_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_003", "업로드 가능한 파일 크기를 초과했습니다."),
+
+    // Jobs / Resume (Epic G)
+    JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_001", "채용 공고를 찾을 수 없습니다."),
+    JOB_BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_002", "북마크한 공고가 아닙니다."),
+    RESUME_NOT_FOUND(HttpStatus.NOT_FOUND, "RESUME_001", "마스터 이력서가 없습니다. 먼저 작성해 주세요."),
+    INTERVIEW_QA_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_003", "면접 Q&A가 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

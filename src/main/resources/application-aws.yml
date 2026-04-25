@@ -1,3 +1,8 @@
+# ECS/EC2 등 AWS 배포용 — RDS + ElastiCache(단일 노드, 비-TLS·비-AUTH).
+# 활성화: SPRING_PROFILES_ACTIVE=aws
+#
+# Redis: 클러스터 모드 구성 엔드포인트가 아니므로 application-elasticache.yml 과 함께 쓰지 않는다.
+
 server:
   port: ${PORT:8080}
   forward-headers-strategy: native
@@ -8,22 +13,29 @@ spring:
       max-file-size: 10MB
       max-request-size: 12MB
   datasource:
-    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:devpick}
-    username: ${DB_USERNAME:devpick}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:devpick}
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   sql:
     init:
-      mode: always
+      mode: ${SPRING_SQL_INIT_MODE:never}
       platform: postgresql
   jpa:
     hibernate:
-      ddl-auto: update
-    defer-datasource-initialization: true
+      ddl-auto: ${DDL_AUTO:update}
+    defer-datasource-initialization: false
     show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL:false}
 
 aws:
   region: ${AWS_REGION:ap-northeast-2}
@@ -33,7 +45,7 @@ aws:
 
 resend:
   api-key: ${RESEND_API_KEY}
-# Brevo 발신에 쓸 이메일(Brevo에서 검증된 발신자). 기본: parkhyun9859@gmail.com
+
 brevo:
   sender-email: ${BREVO_SENDER_EMAIL:parkhyun9859@gmail.com}
 
@@ -43,19 +55,19 @@ jwt:
   refresh-token-expiry: ${JWT_REFRESH_TOKEN_EXPIRY:604800000}
 
 ai-server:
-  url: ${AI_SERVER_URL:http://ai-server:8000}
+  url: ${AI_SERVER_URL}
   timeout-ms: ${AI_SERVER_TIMEOUT_MS:90000}
   internal-key: ${AI_SERVER_INTERNAL_KEY:}
 
 oauth:
-  frontend-base-url: ${FRONTEND_URL:http://localhost:3000}
+  frontend-base-url: ${FRONTEND_URL}
   github:
     client-id: ${GITHUB_CLIENT_ID}
     client-secret: ${GITHUB_CLIENT_SECRET}
   google:
     client-id: ${GOOGLE_CLIENT_ID}
     client-secret: ${GOOGLE_CLIENT_SECRET}
-    redirect-uri: ${FRONTEND_URL:http://localhost:3000}/auth/google/callback
+    redirect-uri: ${FRONTEND_URL}/auth/google/callback
 
 cors:
   extra-origin: ${CORS_EXTRA_ORIGIN:}
@@ -67,15 +79,3 @@ app:
 logging:
   level:
     com.devpick: INFO
-
----
-# Docker Redis 컨테이너(로컬 compose) 전용 — elasticache 프로필이 없을 때만 적용 (EC2는 application-elasticache.yml 클러스터)
-spring:
-  config:
-    activate:
-      on-profile: "docker & !elasticache"
-  data:
-    redis:
-      host: ${REDIS_HOST:redis}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD}

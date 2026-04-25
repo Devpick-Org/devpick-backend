@@ -22,6 +22,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,15 @@ public class AuthController {
     private final EmailVerificationService emailVerificationService;
     private final TokenService tokenService;
     private final SocialAuthService socialAuthService;
+
+    @Value("${app.auth.cookie-secure:true}")
+    private boolean authCookieSecure;
+
+    @Value("${app.auth.refresh-token-same-site:None}")
+    private String refreshTokenSameSite;
+
+    @Value("${app.auth.has-session-same-site:Lax}")
+    private String hasSessionSameSite;
 
     @Operation(summary = "이메일 회원가입", description = "이메일/비밀번호로 신규 계정을 생성합니다. 가입 후 이메일 인증을 완료해야 로그인이 가능합니다.")
     @ApiResponses({
@@ -229,10 +239,10 @@ public class AuthController {
     private void setHasSessionCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(HAS_SESSION_COOKIE, "true")
                 .httpOnly(false) // NOSONAR java:S2092 — 프론트 JS에서 세션 힌트로 읽어야 하므로 의도적으로 비활성화
-                .secure(true)
+                .secure(authCookieSecure)
                 .path("/")
                 .maxAge(REFRESH_TOKEN_MAX_AGE)
-                .sameSite("Lax")
+                .sameSite(hasSessionSameSite)
                 .build();
         response.addHeader(SET_COOKIE_HEADER, cookie.toString());
     }
@@ -240,10 +250,10 @@ public class AuthController {
     private void clearHasSessionCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(HAS_SESSION_COOKIE, "")
                 .httpOnly(false) // NOSONAR java:S2092 — 프론트 JS에서 세션 힌트로 읽어야 하므로 의도적으로 비활성화
-                .secure(true)
+                .secure(authCookieSecure)
                 .path("/")
                 .maxAge(0)
-                .sameSite("Lax")
+                .sameSite(hasSessionSameSite)
                 .build();
         response.addHeader(SET_COOKIE_HEADER, cookie.toString());
     }
@@ -251,10 +261,10 @@ public class AuthController {
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, refreshToken)
                 .httpOnly(true)
-                .secure(true)
+                .secure(authCookieSecure)
                 .path("/auth/refresh")
                 .maxAge(REFRESH_TOKEN_MAX_AGE)
-                .sameSite("None")
+                .sameSite(refreshTokenSameSite)
                 .build();
         response.addHeader(SET_COOKIE_HEADER, cookie.toString());
     }
@@ -262,10 +272,10 @@ public class AuthController {
     private void clearRefreshTokenCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
                 .httpOnly(true)
-                .secure(true)
+                .secure(authCookieSecure)
                 .path("/auth/refresh")
                 .maxAge(0)
-                .sameSite("None")
+                .sameSite(refreshTokenSameSite)
                 .build();
         response.addHeader(SET_COOKIE_HEADER, cookie.toString());
     }

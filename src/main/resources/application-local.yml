@@ -71,8 +71,15 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.orm.jdbc.bind: TRACE
 
-springdoc:
-  server-url: https://nonprofitable-coltishly-elvira.ngrok-free.dev
+app:
+  auth:
+    cookie-secure: false
+    refresh-token-same-site: Lax
+    has-session-same-site: Lax
 
+springdoc:
+  server-url: http://localhost:8080
+
+# 로컬에서만 추가 오리진이 필요할 때만 설정 (예: ngrok). 비우면 CorsConfig 기본 목록만 사용.
 cors:
-  extra-origin: https://nonprofitable-coltishly-elvira.ngrok-free.dev
+  extra-origin: ${CORS_EXTRA_ORIGIN:}

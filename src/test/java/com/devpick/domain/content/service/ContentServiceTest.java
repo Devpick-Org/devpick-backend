@@ -117,6 +117,21 @@ class ContentServiceTest {
     }
 
     @Test
+    @DisplayName("getFeed — 비로그인(userId null)이면 태그·스크랩·좋아요 조회 없이 전체 피드")
+    void getFeed_anonymous_skipsUserScopedQueries() {
+        given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+
+        ContentListResponse response = contentService.getFeed(null, PageRequest.of(0, 20));
+
+        assertThat(response.contents()).hasSize(1);
+        verify(userTagRepository, never()).findByUser_Id(any());
+        verify(scrapRepository, never()).existsByUser_IdAndContent_Id(any(), any());
+        verify(likeRepository, never()).existsByUser_IdAndContent_Id(any(), any());
+    }
+
+    @Test
     @DisplayName("getFeed — 태그 있으면 태그 필터링된 콘텐츠 반환")
     void getFeed_withUserTags_returnsFilteredFeed() {
         UserTag userTag = UserTag.builder()
@@ -203,6 +218,18 @@ class ContentServiceTest {
         assertThat(response.title()).isEqualTo("Spring Boot 가이드");
         assertThat(response.sourceName()).isEqualTo("Velog");
         verify(historyRepository, never()).save(any(History.class));
+    }
+
+    @Test
+    @DisplayName("getDetail — 비로그인(userId null)이면 사용자 검증 없이 상세 반환")
+    void getDetail_anonymous_success() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+
+        ContentDetailResponse response = contentService.getDetail(null, contentId, "Mozilla/5.0");
+
+        assertThat(response.title()).isEqualTo("Spring Boot 가이드");
+        verify(userRepository, never()).findByIdAndIsActiveTrue(any());
+        verify(contentViewLogService).record(content, null, "Mozilla/5.0");
     }
 
     @Test

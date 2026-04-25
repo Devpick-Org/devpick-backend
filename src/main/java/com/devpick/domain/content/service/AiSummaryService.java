@@ -108,6 +108,9 @@ public class AiSummaryService {
     }
 
     private void recordHistory(UUID userId, UUID contentId) {
+        if (userId == null) {
+            return;
+        }
         userRepository.findByIdAndIsActiveTrue(userId).ifPresent(user ->
                 contentRepository.findByIdAndIsAvailableTrue(contentId).ifPresent(content -> {
                     if (historyRepository.existsByUser_IdAndContent_IdAndActionType(

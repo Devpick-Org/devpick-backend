@@ -73,7 +73,7 @@ public class AiQuizService {
         String aiLevel = AiSummaryService.toAiServerLevel(level);
 
         // 이전 시도 이력 조회 (항상 fresh)
-        QuizAttempt lastAttempt = quizAttemptRepository
+        QuizAttempt lastAttempt = userId == null ? null : quizAttemptRepository
                 .findTopByUser_IdAndContent_IdOrderByCreatedAtDesc(userId, contentId)
                 .orElse(null);
 
