@@ -345,9 +345,20 @@ public class JobService {
         return false;
     }
 
+    /** API 문자열: 고정일(yyyy-MM-dd) | 상시(채용 시 마감) | 미정(빈 문자열). */
+    private static String formatDeadlineLabel(JobPosting p) {
+        if (Boolean.TRUE.equals(p.getRollingDeadline())) {
+            return "채용 시 마감";
+        }
+        if (p.getDeadline() != null) {
+            return p.getDeadline().toString();
+        }
+        return "";
+    }
+
     private JobListItemResponse toListItem(JobPosting p, Map<String, Integer> userSkills, boolean bookmarked) {
         JobMatchingCalculator.MatchResult m = JobMatchingCalculator.compute(p, userSkills);
-        String deadline = p.getDeadline() != null ? p.getDeadline().toString() : "채용 시 마감";
+        String deadline = formatDeadlineLabel(p);
         List<String> tech = p.getTechStack().isEmpty()
                 ? combineSkills(p)
                 : new ArrayList<>(p.getTechStack());

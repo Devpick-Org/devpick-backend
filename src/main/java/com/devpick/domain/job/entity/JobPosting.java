@@ -71,6 +71,13 @@ public class JobPosting extends BaseTimeEntity {
 
     private LocalDate deadline;
 
+    /**
+     * 랠릿 등에서 명시적 '상시/채용 시 마감' 공고. {@link #deadline} 은 비우고 이 플래그로 UI 문구를 구분한다.
+     */
+    @Column(name = "rolling_deadline", nullable = false)
+    @Builder.Default
+    private Boolean rollingDeadline = false;
+
     @Column(name = "apply_url", length = 2048)
     private String applyUrl;
 

@@ -4,10 +4,15 @@ import com.devpick.domain.job.entity.JobPosting;
 import com.devpick.domain.job.entity.JobPostingCategory;
 import com.devpick.domain.job.entity.JobPostingStatus;
 import com.devpick.domain.job.entity.PostingExperienceLevel;
+import jakarta.persistence.criteria.Root;
 import org.springframework.data.jpa.domain.Specification;
 
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Subquery;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -78,19 +83,39 @@ public final class JobPostingSpecifications {
         if (normalized.isEmpty()) {
             return (root, query, cb) -> cb.conjunction();
         }
-        Specification<JobPosting> reqSpec = (root, query, cb) -> {
-            query.distinct(true);
-            return root.join("requiredSkills").in(normalized);
+        // OR 로 여러 join 을 묶으면 동일 공고 행이 SQL 에서 중복될 수 있다.
+        // EXISTS 서브쿼리로 필터만 걸어 중복 없이 매칭한다.
+        return (root, query, cb) -> {
+            List<Predicate> skillOr = new ArrayList<>();
+            for (String skill : normalized) {
+                Subquery<Long> sqReq = query.subquery(Long.class);
+                Root<JobPosting> rReq = sqReq.from(JobPosting.class);
+                Join<JobPosting, String> jReq = rReq.join("requiredSkills", JoinType.INNER);
+                sqReq.select(cb.literal(1L)).where(cb.and(
+                        cb.equal(rReq.get("id"), root.get("id")),
+                        cb.equal(jReq, skill)));
+
+                Subquery<Long> sqPref = query.subquery(Long.class);
+                Root<JobPosting> rPref = sqPref.from(JobPosting.class);
+                Join<JobPosting, String> jPref = rPref.join("preferredSkills", JoinType.INNER);
+                sqPref.select(cb.literal(1L)).where(cb.and(
+                        cb.equal(rPref.get("id"), root.get("id")),
+                        cb.equal(jPref, skill)));
+
+                Subquery<Long> sqTech = query.subquery(Long.class);
+                Root<JobPosting> rTech = sqTech.from(JobPosting.class);
+                Join<JobPosting, String> jTech = rTech.join("techStack", JoinType.INNER);
+                sqTech.select(cb.literal(1L)).where(cb.and(
+                        cb.equal(rTech.get("id"), root.get("id")),
+                        cb.equal(jTech, skill)));
+
+                skillOr.add(cb.or(
+                        cb.exists(sqReq),
+                        cb.exists(sqPref),
+                        cb.exists(sqTech)));
+            }
+            return cb.or(skillOr.toArray(Predicate[]::new));
         };
-        Specification<JobPosting> prefSpec = (root, query, cb) -> {
-            query.distinct(true);
-            return root.join("preferredSkills").in(normalized);
-        };
-        Specification<JobPosting> techSpec = (root, query, cb) -> {
-            query.distinct(true);
-            return root.join("techStack").in(normalized);
-        };
-        return reqSpec.or(prefSpec).or(techSpec);
     }
 
     /** 목록: 활성 우선 노출용 — 만료도 포함(기획: 만료 공고 접근 허용). 필터로 상태 좁힐 때 사용. */

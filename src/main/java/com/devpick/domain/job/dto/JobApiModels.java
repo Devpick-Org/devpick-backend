@@ -90,6 +90,7 @@ public final class JobApiModels {
             String location,
             String salaryDisplay,
             String deadline,
+            Boolean rollingDeadline,
             String applyUrl,
             String rawJdText,
             Boolean imageOnlyJd,

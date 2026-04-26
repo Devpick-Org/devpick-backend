@@ -149,10 +149,21 @@ public class JobIngestService {
         if (req.salaryDisplay() != null) {
             posting.setSalaryDisplay(req.salaryDisplay());
         }
-        if (req.deadline() != null && !req.deadline().isBlank()) {
-            try {
-                posting.setDeadline(LocalDate.parse(req.deadline().trim()));
-            } catch (DateTimeParseException ignored) {
+        if (Boolean.TRUE.equals(req.rollingDeadline())) {
+            posting.setRollingDeadline(true);
+            posting.setDeadline(null);
+        } else {
+            if (req.rollingDeadline() != null) {
+                posting.setRollingDeadline(false);
+            }
+            if (req.deadline() != null && !req.deadline().isBlank()) {
+                try {
+                    posting.setDeadline(LocalDate.parse(req.deadline().trim()));
+                    posting.setRollingDeadline(false);
+                } catch (DateTimeParseException ignored) {
+                    posting.setDeadline(null);
+                }
+            } else if (req.rollingDeadline() != null) {
                 posting.setDeadline(null);
             }
         }
