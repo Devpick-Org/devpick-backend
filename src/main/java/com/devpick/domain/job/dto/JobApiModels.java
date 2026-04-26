@@ -74,6 +74,8 @@ public final class JobApiModels {
             List<String> preferredQualifications,
             List<String> benefits,
             List<String> hiringProcess,
+            List<String> jdImageUrls,
+            String parseStatus,
             MatchBreakdownResponse matchBreakdown
     ) {}
 
@@ -97,7 +99,8 @@ public final class JobApiModels {
             List<String> requirements,
             List<String> preferredQualifications,
             List<String> benefits,
-            List<String> hiringProcess
+            List<String> hiringProcess,
+            List<String> jdImageUrls
     ) {}
 
     public record ContentPickResponse(

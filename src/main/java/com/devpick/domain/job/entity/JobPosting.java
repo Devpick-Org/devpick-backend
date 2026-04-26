@@ -133,6 +133,16 @@ public class JobPosting extends BaseTimeEntity {
     @Builder.Default
     private List<String> techStack = new ArrayList<>();
 
+    /**
+     * 원문이 이미지(인포그래픽) 위주일 때, 수집 단계에서 확보한 공고 이미지 URL.
+     * 텍스트 JD가 비어 있어도 상세 화면에서 사용자에게 표시한다.
+     */
+    @ElementCollection
+    @CollectionTable(name = "job_posting_jd_images", joinColumns = @JoinColumn(name = "job_posting_id"))
+    @Column(name = "url", length = 2048)
+    @Builder.Default
+    private List<String> jdImageUrls = new ArrayList<>();
+
     public void markExpired() {
         this.status = JobPostingStatus.EXPIRED;
     }

@@ -19,8 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -55,6 +57,7 @@ public class JobIngestService {
                     p.setPreferredQualificationBullets(new ArrayList<>());
                     p.setBenefits(new ArrayList<>());
                     p.setHiringProcess(new ArrayList<>());
+                    p.setJdImageUrls(new ArrayList<>());
                     return p;
                 });
 
@@ -62,6 +65,7 @@ public class JobIngestService {
 
         if (Boolean.TRUE.equals(req.imageOnlyJd())) {
             posting.setParseStatus(JobParseStatus.SKIPPED_IMAGE);
+            applyIngestSkillListsWithoutChangingParseStatus(posting, req);
             return jobPostingRepository.save(posting);
         }
 
@@ -86,6 +90,9 @@ public class JobIngestService {
                 posting.applyParsedSkills(
                         parsed.requiredSkills() != null ? parsed.requiredSkills() : List.of(),
                         parsed.preferredSkills() != null ? parsed.preferredSkills() : List.of());
+            }
+            if (posting.getParseStatus() == JobParseStatus.SKIPPED_IMAGE) {
+                applyIngestSkillListsWithoutChangingParseStatus(posting, req);
             }
             return jobPostingRepository.save(posting);
         }
@@ -169,10 +176,74 @@ public class JobIngestService {
         if (req.hiringProcess() != null) {
             posting.setHiringProcess(cleanLines(req.hiringProcess(), 12));
         }
+        if (req.jdImageUrls() != null && !req.jdImageUrls().isEmpty()) {
+            posting.setJdImageUrls(cleanJdImageUrls(req.jdImageUrls(), 12));
+        }
 
         if (posting.getDeadline() != null && posting.getDeadline().isBefore(LocalDate.now())) {
             posting.setStatus(JobPostingStatus.EXPIRED);
         }
+    }
+
+    /**
+     * 이미지 JD 등으로 {@link JobParseStatus#SKIPPED_IMAGE}를 유지한 채, ingest 요청의 스킬만 반영합니다.
+     */
+    private void applyIngestSkillListsWithoutChangingParseStatus(JobPosting posting, JobIngestRequest req) {
+        List<String> reqS = req.requiredSkills() != null ? req.requiredSkills() : List.of();
+        List<String> pref = req.preferredSkills() != null ? req.preferredSkills() : List.of();
+        if (reqS.isEmpty() && pref.isEmpty()) {
+            return;
+        }
+        List<String> cleanReq = reqS.stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        List<String> cleanPref = pref.stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        posting.setRequiredSkills(new ArrayList<>(cleanReq));
+        posting.setPreferredSkills(new ArrayList<>(cleanPref));
+        Set<String> seen = new LinkedHashSet<>();
+        List<String> ts = new ArrayList<>();
+        for (String s : cleanReq) {
+            if (seen.add(s)) {
+                ts.add(s);
+            }
+        }
+        for (String s : cleanPref) {
+            if (seen.add(s)) {
+                ts.add(s);
+            }
+        }
+        posting.setTechStack(ts);
+    }
+
+    private List<String> cleanJdImageUrls(List<String> raw, int limit) {
+        Set<String> seen = new LinkedHashSet<>();
+        List<String> out = new ArrayList<>();
+        for (String s : raw) {
+            if (s == null || s.isBlank()) {
+                continue;
+            }
+            String u = s.trim();
+            if (u.length() > 2048) {
+                continue;
+            }
+            if (!u.startsWith("http://") && !u.startsWith("https://")) {
+                continue;
+            }
+            if (!seen.add(u)) {
+                continue;
+            }
+            out.add(u);
+            if (out.size() >= limit) {
+                break;
+            }
+        }
+        return out;
     }
 
     private List<String> cleanLines(List<String> raw, int limit) {

@@ -11,6 +11,7 @@ import com.devpick.domain.job.dto.JobApiModels.MatchBreakdownResponse;
 import com.devpick.domain.job.dto.JobApiModels.MatchItemResponse;
 import com.devpick.domain.job.dto.JobApiModels.MatchSubSectionResponse;
 import com.devpick.domain.job.dto.JobApiModels.SkillGapResponse;
+import com.devpick.domain.job.entity.JobParseStatus;
 import com.devpick.domain.job.entity.JobPosting;
 import com.devpick.domain.job.entity.JobPostingCategory;
 import com.devpick.domain.job.entity.PostingExperienceLevel;
@@ -212,6 +213,8 @@ public class JobService {
                 new ArrayList<>(p.getPreferredQualificationBullets().isEmpty() ? p.getPreferredSkills() : p.getPreferredQualificationBullets()),
                 new ArrayList<>(p.getBenefits()),
                 new ArrayList<>(p.getHiringProcess()),
+                new ArrayList<>(p.getJdImageUrls() != null ? p.getJdImageUrls() : List.of()),
+                p.getParseStatus() != null ? p.getParseStatus().name() : JobParseStatus.PENDING.name(),
                 breakdown
         );
     }
