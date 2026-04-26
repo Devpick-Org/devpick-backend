@@ -4,7 +4,8 @@
 -- 1) 아래 「미리보기」 SELECT 만 실행해 중복 그룹을 확인한다.
 -- 2) 문제 없으면 이 파일 전체를 psql 에서 실행한다. (BEGIN … COMMIT)
 --
--- 보관 행(keeper): 정규 URL → 짧은 URL → 먼저 생성(created_at) 순.
+-- 보관 행(keeper): 정규 URL → 짧은 URL → id(결정적 타이브레이크).
+-- (일부 DB 에는 job_postings.created_at 이 없을 수 있어 id 만 사용)
 -- 북마크·면접 Q&A: keeper 로 합치며 (user_id, keeper) 중복은 dup 쪽 행만 삭제.
 
 -- ========== 미리보기 (이 SELECT 만 실행) ==========
@@ -32,7 +33,7 @@ ranked AS (
                          lower('https://www.rallit.com/positions/' || pos_id)
                     THEN 0 ELSE 1 END,
                 length(source_url),
-                created_at
+                id
         ) AS rn
     FROM base
     WHERE pos_id IS NOT NULL AND pos_id <> ''
@@ -65,15 +66,14 @@ SELECT
                      lower('https://www.rallit.com/positions/' || pos_id)
                 THEN 0 ELSE 1 END,
             length(source_url),
-            created_at
+            id
     ) AS rn,
     source_url
 FROM (
     SELECT
         id,
         source_url,
-        substring(source_url from 'positions/([0-9]+)') AS pos_id,
-        created_at
+        substring(source_url from 'positions/([0-9]+)') AS pos_id
     FROM job_postings
     WHERE source = 'RALLIT'
       AND source_url ILIKE '%rallit.com%'
