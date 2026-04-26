@@ -32,6 +32,14 @@ DELETE FROM job_posting_required_skills WHERE job_posting_id IN (SELECT id FROM 
 DELETE FROM job_posting_preferred_skills WHERE job_posting_id IN (SELECT id FROM _lq_job_ids);
 DELETE FROM job_posting_tech_stack WHERE job_posting_id IN (SELECT id FROM _lq_job_ids);
 
+DO $jdimg$
+BEGIN
+  IF to_regclass('public.job_posting_jd_images') IS NOT NULL THEN
+    DELETE FROM job_posting_jd_images WHERE job_posting_id IN (SELECT id FROM _lq_job_ids);
+  END IF;
+END
+$jdimg$;
+
 DELETE FROM job_postings WHERE id IN (SELECT id FROM _lq_job_ids);
 
 COMMIT;
