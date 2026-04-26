@@ -61,6 +61,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/v1/internal/trends/cache").permitAll()
                         .requestMatchers(HttpMethod.POST, "/internal/jobs/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/v1/internal/jobs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/internal/jobs/*/detail").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/internal/jobs/*/detail").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 .requestMatchers("/dev/**").permitAll()
                         // 공개 읽기: 콘텐츠 피드·게시글·타인 프로필·트렌드 (비로그인 시 개인화 없이 최신순 피드 제공)

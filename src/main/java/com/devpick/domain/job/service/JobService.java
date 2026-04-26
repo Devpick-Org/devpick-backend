@@ -179,6 +179,15 @@ public class JobService {
         return JobMatchingCalculator.compute(p, userSkills).matchScore();
     }
 
+    /** 배치·운영 점검: 로그인 사용자 없이 동일 스냅샷(매칭·북마크는 비로그인 기준). */
+    @Transactional(readOnly = true)
+    public JobDetailResponse getJobDetailForInternalOps(UUID jobId) {
+        return getJobDetail(INTERNAL_OPS_USER_ID, jobId);
+    }
+
+    private static final UUID INTERNAL_OPS_USER_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000000");
+
     @Transactional(readOnly = true)
     public JobDetailResponse getJobDetail(UUID userId, UUID jobId) {
         JobPosting p = jobPostingRepository.findById(jobId)
