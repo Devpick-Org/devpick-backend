@@ -7,7 +7,6 @@ import com.devpick.domain.job.dto.JobApiModels.ContentPickResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobDetailResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobListItemResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobListPageResponse;
-import com.devpick.domain.job.dto.JobApiModels.MapStringString;
 import com.devpick.domain.job.dto.JobApiModels.MatchBreakdownResponse;
 import com.devpick.domain.job.dto.JobApiModels.MatchItemResponse;
 import com.devpick.domain.job.dto.JobApiModels.MatchSubSectionResponse;
@@ -258,17 +257,9 @@ public class JobService {
         Map<String, Object> ai = jobAiClient.skillGap(body);
         @SuppressWarnings("unchecked")
         List<String> roadmap = (List<String>) ai.getOrDefault("roadmap", List.of());
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> yt = (List<Map<String, Object>>) ai.getOrDefault("youtube", List.of());
-        List<MapStringString> youtube = yt.stream()
-                .map(m -> new MapStringString(
-                        String.valueOf(m.getOrDefault("title", "")),
-                        String.valueOf(m.getOrDefault("url", ""))
-                ))
-                .toList();
 
         List<ContentPickResponse> picks = recommendContents(missing);
-        return new SkillGapResponse(roadmap, picks, youtube);
+        return new SkillGapResponse(roadmap, picks);
     }
 
     private List<ContentPickResponse> recommendContents(List<String> missingSkills) {

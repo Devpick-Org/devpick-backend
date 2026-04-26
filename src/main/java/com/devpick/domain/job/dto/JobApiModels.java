@@ -110,11 +110,8 @@ public final class JobApiModels {
 
     public record SkillGapResponse(
             List<String> roadmap,
-            List<ContentPickResponse> contents,
-            List<MapStringString> youtube
+            List<ContentPickResponse> contents
     ) {}
-
-    public record MapStringString(String title, String url) {}
 
     public record InterviewQaPayloadResponse(String payloadJson) {}
 
