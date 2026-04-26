@@ -176,7 +176,7 @@ public class JobIngestService {
         if (req.hiringProcess() != null) {
             posting.setHiringProcess(cleanLines(req.hiringProcess(), 12));
         }
-        if (req.jdImageUrls() != null && !req.jdImageUrls().isEmpty()) {
+        if (req.jdImageUrls() != null) {
             posting.setJdImageUrls(cleanJdImageUrls(req.jdImageUrls(), 12));
         }
 
