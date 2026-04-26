@@ -20,7 +20,7 @@ import java.time.LocalDate;
 
 @Hidden
 @RestController
-@RequestMapping("/internal/trends")
+@RequestMapping({"/internal/trends", "/v1/internal/trends"})
 @RequiredArgsConstructor
 public class InternalTrendCacheController {
 

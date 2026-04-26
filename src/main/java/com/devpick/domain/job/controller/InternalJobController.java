@@ -25,7 +25,7 @@ import java.util.Map;
 
 @Hidden
 @RestController
-@RequestMapping("/internal/jobs")
+@RequestMapping({"/internal/jobs", "/v1/internal/jobs"})
 @RequiredArgsConstructor
 public class InternalJobController {
 

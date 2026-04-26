@@ -23,7 +23,7 @@ import java.util.Map;
  */
 @Hidden
 @RestController
-@RequestMapping("/internal/reports")
+@RequestMapping({"/internal/reports", "/v1/internal/reports"})
 @RequiredArgsConstructor
 public class InternalWeeklyReportOpsController {
 
