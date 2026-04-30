@@ -1,9 +1,12 @@
 package com.devpick.domain.content.controller;
 
+import com.devpick.domain.content.dto.BookItem;
+import com.devpick.domain.content.dto.BookRecommendResponse;
 import com.devpick.domain.content.dto.ContentSummaryResponse;
 import com.devpick.domain.content.dto.RecommendContentsResponse;
 import com.devpick.domain.content.dto.YoutubeRecommendItem;
 import com.devpick.domain.content.dto.YoutubeRecommendResponse;
+import com.devpick.domain.content.service.BookRecommendService;
 import com.devpick.domain.content.service.RecommendService;
 import com.devpick.global.common.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.AfterEach;
@@ -37,6 +40,7 @@ class RecommendControllerTest {
     private MockMvc mockMvc;
 
     @Mock private RecommendService recommendService;
+    @Mock private BookRecommendService bookRecommendService;
     @InjectMocks private RecommendController recommendController;
 
     private UUID userId;
@@ -148,5 +152,34 @@ class RecommendControllerTest {
         mockMvc.perform(get("/recommend/youtube"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.videos").isEmpty());
+    }
+
+    @Test
+    @DisplayName("GET /recommend/books - 개인화 성공 시 200, isPersonalized=true")
+    void getRecommendBooks_personalized_returns200() throws Exception {
+        BookItem book = new BookItem("Spring Boot 완벽 가이드", List.of("홍근"),
+                "위키북스", "https://thumb.jpg", "https://url", "Spring Boot 소개");
+        BookRecommendResponse response = new BookRecommendResponse(List.of(book), true, null);
+        given(bookRecommendService.getRecommendBooks(eq(userId))).willReturn(response);
+
+        mockMvc.perform(get("/recommend/books"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.isPersonalized").value(true))
+                .andExpect(jsonPath("$.data.books[0].title").value("Spring Boot 완벽 가이드"));
+    }
+
+    @Test
+    @DisplayName("GET /recommend/books - 태그 없을 때 isPersonalized=false, message 포함")
+    void getRecommendBooks_notEnoughTags_returnsMessage() throws Exception {
+        BookRecommendResponse response = new BookRecommendResponse(
+                List.of(), false, "관심 태그를 설정하거나 글을 더 읽으면 추천 서적이 나타나요");
+        given(bookRecommendService.getRecommendBooks(eq(userId))).willReturn(response);
+
+        mockMvc.perform(get("/recommend/books"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isPersonalized").value(false))
+                .andExpect(jsonPath("$.data.message")
+                        .value("관심 태그를 설정하거나 글을 더 읽으면 추천 서적이 나타나요"));
     }
 }

@@ -1,7 +1,9 @@
 package com.devpick.domain.content.controller;
 
+import com.devpick.domain.content.dto.BookRecommendResponse;
 import com.devpick.domain.content.dto.RecommendContentsResponse;
 import com.devpick.domain.content.dto.YoutubeRecommendResponse;
+import com.devpick.domain.content.service.BookRecommendService;
 import com.devpick.domain.content.service.RecommendService;
 import com.devpick.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +24,7 @@ import java.util.UUID;
 public class RecommendController {
 
     private final RecommendService recommendService;
+    private final BookRecommendService bookRecommendService;
 
     @Operation(summary = "홈 글 추천", description = "행동 이력 기반 동적 개인화 콘텐츠 10개 반환 (YouTube 제외, 스크랩 제외)")
     @ApiResponses({
@@ -43,5 +46,16 @@ public class RecommendController {
     public ApiResponse<YoutubeRecommendResponse> getRecommendYoutube(
             @AuthenticationPrincipal UUID userId) {
         return ApiResponse.ok(recommendService.getRecommendYoutube(userId));
+    }
+
+    @Operation(summary = "추천 도서", description = "행동 이력 기반 개인화 추천 도서 최대 10권 반환 (카카오 도서 API)")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
+    })
+    @GetMapping("/books")
+    public ApiResponse<BookRecommendResponse> getRecommendBooks(
+            @AuthenticationPrincipal UUID userId) {
+        return ApiResponse.ok(bookRecommendService.getRecommendBooks(userId));
     }
 }
