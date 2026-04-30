@@ -2,6 +2,8 @@ package com.devpick.domain.content.controller;
 
 import com.devpick.domain.content.dto.ContentSummaryResponse;
 import com.devpick.domain.content.dto.RecommendContentsResponse;
+import com.devpick.domain.content.dto.YoutubeRecommendItem;
+import com.devpick.domain.content.dto.YoutubeRecommendResponse;
 import com.devpick.domain.content.service.RecommendService;
 import com.devpick.global.common.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.AfterEach;
@@ -102,5 +104,49 @@ class RecommendControllerTest {
         mockMvc.perform(get("/recommend/contents"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.contents").isEmpty());
+    }
+
+    @Test
+    @DisplayName("GET /recommend/youtube - 개인화 성공 시 200, isPersonalized=true, videoId 포함")
+    void getRecommendYoutube_personalized_returns200() throws Exception {
+        YoutubeRecommendItem item = new YoutubeRecommendItem(
+                UUID.randomUUID(), "Spring 유튜브 강의", null,
+                "abc123", "테스트채널", "PT15M",
+                "https://img.youtube.com/thumb.jpg",
+                List.of("Spring"), Instant.now(), false, false);
+        YoutubeRecommendResponse response = new YoutubeRecommendResponse(List.of(item), true, null);
+        given(recommendService.getRecommendYoutube(eq(userId))).willReturn(response);
+
+        mockMvc.perform(get("/recommend/youtube"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.isPersonalized").value(true))
+                .andExpect(jsonPath("$.data.videos[0].title").value("Spring 유튜브 강의"))
+                .andExpect(jsonPath("$.data.videos[0].videoId").value("abc123"))
+                .andExpect(jsonPath("$.data.videos[0].channelName").value("테스트채널"));
+    }
+
+    @Test
+    @DisplayName("GET /recommend/youtube - fallback 시 isPersonalized=false, message 포함")
+    void getRecommendYoutube_fallback_returnsMessage() throws Exception {
+        YoutubeRecommendResponse response = new YoutubeRecommendResponse(
+                List.of(), false, "아직 추천할 글이 부족해요. 더 많은 글을 읽어보세요!");
+        given(recommendService.getRecommendYoutube(eq(userId))).willReturn(response);
+
+        mockMvc.perform(get("/recommend/youtube"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isPersonalized").value(false))
+                .andExpect(jsonPath("$.data.message").value("아직 추천할 글이 부족해요. 더 많은 글을 읽어보세요!"));
+    }
+
+    @Test
+    @DisplayName("GET /recommend/youtube - 빈 결과도 200 반환")
+    void getRecommendYoutube_emptyVideos_returns200() throws Exception {
+        YoutubeRecommendResponse response = new YoutubeRecommendResponse(List.of(), true, null);
+        given(recommendService.getRecommendYoutube(eq(userId))).willReturn(response);
+
+        mockMvc.perform(get("/recommend/youtube"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.videos").isEmpty());
     }
 }
