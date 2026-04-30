@@ -73,7 +73,7 @@ class QuizHistoryControllerTest {
                 "JUNIOR", 2, 3, false, Instant.now()
         );
         QuizHistoryListResponse response = new QuizHistoryListResponse(List.of(item), 0, 10, 1L, 1);
-        given(aiQuizService.getQuizHistory(eq(userId), any(), any())).willReturn(response);
+        given(aiQuizService.getQuizHistory(eq(userId), any(), any(), any())).willReturn(response);
 
         mockMvc.perform(get("/users/me/quiz-history"))
                 .andExpect(status().isOk())
@@ -86,12 +86,30 @@ class QuizHistoryControllerTest {
     @DisplayName("GET /users/me/quiz-history - 빈 결과 시 200 반환")
     void getQuizHistory_empty_returns200WithEmptyContent() throws Exception {
         QuizHistoryListResponse response = new QuizHistoryListResponse(List.of(), 0, 10, 0L, 0);
-        given(aiQuizService.getQuizHistory(any(), any(), any())).willReturn(response);
+        given(aiQuizService.getQuizHistory(any(), any(), any(), any())).willReturn(response);
 
         mockMvc.perform(get("/users/me/quiz-history"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content").isEmpty())
                 .andExpect(jsonPath("$.data.totalElements").value(0));
+    }
+
+    @Test
+    @DisplayName("GET /users/me/quiz-history?passed=false - 미통과 필터 파라미터 서비스에 전달")
+    void getQuizHistory_passedFalse_passesParamToService() throws Exception {
+        QuizHistoryItemResponse item = new QuizHistoryItemResponse(
+                UUID.randomUUID(), UUID.randomUUID(),
+                "React hooks 완전 정복", null, "첫 번째 문제 텍스트",
+                "JUNIOR", 1, 3, false, Instant.now()
+        );
+        QuizHistoryListResponse response = new QuizHistoryListResponse(List.of(item), 0, 10, 1L, 1);
+        given(aiQuizService.getQuizHistory(eq(userId), any(), eq(false), any())).willReturn(response);
+
+        mockMvc.perform(get("/users/me/quiz-history").param("passed", "false"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.content[0].passed").value(false))
+                .andExpect(jsonPath("$.data.totalElements").value(1));
     }
 
     @Test

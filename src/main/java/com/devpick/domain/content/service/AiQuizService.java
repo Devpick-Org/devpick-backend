@@ -157,13 +157,13 @@ public class AiQuizService {
     }
 
     @Transactional(readOnly = true)
-    public QuizHistoryListResponse getQuizHistory(UUID userId, String sort, Pageable pageable) {
+    public QuizHistoryListResponse getQuizHistory(UUID userId, String sort, Boolean passed, Pageable pageable) {
         Sort jpaSort = "oldest".equalsIgnoreCase(sort)
                 ? Sort.by(Sort.Direction.ASC, "createdAt")
                 : Sort.by(Sort.Direction.DESC, "createdAt");
         Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), jpaSort);
 
-        Page<QuizAttempt> page = quizAttemptRepository.findHistoryByUserId(userId, sortedPageable);
+        Page<QuizAttempt> page = quizAttemptRepository.findHistoryByUserId(userId, passed, sortedPageable);
 
         if (page.isEmpty()) {
             return new QuizHistoryListResponse(List.of(), page.getNumber(), page.getSize(), 0L, 0);
