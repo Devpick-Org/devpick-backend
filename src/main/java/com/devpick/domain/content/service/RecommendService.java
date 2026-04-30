@@ -127,7 +127,7 @@ public class RecommendService {
         long seed = userId.getMostSignificantBits() ^ userId.getLeastSignificantBits()
                 ^ LocalDate.now(KST).toEpochDay();
         List<Content> copy = new ArrayList<>(contents);
-        Collections.shuffle(copy, new Random(seed));
+        Collections.shuffle(copy, new Random(seed)); // NOSONAR java:S2245
         return copy.subList(0, Math.min(RESULT_SIZE, copy.size()));
     }
 }
