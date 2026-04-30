@@ -15,6 +15,17 @@ import java.util.UUID;
 
 public interface HistoryRepository extends JpaRepository<History, UUID> {
 
+    @Query("SELECT DISTINCT ct.tag.id FROM History h " +
+           "JOIN h.content c JOIN c.contentTags ct " +
+           "WHERE h.user.id = :userId " +
+           "AND h.actionType IN :actionTypes " +
+           "AND h.createdAt >= :since " +
+           "AND h.content IS NOT NULL")
+    List<UUID> findDistinctTagIdsByUserActionsAfter(
+            @Param("userId") UUID userId,
+            @Param("actionTypes") List<String> actionTypes,
+            @Param("since") LocalDateTime since);
+
     /** 동일 콘텐츠 AI 요약 조회 히스토리 중복 방지용 */
     boolean existsByUser_IdAndContent_IdAndActionType(
             UUID userId, UUID contentId, String actionType);
