@@ -51,4 +51,24 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     List<Content> findLatestExcludingYoutubeAndScrapped(
             @Param("userId") UUID userId,
             Pageable pageable);
+
+    @Query("SELECT DISTINCT c FROM Content c JOIN c.contentTags ct " +
+           "WHERE ct.tag.id IN :tagIds " +
+           "AND c.isAvailable = true " +
+           "AND c.source.name = 'YouTube' " +
+           "AND NOT EXISTS (SELECT s FROM Scrap s WHERE s.user.id = :userId AND s.content = c) " +
+           "ORDER BY c.publishedAt DESC")
+    List<Content> findYoutubeRecommendCandidatesByTags(
+            @Param("tagIds") List<UUID> tagIds,
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    @Query("SELECT c FROM Content c " +
+           "WHERE c.isAvailable = true " +
+           "AND c.source.name = 'YouTube' " +
+           "AND NOT EXISTS (SELECT s FROM Scrap s WHERE s.user.id = :userId AND s.content = c) " +
+           "ORDER BY c.publishedAt DESC")
+    List<Content> findLatestYoutubeExcludingScrapped(
+            @Param("userId") UUID userId,
+            Pageable pageable);
 }

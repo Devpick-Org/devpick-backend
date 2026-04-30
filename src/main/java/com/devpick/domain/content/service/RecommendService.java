@@ -2,6 +2,8 @@ package com.devpick.domain.content.service;
 
 import com.devpick.domain.content.dto.ContentSummaryResponse;
 import com.devpick.domain.content.dto.RecommendContentsResponse;
+import com.devpick.domain.content.dto.YoutubeRecommendItem;
+import com.devpick.domain.content.dto.YoutubeRecommendResponse;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.content.repository.LikeRepository;
@@ -24,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -120,6 +123,55 @@ public class RecommendService {
                 })
                 .toList();
         return new RecommendContentsResponse(items, isPersonalized, message);
+    }
+
+    @Transactional(readOnly = true)
+    public YoutubeRecommendResponse getRecommendYoutube(UUID userId) {
+        List<UUID> tagIds = getOrCacheTagIds(userId);
+
+        if (!tagIds.isEmpty()) {
+            List<Content> candidates = contentRepository.findYoutubeRecommendCandidatesByTags(
+                    tagIds, userId, PageRequest.of(0, CANDIDATE_LIMIT));
+            if (candidates.size() >= RESULT_SIZE) {
+                return buildYoutubeResponse(shuffleAndTake(candidates, userId), userId, true, null);
+            }
+        }
+
+        List<UUID> userTagIds = userTagRepository.findByUser_Id(userId).stream()
+                .map(ut -> ut.getTag().getId())
+                .toList();
+
+        if (!userTagIds.isEmpty()) {
+            List<Content> candidates = contentRepository.findYoutubeRecommendCandidatesByTags(
+                    userTagIds, userId, PageRequest.of(0, CANDIDATE_LIMIT));
+            return buildYoutubeResponse(shuffleAndTake(candidates, userId), userId, true, null);
+        }
+
+        List<Content> latest = contentRepository.findLatestYoutubeExcludingScrapped(
+                userId, PageRequest.of(0, CANDIDATE_LIMIT));
+        return buildYoutubeResponse(shuffleAndTake(latest, userId), userId, false, NOT_ENOUGH_MESSAGE);
+    }
+
+    private YoutubeRecommendResponse buildYoutubeResponse(
+            List<Content> contents, UUID userId, boolean isPersonalized, String message) {
+        List<YoutubeRecommendItem> items = contents.stream()
+                .map(c -> {
+                    boolean isLiked = likeRepository.existsByUser_IdAndContent_Id(userId, c.getId());
+                    Map<String, Object> extra = parseExtra(c.getExtra());
+                    return YoutubeRecommendItem.of(c, isLiked, extra);
+                })
+                .toList();
+        return new YoutubeRecommendResponse(items, isPersonalized, message);
+    }
+
+    private Map<String, Object> parseExtra(String extraJson) {
+        if (extraJson == null || extraJson.isBlank()) return Map.of();
+        try {
+            return objectMapper.readValue(extraJson, new TypeReference<Map<String, Object>>() {});
+        } catch (JsonProcessingException e) {
+            log.warn("extra JSON parse failed: {}", e.getMessage());
+            return Map.of();
+        }
     }
 
     List<Content> shuffleAndTake(List<Content> contents, UUID userId) {
