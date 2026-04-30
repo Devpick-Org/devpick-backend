@@ -28,7 +28,6 @@ public record ContentDetailResponse(
         // 소스별 참여 지표 (null for RSS sources)
         Integer score,         // SO 전용: 추천 순점수
         Integer likes,         // Velog 전용: 좋아요 수
-        Integer viewCount,     // SO 전용: 조회수
         Integer commentsCount, // Velog 전용: 댓글 수
         // Stack Overflow 전용 구조화 필드 (비-SO 소스는 null)
         Boolean isAnswered,
@@ -63,7 +62,6 @@ public record ContentDetailResponse(
                 isLiked,
                 stackOverflow ? null : content.getScore(),
                 content.getLikes(),
-                stackOverflow ? null : content.getViewCount(),
                 content.getCommentsCount(),
                 stackOverflow ? null : content.getIsAnswered(),
                 stackOverflow ? null : content.getQuestionContent(),
