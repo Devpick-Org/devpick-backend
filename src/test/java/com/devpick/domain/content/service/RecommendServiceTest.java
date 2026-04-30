@@ -206,6 +206,62 @@ class RecommendServiceTest {
     }
 
     @Test
+    @DisplayName("history 태그 없고 user_tags 있으면 → user_tags 기반 개인화, isPersonalized=true")
+    void getRecommendContents_noHistoryTags_userTagsFallback() throws JsonProcessingException {
+        given(valueOps.get(anyString())).willReturn(null);
+        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(List.of());
+        given(objectMapper.writeValueAsString(any())).willReturn("[]");
+
+        UUID userTagId = UUID.randomUUID();
+        Tag tag = Tag.builder().name("Kotlin").build();
+        ReflectionTestUtils.setField(tag, "id", userTagId);
+        UserTag userTag = UserTag.builder().tag(tag).build();
+        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
+        given(contentRepository.findRecommendCandidatesByTags(eq(List.of(userTagId)), eq(userId), any()))
+                .willReturn(tenContents);
+
+        RecommendContentsResponse result = recommendService.getRecommendContents(userId);
+
+        assertThat(result.isPersonalized()).isTrue();
+        assertThat(result.message()).isNull();
+        assertThat(result.contents()).isNotEmpty();
+        verify(contentRepository, never()).findLatestExcludingYoutubeAndScrapped(any(), any());
+    }
+
+    @Test
+    @DisplayName("Redis 역직렬화 실패 시 history 쿼리 실행")
+    void getOrCacheTagIds_deserializeFails_fallsBackToHistoryQuery() throws JsonProcessingException {
+        UUID tagId = UUID.randomUUID();
+        given(valueOps.get(anyString())).willReturn("[invalid-json]");
+        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .willThrow(new com.fasterxml.jackson.core.JsonParseException(null, "parse error"));
+        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(List.of(tagId));
+        given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
+
+        List<UUID> result = recommendService.getOrCacheTagIds(userId);
+
+        assertThat(result).containsExactly(tagId);
+        verify(historyRepository).findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any());
+    }
+
+    @Test
+    @DisplayName("Redis 직렬화 실패해도 태그 목록 정상 반환")
+    void getOrCacheTagIds_serializeFails_stillReturnsTagIds() throws JsonProcessingException {
+        UUID tagId = UUID.randomUUID();
+        given(valueOps.get(anyString())).willReturn(null);
+        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(List.of(tagId));
+        given(objectMapper.writeValueAsString(any()))
+                .willThrow(new com.fasterxml.jackson.core.JsonProcessingException("serialize error") {});
+
+        List<UUID> result = recommendService.getOrCacheTagIds(userId);
+
+        assertThat(result).containsExactly(tagId);
+    }
+
+    @Test
     @DisplayName("결과가 최대 10개")
     void getRecommendContents_returnsAtMostTen() throws JsonProcessingException {
         List<Content> lotsOfContents = new ArrayList<>(tenContents);
