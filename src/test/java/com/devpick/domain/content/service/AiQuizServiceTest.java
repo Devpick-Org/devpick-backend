@@ -58,6 +58,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -425,9 +426,9 @@ class AiQuizServiceTest {
     @Test
     @DisplayName("getQuizHistory — 이력 없는 유저 → 빈 리스트 반환")
     void getQuizHistory_empty_returnsEmptyList() {
-        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any())).willReturn(Page.empty());
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any(), any())).willReturn(Page.empty());
 
-        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", Pageable.ofSize(10));
+        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", null, Pageable.ofSize(10));
 
         assertThat(result.content()).isEmpty();
         assertThat(result.totalElements()).isZero();
@@ -441,11 +442,11 @@ class AiQuizServiceTest {
         ReflectionTestUtils.setField(attempt, "id", UUID.randomUUID());
         ReflectionTestUtils.setField(attempt, "createdAt", LocalDateTime.now());
 
-        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any()))
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any(), any()))
                 .willReturn(new PageImpl<>(List.of(attempt)));
         given(aiQuizRepository.batchFindFirstQuestions(anyList())).willReturn(Map.of());
 
-        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", Pageable.ofSize(10));
+        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", null, Pageable.ofSize(10));
 
         assertThat(result.content()).hasSize(1);
         assertThat(result.content().getFirst().contentId()).isEqualTo(contentId);
@@ -455,12 +456,12 @@ class AiQuizServiceTest {
     @Test
     @DisplayName("getQuizHistory — sort=oldest → createdAt ASC 정렬 적용")
     void getQuizHistory_oldestSort_appliesAscSort() {
-        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any())).willReturn(Page.empty());
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any(), any())).willReturn(Page.empty());
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
 
-        aiQuizService.getQuizHistory(userId, "oldest", Pageable.ofSize(10));
+        aiQuizService.getQuizHistory(userId, "oldest", null, Pageable.ofSize(10));
 
-        verify(quizAttemptRepository).findHistoryByUserId(eq(userId), pageableCaptor.capture());
+        verify(quizAttemptRepository).findHistoryByUserId(eq(userId), isNull(), pageableCaptor.capture());
         Sort.Order order = pageableCaptor.getValue().getSort().getOrderFor("createdAt");
         assertThat(order).isNotNull();
         assertThat(order.getDirection()).isEqualTo(Sort.Direction.ASC);
@@ -474,12 +475,12 @@ class AiQuizServiceTest {
         ReflectionTestUtils.setField(attempt, "id", UUID.randomUUID());
         ReflectionTestUtils.setField(attempt, "createdAt", LocalDateTime.now());
 
-        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any()))
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any(), any()))
                 .willReturn(new PageImpl<>(List.of(attempt)));
         given(aiQuizRepository.batchFindFirstQuestions(anyList()))
                 .willReturn(Map.of(contentId + "|" + aiLevel, "Spring의 DI란 무엇인가요?"));
 
-        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", Pageable.ofSize(10));
+        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", null, Pageable.ofSize(10));
 
         assertThat(result.content().getFirst().preview()).isEqualTo("Spring의 DI란 무엇인가요?");
     }
@@ -492,12 +493,12 @@ class AiQuizServiceTest {
         ReflectionTestUtils.setField(attempt, "id", UUID.randomUUID());
         ReflectionTestUtils.setField(attempt, "createdAt", LocalDateTime.now());
 
-        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any()))
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any(), any()))
                 .willReturn(new PageImpl<>(List.of(attempt)));
         given(aiQuizRepository.batchFindFirstQuestions(anyList()))
                 .willReturn(Map.of(contentId + "|" + aiLevel, "   "));
 
-        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", Pageable.ofSize(10));
+        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", null, Pageable.ofSize(10));
 
         assertThat(result.content().getFirst().preview()).isNull();
     }
@@ -510,15 +511,63 @@ class AiQuizServiceTest {
         ReflectionTestUtils.setField(attempt, "id", UUID.randomUUID());
         ReflectionTestUtils.setField(attempt, "createdAt", LocalDateTime.now());
 
-        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any()))
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), any(), any()))
                 .willReturn(new PageImpl<>(List.of(attempt)));
         given(aiQuizRepository.batchFindFirstQuestions(anyList()))
                 .willThrow(new RuntimeException("DynamoDB 연결 실패"));
 
-        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", Pageable.ofSize(10));
+        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", null, Pageable.ofSize(10));
 
         assertThat(result.content()).hasSize(1);
         assertThat(result.content().getFirst().preview()).isNull();
+    }
+
+    @Test
+    @DisplayName("getQuizHistory — passed=false → 미통과 시도만 반환되고 레포에 false 전달")
+    void getQuizHistory_passedFalse_onlyFailedAttempts() {
+        QuizAttempt failedAttempt = QuizAttempt.builder()
+                .user(user).content(content).level(aiLevel).score(1).totalQuestions(3).passed(false).build();
+        ReflectionTestUtils.setField(failedAttempt, "id", UUID.randomUUID());
+        ReflectionTestUtils.setField(failedAttempt, "createdAt", LocalDateTime.now());
+
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), eq(false), any()))
+                .willReturn(new PageImpl<>(List.of(failedAttempt)));
+        given(aiQuizRepository.batchFindFirstQuestions(anyList())).willReturn(Map.of());
+
+        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", false, Pageable.ofSize(10));
+
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().getFirst().passed()).isFalse();
+        verify(quizAttemptRepository).findHistoryByUserId(eq(userId), eq(false), any());
+    }
+
+    @Test
+    @DisplayName("getQuizHistory — passed=true → 통과(비만점) 시도만 반환되고 레포에 true 전달")
+    void getQuizHistory_passedTrue_onlyPassedNonPerfectAttempts() {
+        QuizAttempt passedAttempt = QuizAttempt.builder()
+                .user(user).content(content).level(aiLevel).score(2).totalQuestions(3).passed(true).build();
+        ReflectionTestUtils.setField(passedAttempt, "id", UUID.randomUUID());
+        ReflectionTestUtils.setField(passedAttempt, "createdAt", LocalDateTime.now());
+
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), eq(true), any()))
+                .willReturn(new PageImpl<>(List.of(passedAttempt)));
+        given(aiQuizRepository.batchFindFirstQuestions(anyList())).willReturn(Map.of());
+
+        QuizHistoryListResponse result = aiQuizService.getQuizHistory(userId, "newest", true, Pageable.ofSize(10));
+
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().getFirst().passed()).isTrue();
+        verify(quizAttemptRepository).findHistoryByUserId(eq(userId), eq(true), any());
+    }
+
+    @Test
+    @DisplayName("getQuizHistory — passed=null → 레포에 null 전달 (전체 조회)")
+    void getQuizHistory_passedNull_passesNullToRepository() {
+        given(quizAttemptRepository.findHistoryByUserId(eq(userId), isNull(), any())).willReturn(Page.empty());
+
+        aiQuizService.getQuizHistory(userId, "newest", null, Pageable.ofSize(10));
+
+        verify(quizAttemptRepository).findHistoryByUserId(eq(userId), isNull(), any());
     }
 
     @Test

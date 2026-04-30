@@ -34,9 +34,11 @@ public class QuizHistoryController {
     public ApiResponse<QuizHistoryListResponse> getQuizHistory(
             @AuthenticationPrincipal UUID userId,
             @Parameter(description = "정렬 순서", example = "newest") @RequestParam(defaultValue = "newest") String sort,
+            @Parameter(description = "통과 여부 필터 (생략 시 전체, false=미통과, true=통과(비만점))", example = "false")
+            @RequestParam(required = false) Boolean passed,
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10") int size) {
-        return ApiResponse.ok(aiQuizService.getQuizHistory(userId, sort, PageRequest.of(page, size)));
+        return ApiResponse.ok(aiQuizService.getQuizHistory(userId, sort, passed, PageRequest.of(page, size)));
     }
 
     @Operation(summary = "퀴즈 결과 상세", description = "특정 퀴즈 시도의 문제 목록과 내 답안을 반환합니다.")

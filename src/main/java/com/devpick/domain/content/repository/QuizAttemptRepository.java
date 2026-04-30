@@ -18,13 +18,15 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, UUID> 
                    "WHERE qa.user.id = :userId " +
                    "AND qa.createdAt = (SELECT MAX(qa2.createdAt) FROM QuizAttempt qa2 " +
                    "WHERE qa2.user.id = :userId AND qa2.content.id = qa.content.id AND qa2.level = qa.level) " +
-                   "AND qa.score < qa.totalQuestions",
+                   "AND qa.score < qa.totalQuestions " +
+                   "AND (:passed IS NULL OR qa.passed = :passed)",
            countQuery = "SELECT COUNT(qa) FROM QuizAttempt qa " +
                         "WHERE qa.user.id = :userId " +
                         "AND qa.createdAt = (SELECT MAX(qa2.createdAt) FROM QuizAttempt qa2 " +
                         "WHERE qa2.user.id = :userId AND qa2.content.id = qa.content.id AND qa2.level = qa.level) " +
-                        "AND qa.score < qa.totalQuestions")
-    Page<QuizAttempt> findHistoryByUserId(@Param("userId") UUID userId, Pageable pageable);
+                        "AND qa.score < qa.totalQuestions " +
+                        "AND (:passed IS NULL OR qa.passed = :passed)")
+    Page<QuizAttempt> findHistoryByUserId(@Param("userId") UUID userId, @Param("passed") Boolean passed, Pageable pageable);
 
     Optional<QuizAttempt> findByIdAndUser_Id(UUID id, UUID userId);
 }
