@@ -15,6 +15,19 @@ import java.util.UUID;
 
 public interface HistoryRepository extends JpaRepository<History, UUID> {
 
+    /** 도서 추천용: 태그명 + 빈도 수 조회 */
+    @Query("SELECT ct.tag.name, COUNT(ct.tag.name) FROM History h " +
+           "JOIN h.content c JOIN c.contentTags ct " +
+           "WHERE h.user.id = :userId " +
+           "AND h.actionType IN :actionTypes " +
+           "AND h.createdAt >= :since " +
+           "AND h.content IS NOT NULL " +
+           "GROUP BY ct.tag.name ORDER BY COUNT(ct.tag.name) DESC")
+    List<Object[]> findTagNameCountsByUserActionsAfter(
+            @Param("userId") UUID userId,
+            @Param("actionTypes") List<String> actionTypes,
+            @Param("since") LocalDateTime since);
+
     @Query("SELECT DISTINCT ct.tag.id FROM History h " +
            "JOIN h.content c JOIN c.contentTags ct " +
            "WHERE h.user.id = :userId " +
