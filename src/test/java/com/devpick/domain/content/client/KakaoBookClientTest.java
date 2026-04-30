@@ -52,7 +52,7 @@ class KakaoBookClientTest {
     }
 
     private KakaoBookDocument doc(String isbn, String title) {
-        return new KakaoBookDocument(title, List.of("저자"), "출판사", "https://thumb", "https://url", "소개", isbn);
+        return new KakaoBookDocument(title, List.of("저자"), "출판사", "https://thumb", "https://url", "소개", isbn, 20000, 18000);
     }
 
     @SuppressWarnings("unchecked")

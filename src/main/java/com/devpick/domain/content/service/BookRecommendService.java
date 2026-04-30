@@ -117,7 +117,8 @@ public class BookRecommendService {
                 .stream()
                 .map(doc -> new BookItem(
                         doc.title(), doc.authors(), doc.publisher(),
-                        doc.thumbnail(), doc.url(), doc.contents()))
+                        doc.thumbnail(), doc.url(), doc.contents(),
+                        doc.price(), doc.salePrice()))
                 .toList();
 
         return new BookRecommendResponse(books, isPersonalized, null);

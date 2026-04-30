@@ -8,6 +8,8 @@ public record BookItem(
         String publisher,
         String thumbnail,
         String url,
-        String contents
+        String contents,
+        int price,
+        int salePrice
 ) {
 }

@@ -47,7 +47,7 @@ class BookRecommendServiceTest {
 
     private KakaoBookDocument book(String isbn, String title) {
         return new KakaoBookDocument(title, List.of("저자"), "출판사",
-                "https://thumb.jpg", "https://url", "소개", isbn);
+                "https://thumb.jpg", "https://url", "소개", isbn, 20000, 18000);
     }
 
     private List<Object[]> tagRows(Object[]... rows) {

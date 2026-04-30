@@ -158,7 +158,7 @@ class RecommendControllerTest {
     @DisplayName("GET /recommend/books - 개인화 성공 시 200, isPersonalized=true")
     void getRecommendBooks_personalized_returns200() throws Exception {
         BookItem book = new BookItem("Spring Boot 완벽 가이드", List.of("홍근"),
-                "위키북스", "https://thumb.jpg", "https://url", "Spring Boot 소개");
+                "위키북스", "https://thumb.jpg", "https://url", "Spring Boot 소개", 30000, 27000);
         BookRecommendResponse response = new BookRecommendResponse(List.of(book), true, null);
         given(bookRecommendService.getRecommendBooks(eq(userId))).willReturn(response);
 
