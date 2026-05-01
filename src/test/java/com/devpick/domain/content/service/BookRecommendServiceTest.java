@@ -241,4 +241,86 @@ class BookRecommendServiceTest {
         assertThat(result.isPersonalized()).isTrue();
         assertThat(result.books()).isEmpty();
     }
+
+    // ── buildResponse 필터 조건 ────────────────────────────────────────────
+
+    @Test
+    @DisplayName("썸네일이 blank인 도서는 결과에서 제외")
+    void buildResponse_blankThumbnail_excluded() {
+        KakaoBookDocument noThumb = new KakaoBookDocument(
+                "썸네일없는책", List.of("저자"), "출판사",
+                "", "https://url", "소개", "999", 20000, 18000, "2023-01-01T00:00:00.000+09:00");
+        given(historyRepository.findTagNameCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(tagRows(new Object[]{"Spring", 5L}, new Object[]{"Java", 4L}, new Object[]{"JPA", 3L}));
+        given(kakaoBookClient.searchBooks(anyString())).willReturn(List.of(noThumb));
+
+        BookRecommendResponse result = bookRecommendService.getRecommendBooks(userId);
+
+        assertThat(result.books()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("출판연도 2020년 미만 도서는 결과에서 제외")
+    void buildResponse_oldBook_excluded() {
+        KakaoBookDocument oldBook = new KakaoBookDocument(
+                "구책", List.of("저자"), "출판사",
+                "https://thumb.jpg", "https://url", "소개", "888", 20000, 18000, "2019-12-31T00:00:00.000+09:00");
+        given(historyRepository.findTagNameCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(tagRows(new Object[]{"Spring", 5L}, new Object[]{"Java", 4L}, new Object[]{"JPA", 3L}));
+        given(kakaoBookClient.searchBooks(anyString())).willReturn(List.of(oldBook));
+
+        BookRecommendResponse result = bookRecommendService.getRecommendBooks(userId);
+
+        assertThat(result.books()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("datetime이 blank인 도서는 연도 필터 통과")
+    void buildResponse_blankDatetime_included() {
+        KakaoBookDocument noDate = new KakaoBookDocument(
+                "날짜없는책", List.of("저자"), "출판사",
+                "https://thumb.jpg", "https://url", "소개", "777", 20000, 18000, "");
+        given(historyRepository.findTagNameCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(tagRows(new Object[]{"Spring", 5L}, new Object[]{"Java", 4L}, new Object[]{"JPA", 3L}));
+        given(kakaoBookClient.searchBooks(anyString())).willReturn(List.of(noDate));
+
+        BookRecommendResponse result = bookRecommendService.getRecommendBooks(userId);
+
+        assertThat(result.books()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("datetime 파싱 불가 시 도서 포함")
+    void buildResponse_invalidDatetime_included() {
+        KakaoBookDocument invalidDate = new KakaoBookDocument(
+                "날짜오류책", List.of("저자"), "출판사",
+                "https://thumb.jpg", "https://url", "소개", "666", 20000, 18000, "INVALID");
+        given(historyRepository.findTagNameCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(tagRows(new Object[]{"Spring", 5L}, new Object[]{"Java", 4L}, new Object[]{"JPA", 3L}));
+        given(kakaoBookClient.searchBooks(anyString())).willReturn(List.of(invalidDate));
+
+        BookRecommendResponse result = bookRecommendService.getRecommendBooks(userId);
+
+        assertThat(result.books()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("ISBN이 blank인 도서는 중복 체크 없이 포함")
+    void buildResponse_blankIsbn_includedWithoutDedup() {
+        KakaoBookDocument noIsbn1 = new KakaoBookDocument(
+                "isbn없는책1", List.of("저자"), "출판사",
+                "https://thumb.jpg", "https://url", "소개", "", 20000, 18000, "2023-01-01T00:00:00.000+09:00");
+        KakaoBookDocument noIsbn2 = new KakaoBookDocument(
+                "isbn없는책2", List.of("저자"), "출판사",
+                "https://thumb2.jpg", "https://url2", "소개2", "", 20000, 18000, "2023-01-01T00:00:00.000+09:00");
+        given(historyRepository.findTagNameCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(tagRows(new Object[]{"Spring", 5L}, new Object[]{"Java", 4L}, new Object[]{"JPA", 3L}));
+        given(kakaoBookClient.searchBooks(anyString())).willReturn(List.of(noIsbn1, noIsbn2));
+
+        BookRecommendResponse result = bookRecommendService.getRecommendBooks(userId);
+
+        // blank ISBN은 중복 제거 대상이 아니므로 두 책 모두 결과에 포함됨
+        List<String> titles = result.books().stream().map(b -> b.title()).toList();
+        assertThat(titles).contains("isbn없는책1", "isbn없는책2");
+    }
 }
