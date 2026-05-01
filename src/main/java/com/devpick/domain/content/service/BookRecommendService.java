@@ -33,6 +33,7 @@ public class BookRecommendService {
     static final ZoneId KST = ZoneId.of("Asia/Seoul");
     static final int KEYWORD_COUNT = 3;
     static final int RESULT_SIZE = 10;
+    static final int MIN_PUBLISH_YEAR = 2020;
 
     private final HistoryRepository historyRepository;
     private final UserTagRepository userTagRepository;
@@ -102,6 +103,16 @@ public class BookRecommendService {
 
         Set<String> seenIsbn = new LinkedHashSet<>();
         List<KakaoBookDocument> unique = merged.stream()
+                .filter(doc -> doc.thumbnail() != null && !doc.thumbnail().isBlank())
+                .filter(doc -> {
+                    if (doc.datetime() == null || doc.datetime().isBlank()) return true;
+                    try {
+                        int year = Integer.parseInt(doc.datetime().substring(0, 4));
+                        return year >= MIN_PUBLISH_YEAR;
+                    } catch (NumberFormatException e) {
+                        return true;
+                    }
+                })
                 .filter(doc -> {
                     if (doc.isbn() == null || doc.isbn().isBlank()) return true;
                     return seenIsbn.add(doc.isbn().split(" ")[0]);
