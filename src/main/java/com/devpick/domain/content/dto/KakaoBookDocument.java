@@ -15,6 +15,7 @@ public record KakaoBookDocument(
         String contents,
         String isbn,
         int price,
-        @JsonProperty("sale_price") int salePrice
+        @JsonProperty("sale_price") int salePrice,
+        String datetime
 ) {
 }

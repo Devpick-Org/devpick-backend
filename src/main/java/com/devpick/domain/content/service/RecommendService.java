@@ -147,9 +147,7 @@ public class RecommendService {
             return buildYoutubeResponse(shuffleAndTake(candidates, userId), userId, true, null);
         }
 
-        List<Content> latest = contentRepository.findLatestYoutubeExcludingScrapped(
-                userId, PageRequest.of(0, CANDIDATE_LIMIT));
-        return buildYoutubeResponse(shuffleAndTake(latest, userId), userId, false, NOT_ENOUGH_MESSAGE);
+        return new YoutubeRecommendResponse(List.of(), false, NOT_ENOUGH_MESSAGE);
     }
 
     private YoutubeRecommendResponse buildYoutubeResponse(
