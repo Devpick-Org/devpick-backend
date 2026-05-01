@@ -19,7 +19,7 @@ public record HistoryItemResponse(
         CommentInfo comment,
         Instant createdAt
 ) {
-    public record ContentInfo(UUID id, String title, String preview) {}
+    public record ContentInfo(UUID id, String title, String translatedTitle, String preview) {}
     public record PostInfo(UUID id, String title) {}
     public record AnswerInfo(UUID id, String preview) {}
     public record CommentInfo(UUID id, String preview) {}
@@ -33,7 +33,7 @@ public record HistoryItemResponse(
         if (history.getContent() != null) {
             UUID contentId = history.getContent().getId();
             String preview = summaryMap.getOrDefault(contentId, history.getContent().getPreview());
-            contentInfo = new ContentInfo(contentId, history.getContent().getTitle(), preview);
+            contentInfo = new ContentInfo(contentId, history.getContent().getTitle(), history.getContent().getTranslatedTitle(), preview);
         }
 
         PostInfo postInfo = history.getPost() != null

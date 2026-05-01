@@ -75,7 +75,7 @@ class HistoryControllerTest {
 
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "content_opened", null,
-                new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React useEffect 완전 정복", "미리보기"),
+                new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React useEffect 완전 정복", null, "미리보기"),
                 null, null, null,
                 Instant.now()
         );
@@ -148,7 +148,7 @@ class HistoryControllerTest {
     void getLearningHistory_scrappedAction_returnsPoints5() throws Exception {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "scrapped", 5,
-                new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "제목", "미리보기"),
+                new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "제목", null, "미리보기"),
                 null, null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
@@ -164,7 +164,7 @@ class HistoryControllerTest {
     void getLearningHistory_aiSummaryViewedAction_returnsPoints3() throws Exception {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "ai_summary_viewed", null,
-                new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "제목", "미리보기"),
+                new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "제목", null, "미리보기"),
                 null, null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
@@ -197,7 +197,7 @@ class HistoryControllerTest {
     void getLearningHistory_aiQuizCompletedAction_returnsPoints5() throws Exception {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "ai_quiz_completed", 5,
-                new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React 퀴즈", "미리보기"),
+                new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React 퀴즈", null, "미리보기"),
                 null, null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
