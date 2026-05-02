@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - developV2
+  workflow_dispatch:
 
 jobs:
   deploy:
