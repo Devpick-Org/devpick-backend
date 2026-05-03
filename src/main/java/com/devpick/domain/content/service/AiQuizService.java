@@ -199,12 +199,14 @@ public class AiQuizService {
             throw new DevpickException(ErrorCode.QUIZ_ATTEMPT_FORBIDDEN);
         }
 
-        QuizResultResponse.QuizData quizData = null;
+        List<AiQuizDocument.Question> questions = List.of();
+        int passingCount = 0;
         try {
             Optional<AiQuizDocument> doc = aiQuizRepository.findByContentIdAndLevel(
                     attempt.getContent().getId().toString(), attempt.getLevel());
             if (doc.isPresent()) {
-                quizData = new QuizResultResponse.QuizData(doc.get().getQuestions(), doc.get().getPassingCount());
+                questions = doc.get().getQuestions() != null ? doc.get().getQuestions() : List.of();
+                passingCount = doc.get().getPassingCount();
             }
         } catch (Exception e) {
             log.warn("퀴즈 DynamoDB 조회 실패: {}", e.getMessage());
@@ -226,7 +228,8 @@ public class AiQuizService {
                 attempt.getTotalQuestions(),
                 attempt.isPassed(),
                 pointsEarned,
-                quizData,
+                passingCount,
+                questions,
                 myAnswers
         );
     }
