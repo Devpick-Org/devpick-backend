@@ -24,11 +24,12 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class EcosystemTrendService {
 
-    /** v3: 부트캠퍼 허용 분류만 적재 및 썸네일 URL 퍼센트 인코딩 수정 */
-    private static final String CACHE_KEY = "trends:ecosystem:v3";
+    /** v4: 생태계 API limit 상향(부트캠프+동아리+행사 동시 표시)·데브이벤트 데이터 라우트 수집 */
+    private static final String CACHE_KEY = "trends:ecosystem:v4";
     private static final Duration TTL = Duration.ofHours(25);
     private static final int DEFAULT_LIMIT = 24;
-    private static final int MAX_LIMIT = 100;
+    /** 프론트가 큰 limit로 한 번에 받을 수 있게 (기존 100이면 행사가 목록 끝에서 잘림) */
+    private static final int MAX_LIMIT = 400;
 
     private final BootcamperEcosystemFetcher bootcamperEcosystemFetcher;
     private final DevEventEcosystemFetcher devEventEcosystemFetcher;
