@@ -11,8 +11,20 @@ class EcosystemParsersTest {
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
+    @DisplayName("__NEXT_DATA__에서 buildId를 읽어 데이터 라우트 폴백에 사용할 수 있다")
+    void nextData_extractsBuildId() {
+        String html =
+                """
+                <!DOCTYPE html><html><script id="__NEXT_DATA__" type="application/json">{"buildId":"abc123XYZ","props":{"pageProps":{"courseList":[]}}}</script></html>
+                """;
+        var root = NextDataPagePropsExtractor.extractRoot(objectMapper, html);
+        assertThat(root).isPresent();
+        assertThat(root.get().path("buildId").asText()).isEqualTo("abc123XYZ");
+    }
+
+    @Test
     @DisplayName("__NEXT_DATA__에서 pageProps 내 courseList를 추출할 수 있다")
-    void nextData_extractsBootcampCourseList() throws Exception {
+    void nextData_extractsBootcampCourseList() {
         String html = """
                 <!DOCTYPE html><html><body>
                 <script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"courseList":[{"id":1,"title":"Test Course","brand":"ACME","thumbnail":"a.png","recruitEndDate":"2026-12-01","classStartDate":"2026-12-10","classEndDate":"2027-01-10","classify":"웹","classMethod":"온라인","costType":"free","cost":0}]}}}</script>

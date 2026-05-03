@@ -9,6 +9,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.util.UriUtils;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -23,7 +24,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class BootcamperEcosystemFetcher {
 
-    private static final String URL = "https://bootcamper.co.kr/class";
+    private static final String ORIGIN = "https://bootcamper.co.kr";
+    private static final String URL = ORIGIN + "/class";
     private static final int MAX_ITEMS = 48;
     /**
      * 명시적인 봇 UA는 Cloudflare 등에서 과목 목록 없는 HTML만 내려주는 사례가 있어 일반 브라우저 UA를 사용합니다.
@@ -53,7 +55,15 @@ public class BootcamperEcosystemFetcher {
                 log.warn("부트캠퍼 __NEXT_DATA__ 파싱 실패 또는 차단 페이지일 수 있음 (HTML 약 {}바이트).", len);
                 return List.of();
             }
-            JsonNode list = pagePropsOpt.get().path("courseList");
+            JsonNode pageProps = pagePropsOpt.get();
+            JsonNode list = pageProps.path("courseList");
+            if (!list.isArray() || list.isEmpty()) {
+                Optional<JsonNode> hydrated = tryHydrateCourseListFromNextDataRoute(html == null ? "" : html);
+                if (hydrated.isPresent()) {
+                    pageProps = hydrated.get();
+                    list = pageProps.path("courseList");
+                }
+            }
             if (!list.isArray() || list.isEmpty()) {
                 int len = html == null ? 0 : html.length();
                 log.warn("부트캠퍼 courseList 비어 있음 또는 스키마 변경 가능 (응답 HTML 약 {}바이트).", len);
@@ -125,6 +135,51 @@ public class BootcamperEcosystemFetcher {
         } catch (Exception e) {
             log.warn("부트캠퍼 수집 예외: {}", e.getMessage());
             return List.of();
+        }
+    }
+
+    /**
+     * HTML 의 {@code props.pageProps.courseList} 가 비었을 때, {@code buildId} 로 {@code _next/data/.../class.json} 을
+     * 한 번 더 요청해 과정 목록을 채웁니다 (차단 페이지에서 잘림된 __NEXT_DATA__ 대응).
+     */
+    private Optional<JsonNode> tryHydrateCourseListFromNextDataRoute(String html) {
+        Optional<JsonNode> rootOpt = NextDataPagePropsExtractor.extractRoot(objectMapper, html);
+        if (rootOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        String buildId = rootOpt.get().path("buildId").asText("").trim();
+        if (buildId.isEmpty()) {
+            return Optional.empty();
+        }
+        String dataUrl = ORIGIN + "/_next/data/" + buildId + "/class.json";
+        try {
+            String json = webClient.get()
+                    .uri(dataUrl)
+                    .header("Accept", "application/json,text/plain,*/*;q=0.8")
+                    .header("Accept-Language", "ko-KR,ko;q=0.9,en;q=0.8")
+                    .header("Referer", URL)
+                    .header("User-Agent", UA)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(45))
+                    .block();
+            if (json == null || json.isBlank()) {
+                log.warn("부트캠퍼 데이터 라우트 응답 비어 있음 ({})", dataUrl);
+                return Optional.empty();
+            }
+            JsonNode pageProps = objectMapper.readTree(json).path("pageProps");
+            JsonNode courses = pageProps.path("courseList");
+            if (!courses.isArray() || courses.isEmpty()) {
+                return Optional.empty();
+            }
+            log.info("부트캠퍼 courseList 데이터 라우트로 복구 ({}건, buildId={}).", courses.size(), buildId);
+            return Optional.of(pageProps);
+        } catch (WebClientResponseException e) {
+            log.warn("부트캠퍼 데이터 라우트 조회 실패 HTTP {} {}", e.getStatusCode().value(), dataUrl);
+            return Optional.empty();
+        } catch (IOException e) {
+            log.warn("부트캠퍼 데이터 라우트 JSON 파싱 실패: {}", e.getMessage());
+            return Optional.empty();
         }
     }
 

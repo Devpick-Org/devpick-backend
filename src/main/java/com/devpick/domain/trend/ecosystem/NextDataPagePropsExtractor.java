@@ -20,7 +20,7 @@ public final class NextDataPagePropsExtractor {
 
     private NextDataPagePropsExtractor() {}
 
-    static Optional<JsonNode> extract(ObjectMapper mapper, String html) {
+    static Optional<JsonNode> extractRoot(ObjectMapper mapper, String html) {
         if (html == null || html.isBlank()) {
             return Optional.empty();
         }
@@ -30,14 +30,15 @@ public final class NextDataPagePropsExtractor {
             return Optional.empty();
         }
         try {
-            JsonNode root = mapper.readTree(m.group(1));
-            JsonNode pageProps = root.path("props").path("pageProps");
-            return pageProps.isMissingNode() || pageProps.isNull()
-                    ? Optional.empty()
-                    : Optional.of(pageProps);
+            return Optional.of(mapper.readTree(m.group(1)));
         } catch (IOException e) {
             log.warn("Next.js __NEXT_DATA__ 파싱 실패: {}", e.getMessage());
             return Optional.empty();
         }
+    }
+
+    static Optional<JsonNode> extract(ObjectMapper mapper, String html) {
+        return extractRoot(mapper, html).map(root -> root.path("props").path("pageProps")).flatMap(pageProps ->
+                pageProps.isMissingNode() || pageProps.isNull() ? Optional.empty() : Optional.of(pageProps));
     }
 }

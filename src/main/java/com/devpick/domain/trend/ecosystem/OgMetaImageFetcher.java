@@ -48,7 +48,7 @@ public class OgMetaImageFetcher {
                     .header("User-Agent", CHROME_UA)
                     .retrieve()
                     .bodyToMono(String.class)
-                    .timeout(Duration.ofSeconds(8))
+                    .timeout(Duration.ofSeconds(15))
                     .block();
             if (html == null || html.isEmpty()) {
                 return Optional.empty();

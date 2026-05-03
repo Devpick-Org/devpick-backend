@@ -24,7 +24,8 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class EcosystemTrendService {
 
-    private static final String CACHE_KEY = "trends:ecosystem:v1";
+    /** v2: WebClient 버퍼 상향 후 OG 이미지·부트캠퍼 JSON 폴백 반영 스냅샷 무효화 */
+    private static final String CACHE_KEY = "trends:ecosystem:v2";
     private static final Duration TTL = Duration.ofHours(25);
     private static final int DEFAULT_LIMIT = 24;
     private static final int MAX_LIMIT = 100;
