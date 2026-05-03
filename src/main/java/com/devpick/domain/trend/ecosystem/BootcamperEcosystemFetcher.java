@@ -7,14 +7,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import org.springframework.web.util.UriUtils;
-
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 부트캠퍼 {@code /class} 페이지의 {@code __NEXT_DATA__}에서 과정 목록을 읽습니다.
@@ -27,6 +27,18 @@ public class BootcamperEcosystemFetcher {
     private static final String ORIGIN = "https://bootcamper.co.kr";
     private static final String URL = ORIGIN + "/class";
     private static final int MAX_ITEMS = 48;
+
+    /**
+     * 부트캠퍼 UI 분류(https://bootcamper.co.kr/class) 중 생태계에 노출할 과목만 허용.
+     * API 의 {@code classify} 문자열 그대로 매칭 (AI·데이터 영역은 {@code AI/ML}, {@code 데이터} 로 내려옴).
+     */
+    static final Set<String> INCLUDED_BOOTCAMP_CLASSIFIES = Set.of(
+            "웹개발",
+            "앱개발",
+            "클라우드/보안",
+            "PM/기획",
+            "AI/ML",
+            "데이터");
     /**
      * 명시적인 봇 UA는 Cloudflare 등에서 과목 목록 없는 HTML만 내려주는 사례가 있어 일반 브라우저 UA를 사용합니다.
      */
@@ -69,9 +81,15 @@ public class BootcamperEcosystemFetcher {
                 log.warn("부트캠퍼 courseList 비어 있음 또는 스키마 변경 가능 (응답 HTML 약 {}바이트).", len);
                 return List.of();
             }
+            int skippedClassify = 0;
             List<EcosystemTrendItem> out = new ArrayList<>(Math.min(list.size(), MAX_ITEMS));
             for (int i = 0; i < list.size() && out.size() < MAX_ITEMS; i++) {
                 JsonNode c = list.get(i);
+                String classify = nz(c.path("classify").asText(""));
+                if (!INCLUDED_BOOTCAMP_CLASSIFIES.contains(classify)) {
+                    skippedClassify++;
+                    continue;
+                }
                 String id = "bootcamper:" + c.path("id").asText();
                 String title = c.path("title").asText("").trim();
                 if (title.isEmpty()) {
@@ -79,13 +97,12 @@ public class BootcamperEcosystemFetcher {
                 }
                 String brand = c.path("brand").asText("").trim();
                 int courseId = c.path("id").asInt(0);
-                String detailUrl = courseId > 0 ? ("https://bootcamper.co.kr/class/" + courseId) : URL;
+                String detailUrl = courseId > 0 ? (ORIGIN + "/class/" + courseId) : URL;
                 String thumbFile = c.path("thumbnail").asText("").trim();
                 String thumbnailUrl = null;
                 if (!thumbFile.isEmpty()) {
                     String path = thumbFile.startsWith("/") ? thumbFile : "/uploads/" + thumbFile;
-                    String enc = UriUtils.encodePath(path, StandardCharsets.UTF_8);
-                    thumbnailUrl = "https://bootcamper.co.kr/_next/image?url=" + enc + "&w=640&q=75";
+                    thumbnailUrl = bootcamperOptimizedThumbnail(path);
                 }
                 List<String> tags = new ArrayList<>();
                 tagIfPresent(tags, c.path("classify").asText(""));
@@ -127,6 +144,12 @@ public class BootcamperEcosystemFetcher {
                         nullOrBlank(endAt),
                         allTags,
                         "bootcamper.co.kr"));
+            }
+            if (skippedClassify > 0) {
+                log.info(
+                        "부트캠퍼 과정 중 허용 분류 외 스킵 {}건 (허용: {}).",
+                        skippedClassify,
+                        INCLUDED_BOOTCAMP_CLASSIFIES);
             }
             return out;
         } catch (WebClientResponseException e) {
@@ -181,6 +204,19 @@ public class BootcamperEcosystemFetcher {
             log.warn("부트캠퍼 데이터 라우트 JSON 파싱 실패: {}", e.getMessage());
             return Optional.empty();
         }
+    }
+
+    /**
+     * Next.js 이미지 최적화 라우터는 {@code url} 에 경로 전체를 퍼센트 인코딩한 값을 기대합니다.
+     * {@link org.springframework.web.util.UriUtils#encodePath} 는 슬래시를 보존해 브라우저/프록시에서 URL 이 잘리는 사례가 있습니다.
+     */
+    static String bootcamperOptimizedThumbnail(String absoluteOrUploadPath) {
+        if (absoluteOrUploadPath == null || absoluteOrUploadPath.isBlank()) {
+            return null;
+        }
+        String path = absoluteOrUploadPath.strip();
+        String enc = URLEncoder.encode(path, StandardCharsets.UTF_8).replace("+", "%20");
+        return ORIGIN + "/_next/image?url=" + enc + "&w=640&q=75";
     }
 
     private static void tagIfPresent(List<String> tags, String v) {
