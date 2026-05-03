@@ -24,6 +24,7 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
            "WHERE c.isAvailable = true " +
            "AND (COALESCE(TRIM(:query), '') = '' OR " +
            "LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(c.translatedTitle) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
            "LOWER(c.author) LIKE LOWER(CONCAT('%', :query, '%'))) " +
            "AND (:#{#tags == null || #tags.isEmpty()} = true OR LOWER(t.name) IN :tags) " +
            "ORDER BY c.publishedAt DESC")
