@@ -99,6 +99,64 @@ INSERT INTO tags (id, name, created_at) VALUES
 (gen_random_uuid(), 'Deno', NOW()),
 (gen_random_uuid(), 'Zig', NOW()),
 (gen_random_uuid(), 'Elixir', NOW()),
+-- 백엔드 / 프레임워크
+(gen_random_uuid(), 'Spring', NOW()),
+(gen_random_uuid(), 'Kafka', NOW()),
+(gen_random_uuid(), 'JPA', NOW()),
+(gen_random_uuid(), 'WebFlux', NOW()),
+(gen_random_uuid(), 'Coroutines', NOW()),
+(gen_random_uuid(), 'Spark', NOW()),
+(gen_random_uuid(), 'Flink', NOW()),
+(gen_random_uuid(), 'Airflow', NOW()),
+(gen_random_uuid(), 'dbt', NOW()),
+-- 보안
+(gen_random_uuid(), 'OAuth', NOW()),
+(gen_random_uuid(), 'JWT', NOW()),
+-- 아키텍처 / 설계 (추가)
+(gen_random_uuid(), 'REST', NOW()),
+(gen_random_uuid(), 'Event-Driven', NOW()),
+(gen_random_uuid(), 'CQRS', NOW()),
+(gen_random_uuid(), 'BFF', NOW()),
+(gen_random_uuid(), 'Saga', NOW()),
+(gen_random_uuid(), '헥사고날아키텍처', NOW()),
+(gen_random_uuid(), '멀티모듈', NOW()),
+(gen_random_uuid(), '모노레포', NOW()),
+-- 테스트
+(gen_random_uuid(), 'TDD', NOW()),
+(gen_random_uuid(), 'JUnit', NOW()),
+(gen_random_uuid(), 'Jest', NOW()),
+(gen_random_uuid(), 'Cypress', NOW()),
+-- 모바일
+(gen_random_uuid(), 'Swift', NOW()),
+(gen_random_uuid(), 'Jetpack Compose', NOW()),
+(gen_random_uuid(), 'SwiftUI', NOW()),
+-- DevOps / 인프라 (추가)
+(gen_random_uuid(), 'Serverless', NOW()),
+(gen_random_uuid(), 'ELK', NOW()),
+(gen_random_uuid(), 'OpenTelemetry', NOW()),
+(gen_random_uuid(), 'ArgoCD', NOW()),
+(gen_random_uuid(), 'Helm', NOW()),
+(gen_random_uuid(), 'Istio', NOW()),
+-- 클라우드
+(gen_random_uuid(), 'S3', NOW()),
+(gen_random_uuid(), 'RDS', NOW()),
+(gen_random_uuid(), 'ECS', NOW()),
+(gen_random_uuid(), 'EKS', NOW()),
+(gen_random_uuid(), 'SQS', NOW()),
+-- 성능 / 최적화
+(gen_random_uuid(), '캐싱', NOW()),
+(gen_random_uuid(), '쿼리최적화', NOW()),
+(gen_random_uuid(), '인덱싱', NOW()),
+(gen_random_uuid(), '배치처리', NOW()),
+(gen_random_uuid(), '부하테스트', NOW()),
+-- AI / LLM (추가)
+(gen_random_uuid(), 'LangGraph', NOW()),
+(gen_random_uuid(), 'Hugging Face', NOW()),
+(gen_random_uuid(), 'Ollama', NOW()),
+-- CS 심화
+(gen_random_uuid(), '동시성', NOW()),
+(gen_random_uuid(), '메모리관리', NOW()),
+(gen_random_uuid(), '가비지컬렉션', NOW()),
 -- 기타
 (gen_random_uuid(), 'Git', NOW()),
 (gen_random_uuid(), '알고리즘', NOW()),
@@ -111,7 +169,12 @@ INSERT INTO tags (id, name, created_at) VALUES
 (gen_random_uuid(), '블록체인', NOW()),
 (gen_random_uuid(), '애자일', NOW()),
 (gen_random_uuid(), '코드리뷰', NOW()),
-(gen_random_uuid(), '오픈소스', NOW())
+(gen_random_uuid(), '오픈소스', NOW()),
+-- 도구 / 문화
+(gen_random_uuid(), 'GitHub', NOW()),
+(gen_random_uuid(), '리팩터링', NOW()),
+(gen_random_uuid(), '디버깅', NOW()),
+(gen_random_uuid(), '개발환경', NOW())
 ON CONFLICT (name) DO NOTHING;
 
 -- DP-151: content_sources 초기 데이터 삽입
