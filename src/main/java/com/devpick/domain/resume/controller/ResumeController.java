@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,10 +44,13 @@ public class ResumeController {
 
     @Operation(summary = "이력서 파일 업로드 (PDF/DOCX) 후 AI 분석·저장")
     @PostMapping(value = "/master/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<JsonNode> importMasterFromFile(
+    public ResponseEntity<ApiResponse<JsonNode>> importMasterFromFile(
             @AuthenticationPrincipal UUID userId,
             @RequestPart("file") MultipartFile file
     ) {
-        return ApiResponse.ok(resumeService.importMasterFromFile(userId, file));
+        var outcome = resumeService.importMasterFromFile(userId, file);
+        return ResponseEntity.ok()
+                .header("X-Resume-Enrichment", outcome.enrichmentHeader())
+                .body(ApiResponse.ok(outcome.resume()));
     }
 }

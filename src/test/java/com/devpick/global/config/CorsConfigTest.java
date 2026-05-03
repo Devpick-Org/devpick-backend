@@ -85,4 +85,15 @@ class CorsConfigTest {
         assertThat(config).isNotNull();
         assertThat(config.getAllowedHeaders()).contains("*");
     }
+
+    @Test
+    @DisplayName("X-Resume-Enrichment 응답 헤더 브라우저 노출")
+    void corsConfig_exposes_resume_enrichment_header() {
+        CorsConfigurationSource source = corsConfig.corsConfigurationSource();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        CorsConfiguration config = source.getCorsConfiguration(request);
+
+        assertThat(config).isNotNull();
+        assertThat(config.getExposedHeaders()).contains("X-Resume-Enrichment");
+    }
 }

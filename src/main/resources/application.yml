@@ -23,6 +23,10 @@ app:
   resume:
     # Base64(AES-256-GCM 키 32바이트). 비우면 개발용으로 평문 저장(운영에서는 반드시 설정).
     encryption-key: ${RESUME_ENCRYPTION_KEY:}
+    import:
+      enrichment-enabled: ${RESUME_IMPORT_ENRICHMENT_ENABLED:false}
+    import:
+      enrichment-enabled: ${RESUME_IMPORT_ENRICHMENT_ENABLED:false}
   # 로컬(http://localhost)에서는 cookie-secure=false + Lax 조합 필요(브라우저가 Secure 쿠키를 http에 저장하지 않음)
   auth:
     cookie-secure: ${AUTH_COOKIE_SECURE:true}

@@ -9,6 +9,8 @@ import com.devpick.global.common.exception.ErrorCode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +20,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ResumeService {
@@ -30,6 +33,9 @@ public class ResumeService {
     private final ObjectMapper objectMapper;
     private final ResumeDocumentTextExtractor resumeDocumentTextExtractor;
     private final ResumeAiClient resumeAiClient;
+
+    @Value("${app.resume.import.enrichment-enabled:false}")
+    private boolean resumeImportEnrichmentEnabled;
 
     @Transactional(readOnly = true)
     public JsonNode getMaster(UUID userId) {
@@ -74,7 +80,7 @@ public class ResumeService {
 
     /** PDF 또는 DOCX를 업로드하면 텍스트를 추출하고 AI로 마스터 이력서 JSON으로 변환 후 저장합니다. */
     @Transactional
-    public JsonNode importMasterFromFile(UUID userId, MultipartFile file) {
+    public ResumeImportOutcome importMasterFromFile(UUID userId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new DevpickException(ErrorCode.INVALID_INPUT);
         }
@@ -86,25 +92,60 @@ public class ResumeService {
         if (kind == null) {
             throw new DevpickException(ErrorCode.FILE_UPLOAD_INVALID_TYPE);
         }
-        final byte[] raw;
+        final byte[] rawBytes;
         try {
-            raw = file.getBytes();
+            rawBytes = file.getBytes();
         } catch (IOException e) {
             throw new DevpickException(ErrorCode.INVALID_INPUT);
         }
         final String text;
         try {
-            text = resumeDocumentTextExtractor.extract(kind, raw);
+            text = resumeDocumentTextExtractor.extract(kind, rawBytes);
         } catch (IOException e) {
             throw new DevpickException(ErrorCode.RESUME_DOCUMENT_TEXT_EMPTY);
         }
         if (text == null || text.strip().length() < 20) {
             throw new DevpickException(ErrorCode.RESUME_DOCUMENT_TEXT_EMPTY);
         }
-        JsonNode ai = resumeAiClient.parseResumeFromText(originalName, text.strip(), null);
+        final String stripped = text.strip();
+        JsonNode ai = resumeAiClient.parseResumeFromText(originalName, stripped, null);
         String iso = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
         JsonNode merged = ResumeImportNormalizer.merge(ai, originalName, iso);
-        return upsertMaster(userId, merged);
+
+        ResumeImportEnrichmentTrigger.Decision decision = ResumeImportEnrichmentTrigger.evaluate(
+                resumeImportEnrichmentEnabled, stripped, merged);
+
+        final String enrichmentHeader;
+        final JsonNode toSave;
+
+        if (decision == ResumeImportEnrichmentTrigger.Decision.ENRICH) {
+            JsonNode mutable = merged;
+            String header = ResumeEnrichmentHeader.SKIPPED_ERROR;
+            try {
+                JsonNode patch = resumeAiClient.enrichResumeFromText(originalName, stripped, merged);
+                mutable = ResumeEnrichmentMerger.apply(merged, patch);
+                mutable = ResumeImportNormalizer.sanitizeCareersProjects(mutable);
+                header = ResumeEnrichmentHeader.APPLIED;
+            } catch (Exception e) {
+                log.warn("resume enrich failed, using pass1 only: {}", e.toString());
+            }
+            enrichmentHeader = header;
+            toSave = mutable;
+        } else {
+            enrichmentHeader = switch (decision) {
+                case SKIPPED_DISABLED -> ResumeEnrichmentHeader.SKIPPED_DISABLED;
+                case SKIPPED_SHORT_TEXT -> ResumeEnrichmentHeader.SKIPPED_SHORT_TEXT;
+                case SKIPPED_NO_NEED, SKIPPED_NO_GAPS -> ResumeEnrichmentHeader.SKIPPED_NO_NEED;
+                case ENRICH -> ResumeEnrichmentHeader.SKIPPED_ERROR;
+            };
+            toSave = merged;
+        }
+
+        JsonNode saved = upsertMaster(userId, toSave);
+
+        log.info("resume_import enrichment={} textLen={}", enrichmentHeader, stripped.length());
+
+        return new ResumeImportOutcome(saved, enrichmentHeader);
     }
 
     @Transactional

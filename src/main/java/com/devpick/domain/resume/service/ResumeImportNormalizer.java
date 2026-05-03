@@ -48,6 +48,20 @@ public final class ResumeImportNormalizer {
         return root;
     }
 
+    /**
+     * enrich 적용 후 careers/projects 재필터(빈 행 제거) — 동일 규칙으로 정리합니다.
+     */
+    public static JsonNode sanitizeCareersProjects(JsonNode root) {
+        JsonNodeFactory f = JsonNodeFactory.instance;
+        if (!(root instanceof ObjectNode obj)) {
+            return root;
+        }
+        ObjectNode copy = obj.deepCopy();
+        copy.set("careers", careersArray(f, copy.path("careers")));
+        copy.set("projects", projectsArray(f, copy.path("projects")));
+        return copy;
+    }
+
     private static String sanitizeFileName(String name) {
         if (name == null || name.isBlank()) {
             return "";

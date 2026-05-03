@@ -36,6 +36,7 @@ public class CorsConfig {
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
+        config.setExposedHeaders(List.of("X-Resume-Enrichment"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
