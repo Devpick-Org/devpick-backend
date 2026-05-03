@@ -365,11 +365,24 @@ public class JobService {
         long reqMet = reqItems.stream().filter(i -> "MET".equals(i.status())).count();
         int reqScore = p.getRequiredSkills().isEmpty() ? 100 : (int) Math.round(100.0 * reqMet / p.getRequiredSkills().size());
 
-        List<MatchItemResponse> prefItems = p.getPreferredSkills().stream()
-                .map(skill -> new MatchItemResponse(skill, skillMet(userSkills, skill) ? "MET" : "UNMET"))
-                .toList();
-        long prefMet = prefItems.stream().filter(i -> "MET".equals(i.status())).count();
-        int prefScore = p.getPreferredSkills().isEmpty() ? 100 : (int) Math.round(100.0 * prefMet / p.getPreferredSkills().size());
+        final List<MatchItemResponse> prefItems;
+        final int prefScore;
+        final String prefSummary;
+        if (p.getPreferredSkills().isEmpty()) {
+            prefScore = 0;
+            prefSummary =
+                    "매칭용 우대 스킬 태그가 공고 데이터에 없어요. 본문 우대 조건 문구와 이력서를 직접 비교해 주세요.";
+            prefItems =
+                    List.of(new MatchItemResponse("(우대 스킬 목록 미등록 — 상세 페이지 본문 확인)", "PARTIAL"));
+        } else {
+            prefItems = p.getPreferredSkills().stream()
+                    .map(skill ->
+                            new MatchItemResponse(skill, skillMet(userSkills, skill) ? "MET" : "UNMET"))
+                    .toList();
+            long prefMet = prefItems.stream().filter(i -> "MET".equals(i.status())).count();
+            prefSummary = "우대 기술 매칭";
+            prefScore = (int) Math.round(100.0 * prefMet / p.getPreferredSkills().size());
+        }
 
         int expMet = JobMatchingCalculator.experienceScoreMet(p.getExperienceLevel(), careerYears);
         List<MatchItemResponse> expItems = List.of(
@@ -381,7 +394,11 @@ public class JobService {
 
         return new MatchBreakdownResponse(
                 new MatchSubSectionResponse(reqScore, 100, "필수 기술 매칭", reqItems),
-                new MatchSubSectionResponse(prefScore, 100, "우대 기술 매칭", prefItems),
+                new MatchSubSectionResponse(
+                        prefScore,
+                        p.getPreferredSkills().isEmpty() ? 0 : 100,
+                        prefSummary,
+                        prefItems),
                 new MatchSubSectionResponse(expMet * 100, 100, "경력 수준", expItems)
         );
     }
@@ -390,7 +407,13 @@ public class JobService {
         if (userSkills == null || userSkills.isEmpty()) {
             return false;
         }
-        String k = skill.toLowerCase(Locale.ROOT).trim();
+        if (skill == null || skill.isBlank()) {
+            return false;
+        }
+        String k = JobSkillNormalizer.canonicalLower(skill.trim());
+        if (k.isEmpty()) {
+            return false;
+        }
         if (userSkills.containsKey(k)) {
             return true;
         }

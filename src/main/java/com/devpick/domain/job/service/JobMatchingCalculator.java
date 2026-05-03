@@ -31,28 +31,48 @@ public final class JobMatchingCalculator {
     public static MatchResult compute(JobPosting posting, Map<String, Integer> userSkillToProficiency) {
         Map<String, Integer> user = normalizeKeys(userSkillToProficiency);
         List<String> required = posting.getRequiredSkills().stream()
-                .map(s -> s.toLowerCase(Locale.ROOT).trim())
+                .map(s -> JobSkillNormalizer.canonicalLower(s != null ? s.trim() : ""))
                 .filter(s -> !s.isEmpty())
                 .distinct()
                 .toList();
         List<String> preferred = posting.getPreferredSkills().stream()
-                .map(s -> s.toLowerCase(Locale.ROOT).trim())
+                .map(s -> JobSkillNormalizer.canonicalLower(s != null ? s.trim() : ""))
                 .filter(s -> !s.isEmpty())
                 .distinct()
                 .toList();
 
         if (user.isEmpty()) {
-            return new MatchResult(0, List.of(), new ArrayList<>(posting.getRequiredSkills()), 0, 0);
+            return new MatchResult(
+                    0,
+                    List.of(),
+                    new ArrayList<>(posting.getRequiredSkills()),
+                    0,
+                    0);
         }
 
         RequiredPreferredMatch req = matchList(required, user);
         RequiredPreferredMatch pref = matchList(preferred, user);
 
         double reqRatio = required.isEmpty() ? 1.0 : (double) req.metCount() / required.size();
-        double prefRatio = preferred.isEmpty() ? 1.0 : (double) pref.metCount() / preferred.size();
+        /** 우대 스킬이 하나도 없으면 비율·가중치에서 제외(가짜 100% 매칭 방지) */
+        double prefRatio = preferred.isEmpty() ? 0.0 : (double) pref.metCount() / preferred.size();
 
-        double base = reqRatio * 0.7 + prefRatio * 0.3;
-        double profFactor = req.proficiencyFactor() * 0.7 + pref.proficiencyFactor() * 0.3;
+        /*
+         * 베이스 점수: 필수 미정의 공고 레거시 처리(예전과 동일, 70% 무조건 채움) +
+         * 우대는 스킬이 등록된 경우에만 30% 가중.
+         */
+        double baseNumerator =
+                (required.isEmpty() ? 0.7 : reqRatio * 0.7) + (preferred.isEmpty() ? 0.0 : prefRatio * 0.3);
+        double baseDenominator =
+                (required.isEmpty() ? 0.7 : 0.7) + (preferred.isEmpty() ? 0.0 : 0.3);
+        double base = baseNumerator / baseDenominator;
+
+        double profNumerator =
+                (required.isEmpty()
+                        ? 0.7 * req.proficiencyFactor()
+                        : req.proficiencyFactor() * 0.7)
+                        + (preferred.isEmpty() ? 0.0 : pref.proficiencyFactor() * 0.3);
+        double profFactor = baseDenominator == 0 ? 1.0 : profNumerator / baseDenominator;
         int score = (int) Math.round(Math.min(100, base * 100 * (0.65 + 0.35 * profFactor)));
 
         Set<String> matchedOriginal = new HashSet<>();
@@ -73,7 +93,13 @@ public final class JobMatchingCalculator {
     }
 
     private static boolean containsSkill(Map<String, Integer> userNorm, String skill) {
-        String k = skill.toLowerCase(Locale.ROOT).trim();
+        if (skill == null || skill.isBlank()) {
+            return false;
+        }
+        String k = JobSkillNormalizer.canonicalLower(skill.trim());
+        if (k.isEmpty()) {
+            return false;
+        }
         if (userNorm.containsKey(k)) {
             return true;
         }
@@ -135,8 +161,12 @@ public final class JobMatchingCalculator {
                 continue;
             }
             String k = e.getKey().toLowerCase(Locale.ROOT).trim();
+            if (k.isEmpty()) {
+                continue;
+            }
+            String canon = JobSkillNormalizer.canonicalLower(k);
             int v = e.getValue() == null ? 50 : Math.clamp(e.getValue(), 0, 100);
-            out.merge(k, v, Math::max);
+            out.merge(canon, v, Math::max);
         }
         return out;
     }
@@ -170,16 +200,30 @@ public final class JobMatchingCalculator {
         return map;
     }
 
+    /**
+     * 공고의 경력 구분은 "이 포지션에 필요한 최소 역량 묶음"의 하한을 나타낸다.
+     * 과다 경력(오버 퀄리파이)은 불합격 사유가 아니다.
+     */
     public static int experienceScoreMet(PostingExperienceLevel level, int careerYears) {
         if (level == null || level == PostingExperienceLevel.ANY) {
             return 1;
         }
+        int y = Math.max(0, careerYears);
+        int minYears = postingMinCareerYears(level);
+        return y >= minYears ? 1 : 0;
+    }
+
+    /** 공고 레벨별 필요 최소 연차 하한 */
+    static int postingMinCareerYears(PostingExperienceLevel level) {
+        if (level == null || level == PostingExperienceLevel.ANY) {
+            return 0;
+        }
         return switch (level) {
-            case NEW -> careerYears <= 1 ? 1 : 0;
-            case JUNIOR -> careerYears <= 3 ? 1 : 0;
-            case MIDDLE -> careerYears >= 2 && careerYears <= 8 ? 1 : 0;
-            case SENIOR -> careerYears >= 5 ? 1 : 0;
-            default -> 1;
+            case ANY -> 0;
+            case NEW -> 0;
+            case JUNIOR -> 0;
+            case MIDDLE -> 2;
+            case SENIOR -> 5;
         };
     }
 

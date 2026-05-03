@@ -21,8 +21,10 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -66,7 +68,7 @@ public class JobIngestService {
         if (Boolean.TRUE.equals(req.imageOnlyJd())) {
             posting.setParseStatus(JobParseStatus.SKIPPED_IMAGE);
             applyIngestSkillListsWithoutChangingParseStatus(posting, req);
-            return jobPostingRepository.save(posting);
+            return persist(posting);
         }
 
         if (req.rawJdText() != null && !req.rawJdText().isBlank()) {
@@ -75,7 +77,7 @@ public class JobIngestService {
                 parsed = jobAiClient.parseJd(req.rawJdText());
             } catch (DevpickException e) {
                 if (applySkillHintsFallback(posting, req)) {
-                    return jobPostingRepository.save(posting);
+                    return persist(posting);
                 }
                 throw e;
             }
@@ -94,7 +96,7 @@ public class JobIngestService {
             if (posting.getParseStatus() == JobParseStatus.SKIPPED_IMAGE) {
                 applyIngestSkillListsWithoutChangingParseStatus(posting, req);
             }
-            return jobPostingRepository.save(posting);
+            return persist(posting);
         }
 
         if ((req.requiredSkills() != null && !req.requiredSkills().isEmpty())
@@ -102,11 +104,57 @@ public class JobIngestService {
             posting.applyParsedSkills(
                     req.requiredSkills() != null ? req.requiredSkills() : List.of(),
                     req.preferredSkills() != null ? req.preferredSkills() : List.of());
-            return jobPostingRepository.save(posting);
+            return persist(posting);
         }
 
         posting.setParseStatus(JobParseStatus.PENDING);
+        return persist(posting);
+    }
+
+    private JobPosting persist(JobPosting posting) {
+        enrichPreferredSkillsFromBullets(posting);
         return jobPostingRepository.save(posting);
+    }
+
+    /**
+     * AI/크롤러가 {@code preferredSkills}를 비운 채 우대 조건 문장만 넣은 경우, 불릿에서 흔한 스택 키워드를
+     * 구조화해 매칭·면접 Q&A에 쓰입니다. 이미 우대 스킬이 있으면 건드리지 않습니다.
+     */
+    private void enrichPreferredSkillsFromBullets(JobPosting posting) {
+        List<String> bullets = posting.getPreferredQualificationBullets();
+        if (bullets == null || bullets.isEmpty()) {
+            return;
+        }
+        List<String> existingPref = posting.getPreferredSkills();
+        if (existingPref != null && !existingPref.isEmpty()) {
+            return;
+        }
+        List<String> mined = JobBulletSkillMiner.mine(bullets);
+        if (mined.isEmpty()) {
+            return;
+        }
+        Set<String> reqNorm = posting.getRequiredSkills().stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(s -> JobSkillNormalizer.canonicalLower(s.trim()))
+                .collect(Collectors.toCollection(HashSet::new));
+        List<String> merged = new ArrayList<>();
+        for (String m : mined) {
+            String n = JobSkillNormalizer.canonicalLower(m.trim());
+            if (reqNorm.contains(n)) {
+                continue;
+            }
+            boolean dupPref = merged.stream()
+                    .anyMatch(
+                            x -> x != null
+                                    && JobSkillNormalizer.canonicalLower(x.trim()).equals(n));
+            if (!dupPref) {
+                merged.add(m);
+            }
+        }
+        if (merged.isEmpty()) {
+            return;
+        }
+        posting.applyParsedSkills(new ArrayList<>(posting.getRequiredSkills()), merged);
     }
 
     /**
