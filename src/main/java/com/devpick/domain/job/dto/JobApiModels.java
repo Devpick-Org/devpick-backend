@@ -18,6 +18,12 @@ public final class JobApiModels {
             int size
     ) {}
 
+    public record TechTagFacetResponse(
+            String name,
+            long count,
+            String source
+    ) {}
+
     public record JobListItemResponse(
             String id,
             String companyName,

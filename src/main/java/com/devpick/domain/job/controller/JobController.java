@@ -5,6 +5,7 @@ import com.devpick.domain.job.dto.JobApiModels.InterviewQaPayloadResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobDetailResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobListPageResponse;
 import com.devpick.domain.job.dto.JobApiModels.SkillGapResponse;
+import com.devpick.domain.job.dto.JobApiModels.TechTagFacetResponse;
 import com.devpick.domain.job.service.JobInterviewService;
 import com.devpick.domain.job.service.JobService;
 import com.devpick.global.common.response.ApiResponse;
@@ -47,6 +48,14 @@ public class JobController {
     ) {
         return ApiResponse.ok(jobService.listJobs(
                 userId, page, size, query, category, experienceLevel, location, techStack, sortBy));
+    }
+
+    @Operation(summary = "공고 기반 기술 태그 빈도 목록")
+    @GetMapping("/tech-tags")
+    public ApiResponse<List<TechTagFacetResponse>> listTechTags(
+            @RequestParam(required = false) Integer limit
+    ) {
+        return ApiResponse.ok(jobService.listTechTagFacets(limit));
     }
 
     @Operation(summary = "저장된 면접 Q&A 목록")

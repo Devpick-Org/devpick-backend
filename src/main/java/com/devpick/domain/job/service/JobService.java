@@ -11,6 +11,7 @@ import com.devpick.domain.job.dto.JobApiModels.MatchBreakdownResponse;
 import com.devpick.domain.job.dto.JobApiModels.MatchItemResponse;
 import com.devpick.domain.job.dto.JobApiModels.MatchSubSectionResponse;
 import com.devpick.domain.job.dto.JobApiModels.SkillGapResponse;
+import com.devpick.domain.job.dto.JobApiModels.TechTagFacetResponse;
 import com.devpick.domain.job.entity.JobParseStatus;
 import com.devpick.domain.job.entity.JobPosting;
 import com.devpick.domain.job.entity.JobPostingCategory;
@@ -54,6 +55,8 @@ public class JobService {
     public static final String LOGO_PLACEHOLDER = "https://placehold.co/64x64/png?text=Co";
 
     private static final int MATCH_SORT_CAP = 2000;
+    private static final int TECH_TAG_FACET_LIMIT = 80;
+    private static final String TECH_TAG_FACET_SOURCE = "JOB_POSTING";
 
     private final JobPostingRepository jobPostingRepository;
     private final JobBookmarkRepository jobBookmarkRepository;
@@ -64,6 +67,18 @@ public class JobService {
     private final ContentRepository contentRepository;
     private final JobAiClient jobAiClient;
     private final ObjectMapper objectMapper;
+
+    @Transactional(readOnly = true)
+    public List<TechTagFacetResponse> listTechTagFacets(Integer limit) {
+        int boundedLimit = limit == null ? TECH_TAG_FACET_LIMIT : Math.max(1, Math.min(limit, 200));
+        return jobPostingRepository.findTopTechTagFacets(boundedLimit).stream()
+                .map(row -> new TechTagFacetResponse(
+                        row.getName(),
+                        row.getCount() != null ? row.getCount() : 0L,
+                        TECH_TAG_FACET_SOURCE
+                ))
+                .toList();
+    }
 
     @Transactional(readOnly = true)
     public JobListPageResponse listJobs(
