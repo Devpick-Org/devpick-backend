@@ -6,12 +6,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
@@ -35,5 +39,14 @@ public class ResumeController {
             @AuthenticationPrincipal UUID userId,
             @RequestBody JsonNode body) {
         return ApiResponse.ok(resumeService.upsertMaster(userId, body));
+    }
+
+    @Operation(summary = "이력서 파일 업로드 (PDF/DOCX) 후 AI 분석·저장")
+    @PostMapping(value = "/master/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<JsonNode> importMasterFromFile(
+            @AuthenticationPrincipal UUID userId,
+            @RequestPart("file") MultipartFile file
+    ) {
+        return ApiResponse.ok(resumeService.importMasterFromFile(userId, file));
     }
 }

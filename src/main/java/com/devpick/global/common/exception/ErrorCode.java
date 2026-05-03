@@ -111,6 +111,7 @@ public enum ErrorCode {
     JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_001", "채용 공고를 찾을 수 없습니다."),
     JOB_BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_002", "북마크한 공고가 아닙니다."),
     RESUME_NOT_FOUND(HttpStatus.NOT_FOUND, "RESUME_001", "마스터 이력서가 없습니다. 먼저 작성해 주세요."),
+    RESUME_DOCUMENT_TEXT_EMPTY(HttpStatus.BAD_REQUEST, "RESUME_003", "이력서 파일에서 텍스트를 추출하지 못했습니다. 다른 형식으로 저장했는지 확인해 주세요."),
     INTERVIEW_QA_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_003", "면접 Q&A가 없습니다.");
 
     private final HttpStatus httpStatus;

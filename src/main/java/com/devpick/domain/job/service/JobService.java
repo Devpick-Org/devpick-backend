@@ -401,7 +401,7 @@ public class JobService {
                 map.putIfAbsent(name.toLowerCase(Locale.ROOT), 45);
             }
         });
-        return map;
+        return JobMatchingCalculator.normalizeSkillMap(map);
     }
 
     private JsonNode loadResumeJson(UUID userId) {

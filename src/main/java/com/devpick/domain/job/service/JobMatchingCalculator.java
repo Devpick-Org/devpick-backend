@@ -141,6 +141,14 @@ public final class JobMatchingCalculator {
         return out;
     }
 
+    /**
+     * 이력서·태그 등에서 모은 원본 표기(Java, NODE.JS 등)를 소문자 키로 통일합니다.
+     * {@link #compute}와 동일한 정규화로 상세 매칭(breakdown)과 목록 스코어가 어긋나지 않게 합니다.
+     */
+    public static Map<String, Integer> normalizeSkillMap(Map<String, Integer> raw) {
+        return normalizeKeys(raw);
+    }
+
     /** resume JSON: techStack: ["Java"] 또는 [{ "name": "Java", "proficiency": 80 }] */
     public static Map<String, Integer> skillsFromResumeJson(JsonNode root) {
         Map<String, Integer> map = new HashMap<>();

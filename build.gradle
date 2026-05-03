@@ -56,6 +56,10 @@ dependencies {
 	// Swagger/OpenAPI
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
 
+	// 이력서 업로드 (PDF/DOCX 텍스트 추출 — Epic G MVP)
+	implementation 'org.apache.pdfbox:pdfbox:3.0.4'
+	implementation 'org.apache.poi:poi-ooxml:5.4.1'
+
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
