@@ -25,7 +25,12 @@ public class BootcamperEcosystemFetcher {
 
     private static final String URL = "https://bootcamper.co.kr/class";
     private static final int MAX_ITEMS = 48;
-    private static final String UA = "TraceApp/1.0 (ecosystem trends; +https://traceapp-orcin.vercel.app)";
+    /**
+     * 명시적인 봇 UA는 Cloudflare 등에서 과목 목록 없는 HTML만 내려주는 사례가 있어 일반 브라우저 UA를 사용합니다.
+     */
+    private static final String UA =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)"
+                    + " Chrome/131.0.0.0 Safari/537.36";
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
@@ -34,7 +39,9 @@ public class BootcamperEcosystemFetcher {
         try {
             String html = webClient.get()
                     .uri(URL)
-                    .header("Accept", "text/html,*/*")
+                    .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                    .header("Accept-Language", "ko-KR,ko;q=0.9,en;q=0.8")
+                    .header("Referer", "https://bootcamper.co.kr/")
                     .header("User-Agent", UA)
                     .retrieve()
                     .bodyToMono(String.class)
@@ -42,10 +49,14 @@ public class BootcamperEcosystemFetcher {
                     .block();
             Optional<JsonNode> pagePropsOpt = NextDataPagePropsExtractor.extract(objectMapper, html == null ? "" : html);
             if (pagePropsOpt.isEmpty()) {
+                int len = html == null ? 0 : html.length();
+                log.warn("부트캠퍼 __NEXT_DATA__ 파싱 실패 또는 차단 페이지일 수 있음 (HTML 약 {}바이트).", len);
                 return List.of();
             }
             JsonNode list = pagePropsOpt.get().path("courseList");
             if (!list.isArray() || list.isEmpty()) {
+                int len = html == null ? 0 : html.length();
+                log.warn("부트캠퍼 courseList 비어 있음 또는 스키마 변경 가능 (응답 HTML 약 {}바이트).", len);
                 return List.of();
             }
             List<EcosystemTrendItem> out = new ArrayList<>(Math.min(list.size(), MAX_ITEMS));

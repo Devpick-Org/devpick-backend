@@ -32,6 +32,7 @@ public class EcosystemTrendService {
     private final BootcamperEcosystemFetcher bootcamperEcosystemFetcher;
     private final DevEventEcosystemFetcher devEventEcosystemFetcher;
     private final TecaClubEcosystemFetcher tecaClubEcosystemFetcher;
+    private final ClubOgThumbnailEnricher clubOgThumbnailEnricher;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
@@ -53,6 +54,7 @@ public class EcosystemTrendService {
         items.addAll(bootcamperEcosystemFetcher.fetch());
         items.addAll(tecaClubEcosystemFetcher.fetch());
         items.addAll(devEventEcosystemFetcher.fetch());
+        items = clubOgThumbnailEnricher.enrich(items);
 
         Map<String, Integer> sourceCounts = new HashMap<>();
         Map<EcosystemTrendCategory, Integer> cat = new EnumMap<>(EcosystemTrendCategory.class);

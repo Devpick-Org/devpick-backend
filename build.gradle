@@ -56,6 +56,9 @@ dependencies {
 	// Swagger/OpenAPI
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
 
+	// HTML 메타 추출 (OG 이미지)
+	implementation 'org.jsoup:jsoup:1.18.3'
+
 	// 이력서 업로드 (PDF/DOCX 텍스트 추출 — Epic G MVP)
 	implementation 'org.apache.pdfbox:pdfbox:3.0.4'
 	implementation 'org.apache.poi:poi-ooxml:5.4.1'
