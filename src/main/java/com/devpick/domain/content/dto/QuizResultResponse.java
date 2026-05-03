@@ -12,14 +12,10 @@ public record QuizResultResponse(
         int totalQuestions,
         boolean passed,
         int pointsEarned,
-        QuizData quiz,
+        int passingCount,
+        List<AiQuizDocument.Question> questions,
         List<MyAnswer> myAnswers
 ) {
-    public record QuizData(
-            List<AiQuizDocument.Question> questions,
-            int passingCount
-    ) {}
-
     public record MyAnswer(
             String questionId,
             String selectedOptionId,

@@ -38,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
@@ -103,7 +104,7 @@ class ScrapServiceTest {
     @Test
     @DisplayName("스크랩 없는 유저 → 빈 리스트 반환")
     void getScraps_emptyResult_returnsEmptyList() {
-        given(scrapRepository.findScrapsWithSearch(any(), any(), any()))
+        given(scrapRepository.findScraps(any(), any()))
                 .willReturn(Page.empty());
 
         ScrapListResponse result = scrapService.getScraps(userId, null, "newest", Pageable.ofSize(10));
@@ -115,7 +116,7 @@ class ScrapServiceTest {
     @Test
     @DisplayName("스크랩 있는 유저 → 항목 반환")
     void getScraps_withScraps_returnsItems() {
-        given(scrapRepository.findScrapsWithSearch(any(), any(), any()))
+        given(scrapRepository.findScraps(any(), any()))
                 .willReturn(new PageImpl<>(List.of(scrap)));
 
         ScrapListResponse result = scrapService.getScraps(userId, null, "newest", Pageable.ofSize(10));
@@ -130,13 +131,13 @@ class ScrapServiceTest {
     @Test
     @DisplayName("sort=oldest → createdAt ASC 정렬 적용")
     void getScraps_oldestSort_appliesAscSort() {
-        given(scrapRepository.findScrapsWithSearch(any(), any(), any()))
+        given(scrapRepository.findScraps(any(), any()))
                 .willReturn(Page.empty());
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
 
         scrapService.getScraps(userId, null, "oldest", Pageable.ofSize(10));
 
-        verify(scrapRepository).findScrapsWithSearch(any(), any(), pageableCaptor.capture());
+        verify(scrapRepository).findScraps(any(), pageableCaptor.capture());
         Sort.Order order = pageableCaptor.getValue().getSort().getOrderFor("createdAt");
         assertThat(order).isNotNull();
         assertThat(order.getDirection()).isEqualTo(Sort.Direction.ASC);
@@ -145,13 +146,13 @@ class ScrapServiceTest {
     @Test
     @DisplayName("sort=newest → createdAt DESC 정렬 적용")
     void getScraps_newestSort_appliesDescSort() {
-        given(scrapRepository.findScrapsWithSearch(any(), any(), any()))
+        given(scrapRepository.findScraps(any(), any()))
                 .willReturn(Page.empty());
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
 
         scrapService.getScraps(userId, null, "newest", Pageable.ofSize(10));
 
-        verify(scrapRepository).findScrapsWithSearch(any(), any(), pageableCaptor.capture());
+        verify(scrapRepository).findScraps(any(), pageableCaptor.capture());
         Sort.Order order = pageableCaptor.getValue().getSort().getOrderFor("createdAt");
         assertThat(order).isNotNull();
         assertThat(order.getDirection()).isEqualTo(Sort.Direction.DESC);
@@ -160,7 +161,7 @@ class ScrapServiceTest {
     @Test
     @DisplayName("AI 요약 있으면 summary 필드에 AI 요약 반환")
     void getScraps_withAiSummary_returnsSummary() {
-        given(scrapRepository.findScrapsWithSearch(any(), any(), any()))
+        given(scrapRepository.findScraps(any(), any()))
                 .willReturn(new PageImpl<>(List.of(scrap)));
         given(aiSummaryRepository.batchFindCoreSummaries(anyList(), anyString()))
                 .willReturn(Map.of(contentId, "AI 핵심 요약"));
@@ -173,7 +174,7 @@ class ScrapServiceTest {
     @Test
     @DisplayName("AI 요약 없으면 원문 미리보기(preview) fallback")
     void getScraps_noAiSummary_returnsPreviewFallback() {
-        given(scrapRepository.findScrapsWithSearch(any(), any(), any()))
+        given(scrapRepository.findScraps(any(), any()))
                 .willReturn(new PageImpl<>(List.of(scrap)));
         given(aiSummaryRepository.batchFindCoreSummaries(anyList(), anyString()))
                 .willReturn(Map.of());
@@ -184,9 +185,21 @@ class ScrapServiceTest {
     }
 
     @Test
+    @DisplayName("검색어 있으면 findScrapsWithSearch 호출")
+    void getScraps_withQuery_callsFindScrapsWithSearch() {
+        given(scrapRepository.findScrapsWithSearch(any(), eq("spring"), any()))
+                .willReturn(new PageImpl<>(List.of(scrap)));
+
+        ScrapListResponse result = scrapService.getScraps(userId, "spring", "newest", Pageable.ofSize(10));
+
+        assertThat(result.content()).hasSize(1);
+        verify(scrapRepository).findScrapsWithSearch(eq(userId), eq("spring"), any());
+    }
+
+    @Test
     @DisplayName("DynamoDB 예외 시 원문 미리보기로 fallback")
     void getScraps_dynamoDbException_returnsPreviewFallback() {
-        given(scrapRepository.findScrapsWithSearch(any(), any(), any()))
+        given(scrapRepository.findScraps(any(), any()))
                 .willReturn(new PageImpl<>(List.of(scrap)));
         given(aiSummaryRepository.batchFindCoreSummaries(anyList(), anyString()))
                 .willThrow(new RuntimeException("DynamoDB 연결 실패"));

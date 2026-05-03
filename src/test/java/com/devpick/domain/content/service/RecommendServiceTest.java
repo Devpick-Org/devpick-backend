@@ -232,6 +232,31 @@ class RecommendServiceTest {
     }
 
     @Test
+    @DisplayName("history 태그 없고 user_tags 있지만 후보 없으면 → latest fallback, isPersonalized=false")
+    void getRecommendContents_userTagsButNoCandidates_fallsBackToLatest() throws JsonProcessingException {
+        given(valueOps.get(anyString())).willReturn(null);
+        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(List.of());
+        given(objectMapper.writeValueAsString(any())).willReturn("[]");
+
+        UUID userTagId = UUID.randomUUID();
+        Tag tag = Tag.builder().name("Kotlin").build();
+        ReflectionTestUtils.setField(tag, "id", userTagId);
+        UserTag userTag = UserTag.builder().tag(tag).build();
+        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
+        given(contentRepository.findRecommendCandidatesByTags(eq(List.of(userTagId)), eq(userId), any()))
+                .willReturn(List.of());
+        given(contentRepository.findLatestExcludingYoutubeAndScrapped(eq(userId), any()))
+                .willReturn(tenContents);
+
+        RecommendContentsResponse result = recommendService.getRecommendContents(userId);
+
+        assertThat(result.isPersonalized()).isFalse();
+        assertThat(result.message()).isEqualTo(RecommendService.NOT_ENOUGH_MESSAGE);
+        verify(contentRepository).findLatestExcludingYoutubeAndScrapped(eq(userId), any());
+    }
+
+    @Test
     @DisplayName("Redis 역직렬화 실패 시 history 쿼리 실행")
     void getOrCacheTagIds_deserializeFails_fallsBackToHistoryQuery() throws JsonProcessingException {
         UUID tagId = UUID.randomUUID();
@@ -416,6 +441,29 @@ class RecommendServiceTest {
         assertThat(result.videos()).hasSize(10);
         assertThat(result.videos()).allMatch(v -> v.videoId() == null);
         assertThat(result.videos()).allMatch(v -> v.channelName() == null);
+    }
+
+    @Test
+    @DisplayName("YouTube - user_tags 있지만 후보 없으면 → 빈 배열 반환, isPersonalized=false")
+    void getRecommendYoutube_userTagsButNoCandidates_returnsEmpty() throws JsonProcessingException {
+        given(valueOps.get(anyString())).willReturn(null);
+        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(List.of());
+        given(objectMapper.writeValueAsString(any())).willReturn("[]");
+
+        UUID userTagId = UUID.randomUUID();
+        Tag tag = Tag.builder().name("Kotlin").build();
+        ReflectionTestUtils.setField(tag, "id", userTagId);
+        UserTag userTag = UserTag.builder().tag(tag).build();
+        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
+        given(contentRepository.findYoutubeRecommendCandidatesByTags(eq(List.of(userTagId)), eq(userId), any()))
+                .willReturn(List.of());
+
+        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
+
+        assertThat(result.videos()).isEmpty();
+        assertThat(result.isPersonalized()).isFalse();
+        assertThat(result.message()).isEqualTo(RecommendService.NOT_ENOUGH_MESSAGE);
     }
 
     @Test

@@ -73,7 +73,9 @@ public class RecommendService {
         if (!userTagIds.isEmpty()) {
             List<Content> candidates = contentRepository.findRecommendCandidatesByTags(
                     userTagIds, userId, PageRequest.of(0, CANDIDATE_LIMIT));
-            return buildResponse(shuffleAndTake(candidates, userId), userId, true, null);
+            if (!candidates.isEmpty()) {
+                return buildResponse(shuffleAndTake(candidates, userId), userId, true, null);
+            }
         }
 
         List<Content> latest = contentRepository.findLatestExcludingYoutubeAndScrapped(
@@ -144,7 +146,9 @@ public class RecommendService {
         if (!userTagIds.isEmpty()) {
             List<Content> candidates = contentRepository.findYoutubeRecommendCandidatesByTags(
                     userTagIds, userId, PageRequest.of(0, CANDIDATE_LIMIT));
-            return buildYoutubeResponse(shuffleAndTake(candidates, userId), userId, true, null);
+            if (!candidates.isEmpty()) {
+                return buildYoutubeResponse(shuffleAndTake(candidates, userId), userId, true, null);
+            }
         }
 
         return new YoutubeRecommendResponse(List.of(), false, NOT_ENOUGH_MESSAGE);
