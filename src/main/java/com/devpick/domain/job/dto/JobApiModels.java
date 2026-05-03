@@ -24,6 +24,12 @@ public final class JobApiModels {
             String source
     ) {}
 
+    public record CompanyFacetResponse(
+            String name,
+            long count,
+            String logoUrl
+    ) {}
+
     public record JobListItemResponse(
             String id,
             String companyName,

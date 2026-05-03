@@ -1,6 +1,7 @@
 package com.devpick.domain.job.controller;
 
 import com.devpick.domain.job.dto.JobApiModels.InterviewQaListItemResponse;
+import com.devpick.domain.job.dto.JobApiModels.CompanyFacetResponse;
 import com.devpick.domain.job.dto.JobApiModels.InterviewQaPayloadResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobDetailResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobListPageResponse;
@@ -44,10 +45,11 @@ public class JobController {
             @RequestParam(required = false) String experienceLevel,
             @RequestParam(required = false) String location,
             @RequestParam(required = false) String techStack,
+            @RequestParam(required = false) String companies,
             @RequestParam(required = false, defaultValue = "MATCH") String sortBy
     ) {
         return ApiResponse.ok(jobService.listJobs(
-                userId, page, size, query, category, experienceLevel, location, techStack, sortBy));
+                userId, page, size, query, category, experienceLevel, location, techStack, companies, sortBy));
     }
 
     @Operation(summary = "공고 기반 기술 태그 빈도 목록")
@@ -56,6 +58,14 @@ public class JobController {
             @RequestParam(required = false) Integer limit
     ) {
         return ApiResponse.ok(jobService.listTechTagFacets(limit));
+    }
+
+    @Operation(summary = "공고 회사 빈도 목록")
+    @GetMapping("/companies")
+    public ApiResponse<List<CompanyFacetResponse>> listCompanies(
+            @RequestParam(required = false) Integer limit
+    ) {
+        return ApiResponse.ok(jobService.listCompanyFacets(limit));
     }
 
     @Operation(summary = "저장된 면접 Q&A 목록")

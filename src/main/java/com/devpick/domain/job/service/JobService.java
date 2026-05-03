@@ -3,6 +3,7 @@ package com.devpick.domain.job.service;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.job.client.JobAiClient;
+import com.devpick.domain.job.dto.JobApiModels.CompanyFacetResponse;
 import com.devpick.domain.job.dto.JobApiModels.ContentPickResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobDetailResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobListItemResponse;
@@ -81,6 +82,18 @@ public class JobService {
     }
 
     @Transactional(readOnly = true)
+    public List<CompanyFacetResponse> listCompanyFacets(Integer limit) {
+        int boundedLimit = limit == null ? TECH_TAG_FACET_LIMIT : Math.max(1, Math.min(limit, 200));
+        return jobPostingRepository.findTopCompanyFacets(boundedLimit).stream()
+                .map(row -> new CompanyFacetResponse(
+                        row.getName(),
+                        row.getCount() != null ? row.getCount() : 0L,
+                        row.getLogoUrl()
+                ))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public JobListPageResponse listJobs(
             UUID userId,
             int page,
@@ -90,14 +103,17 @@ public class JobService {
             String experienceLevel,
             String location,
             String techStackParam,
+            String companiesParam,
             String sortBy
     ) {
         List<String> techStack = parseTechStackParam(techStackParam);
+        List<String> companies = parseCsvParam(companiesParam);
         Specification<JobPosting> spec = Specification.allOf(
                 JobPostingSpecifications.keyword(query),
                 parseCategorySpec(category),
                 parseExperienceSpec(experienceLevel),
                 JobPostingSpecifications.locationContains(location),
+                JobPostingSpecifications.companyIn(companies),
                 JobPostingSpecifications.anyTechStack(techStack),
                 JobPostingSpecifications.listableQuality()
         );
@@ -157,6 +173,10 @@ public class JobService {
     }
 
     private List<String> parseTechStackParam(String raw) {
+        return parseCsvParam(raw);
+    }
+
+    private List<String> parseCsvParam(String raw) {
         if (raw == null || raw.isBlank()) {
             return List.of();
         }

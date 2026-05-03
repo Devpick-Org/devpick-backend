@@ -20,6 +20,12 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, UUID>, J
         Long getCount();
     }
 
+    interface CompanyFacetRow {
+        String getName();
+        Long getCount();
+        String getLogoUrl();
+    }
+
     Optional<JobPosting> findBySourceUrl(String sourceUrl);
 
     @Query(value = """
@@ -76,6 +82,24 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, UUID>, J
             LIMIT :limit
             """, nativeQuery = true)
     List<TechTagFacetRow> findTopTechTagFacets(@Param("limit") int limit);
+
+    @Query(value = """
+            SELECT company_name AS name,
+                   COUNT(*) AS count,
+                   MIN(NULLIF(company_logo_url, '')) AS logoUrl
+            FROM job_postings
+            WHERE company_name IS NOT NULL
+              AND trim(company_name) <> ''
+              AND length(lower(company_name)) >= 2
+              AND lower(company_name) NOT LIKE '%더미%'
+              AND title IS NOT NULL
+              AND length(lower(title)) >= 2
+              AND lower(title) NOT LIKE '%더미%'
+            GROUP BY company_name
+            ORDER BY COUNT(*) DESC, lower(company_name) ASC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<CompanyFacetRow> findTopCompanyFacets(@Param("limit") int limit);
 
     @Modifying
     @Query("UPDATE JobPosting j SET j.status = :expired " +

@@ -72,6 +72,21 @@ public final class JobPostingSpecifications {
         return (root, query, cb) -> cb.like(cb.lower(root.get("location")), pattern);
     }
 
+    public static Specification<JobPosting> companyIn(List<String> companies) {
+        if (companies == null || companies.isEmpty()) {
+            return (root, query, cb) -> cb.conjunction();
+        }
+        List<String> normalized = companies.stream()
+                .map(s -> s == null ? "" : s.trim().toLowerCase(Locale.ROOT))
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .toList();
+        if (normalized.isEmpty()) {
+            return (root, query, cb) -> cb.conjunction();
+        }
+        return (root, query, cb) -> cb.lower(root.get("companyName")).in(normalized);
+    }
+
     public static Specification<JobPosting> anyTechStack(List<String> techStack) {
         if (techStack == null || techStack.isEmpty()) {
             return (root, query, cb) -> cb.conjunction();
