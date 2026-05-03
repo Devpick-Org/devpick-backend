@@ -625,8 +625,8 @@ class AiQuizServiceTest {
         QuizResultResponse result = aiQuizService.getQuizResult(userId, attemptId);
 
         assertThat(result.attemptId()).isEqualTo(attemptId);
-        assertThat(result.quiz()).isNotNull();
-        assertThat(result.quiz().questions()).hasSize(1);
+        assertThat(result.questions()).isNotNull();
+        assertThat(result.questions()).hasSize(1);
         assertThat(result.myAnswers()).hasSize(1);
         assertThat(result.myAnswers().getFirst().questionId()).isEqualTo("q-1");
         assertThat(result.myAnswers().getFirst().isCorrect()).isTrue();

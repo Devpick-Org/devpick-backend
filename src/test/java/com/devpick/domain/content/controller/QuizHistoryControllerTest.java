@@ -121,16 +121,15 @@ class QuizHistoryControllerTest {
         AiQuizDocument.Question q = AiQuizDocument.Question.builder()
                 .id("q-1").type("multiple_choice").question("문제1")
                 .options(List.of(opt)).correctOptionId("opt-1").explanation("해설1").correctAnswer("").build();
-        QuizResultResponse.QuizData quizData = new QuizResultResponse.QuizData(List.of(q), 2);
         QuizResultResponse.MyAnswer myAnswer = new QuizResultResponse.MyAnswer("q-1", "opt-1", null, true);
         QuizResultResponse response = new QuizResultResponse(
-                attemptId, contentId, 2, 3, false, 0, quizData, List.of(myAnswer));
+                attemptId, contentId, 2, 3, false, 0, 2, List.of(q), List.of(myAnswer));
         given(aiQuizService.getQuizResult(eq(userId), eq(attemptId))).willReturn(response);
 
         mockMvc.perform(get("/quiz-history/" + attemptId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.quiz.questions[0].question").value("문제1"))
+                .andExpect(jsonPath("$.data.questions[0].question").value("문제1"))
                 .andExpect(jsonPath("$.data.myAnswers[0].questionId").value("q-1"));
     }
 
