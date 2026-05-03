@@ -8,6 +8,8 @@ import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.content.repository.LikeRepository;
 import com.devpick.domain.report.repository.HistoryRepository;
+import com.devpick.domain.user.entity.Tag;
+import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.domain.user.repository.UserTagRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -25,10 +27,12 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -49,6 +53,7 @@ public class RecommendService {
     private final HistoryRepository historyRepository;
     private final ContentRepository contentRepository;
     private final UserTagRepository userTagRepository;
+    private final TagRepository tagRepository;
     private final LikeRepository likeRepository;
     private final AiSummaryService aiSummaryService;
     private final StringRedisTemplate redisTemplate;
@@ -59,20 +64,21 @@ public class RecommendService {
         List<UUID> tagIds = getOrCacheTagIds(userId);
 
         if (!tagIds.isEmpty()) {
-            List<Content> candidates = contentRepository.findRecommendCandidatesByTags(
-                    tagIds, userId, PageRequest.of(0, CANDIDATE_LIMIT));
-            if (candidates.size() >= RESULT_SIZE) {
-                return buildResponse(shuffleAndTake(candidates, userId), userId, true, null);
+            List<String> tagNames = tagRepository.findAllById(tagIds).stream()
+                    .map(Tag::getName).toList();
+            if (!tagNames.isEmpty()) {
+                List<Content> candidates = findByTagNamesInTitle(tagNames, userId, CANDIDATE_LIMIT);
+                if (candidates.size() >= RESULT_SIZE) {
+                    return buildResponse(shuffleAndTake(candidates, userId), userId, true, null);
+                }
             }
         }
 
-        List<UUID> userTagIds = userTagRepository.findByUser_Id(userId).stream()
-                .map(ut -> ut.getTag().getId())
-                .toList();
+        List<String> userTagNames = userTagRepository.findByUser_Id(userId).stream()
+                .map(ut -> ut.getTag().getName()).toList();
 
-        if (!userTagIds.isEmpty()) {
-            List<Content> candidates = contentRepository.findRecommendCandidatesByTags(
-                    userTagIds, userId, PageRequest.of(0, CANDIDATE_LIMIT));
+        if (!userTagNames.isEmpty()) {
+            List<Content> candidates = findByTagNamesInTitle(userTagNames, userId, CANDIDATE_LIMIT);
             if (!candidates.isEmpty()) {
                 return buildResponse(shuffleAndTake(candidates, userId), userId, true, null);
             }
@@ -81,6 +87,38 @@ public class RecommendService {
         List<Content> latest = contentRepository.findLatestExcludingYoutubeAndScrapped(
                 userId, PageRequest.of(0, CANDIDATE_LIMIT));
         return buildResponse(shuffleAndTake(latest, userId), userId, false, NOT_ENOUGH_MESSAGE);
+    }
+
+    private List<Content> findByTagNamesInTitle(List<String> tagNames, UUID userId, int limit) {
+        Set<UUID> seen = new LinkedHashSet<>();
+        List<Content> result = new ArrayList<>();
+        for (String tagName : tagNames) {
+            for (Content c : contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(
+                    tagName, userId, PageRequest.of(0, limit))) {
+                UUID id = c.getId();
+                if (id != null && seen.add(id)) {
+                    result.add(c);
+                    if (result.size() >= limit) return result;
+                }
+            }
+        }
+        return result;
+    }
+
+    private List<Content> findYoutubeByTagNamesInTitle(List<String> tagNames, UUID userId, int limit) {
+        Set<UUID> seen = new LinkedHashSet<>();
+        List<Content> result = new ArrayList<>();
+        for (String tagName : tagNames) {
+            for (Content c : contentRepository.findYoutubeByTagNameInTitle(
+                    tagName, userId, PageRequest.of(0, limit))) {
+                UUID id = c.getId();
+                if (id != null && seen.add(id)) {
+                    result.add(c);
+                    if (result.size() >= limit) return result;
+                }
+            }
+        }
+        return result;
     }
 
     List<UUID> getOrCacheTagIds(UUID userId) {
@@ -132,20 +170,21 @@ public class RecommendService {
         List<UUID> tagIds = getOrCacheTagIds(userId);
 
         if (!tagIds.isEmpty()) {
-            List<Content> candidates = contentRepository.findYoutubeRecommendCandidatesByTags(
-                    tagIds, userId, PageRequest.of(0, CANDIDATE_LIMIT));
-            if (candidates.size() >= RESULT_SIZE) {
-                return buildYoutubeResponse(shuffleAndTake(candidates, userId), userId, true, null);
+            List<String> tagNames = tagRepository.findAllById(tagIds).stream()
+                    .map(Tag::getName).toList();
+            if (!tagNames.isEmpty()) {
+                List<Content> candidates = findYoutubeByTagNamesInTitle(tagNames, userId, CANDIDATE_LIMIT);
+                if (candidates.size() >= RESULT_SIZE) {
+                    return buildYoutubeResponse(shuffleAndTake(candidates, userId), userId, true, null);
+                }
             }
         }
 
-        List<UUID> userTagIds = userTagRepository.findByUser_Id(userId).stream()
-                .map(ut -> ut.getTag().getId())
-                .toList();
+        List<String> userTagNames = userTagRepository.findByUser_Id(userId).stream()
+                .map(ut -> ut.getTag().getName()).toList();
 
-        if (!userTagIds.isEmpty()) {
-            List<Content> candidates = contentRepository.findYoutubeRecommendCandidatesByTags(
-                    userTagIds, userId, PageRequest.of(0, CANDIDATE_LIMIT));
+        if (!userTagNames.isEmpty()) {
+            List<Content> candidates = findYoutubeByTagNamesInTitle(userTagNames, userId, CANDIDATE_LIMIT);
             if (!candidates.isEmpty()) {
                 return buildYoutubeResponse(shuffleAndTake(candidates, userId), userId, true, null);
             }
