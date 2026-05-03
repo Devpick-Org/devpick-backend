@@ -631,4 +631,32 @@ class AiQuizServiceTest {
         assertThat(result.myAnswers().getFirst().questionId()).isEqualTo("q-1");
         assertThat(result.myAnswers().getFirst().isCorrect()).isTrue();
     }
+
+    @Test
+    @DisplayName("getQuizResult — DynamoDB questions null 이면 빈 리스트 반환")
+    void getQuizResult_documentQuestionsNull_returnsEmptyQuestions() {
+        UUID attemptId = UUID.randomUUID();
+        QuizAttempt attempt = QuizAttempt.builder()
+                .user(user).content(content).level(aiLevel).score(0).totalQuestions(3).passed(false).build();
+        ReflectionTestUtils.setField(attempt, "id", attemptId);
+        ReflectionTestUtils.setField(attempt, "createdAt", LocalDateTime.now());
+
+        AiQuizDocument nullQuestionsDoc = AiQuizDocument.builder()
+                .contentId(contentId.toString()).level(aiLevel).title("Spring 가이드")
+                .questions(null).passingCount(2).estimatedMinutes(5)
+                .cachedAt(LocalDateTime.now()).expiresAt(LocalDateTime.now().plusDays(7))
+                .build();
+
+        given(quizAttemptRepository.findById(attemptId)).willReturn(Optional.of(attempt));
+        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), aiLevel))
+                .willReturn(Optional.of(nullQuestionsDoc));
+        given(quizAttemptAnswerRepository.findByAttempt_Id(attemptId)).willReturn(List.of());
+        given(pointLogRepository.sumPointsByUser_IdAndActionAndReferenceId(userId, PointAction.AI_QUIZ_PASS, contentId))
+                .willReturn(0);
+
+        QuizResultResponse result = aiQuizService.getQuizResult(userId, attemptId);
+
+        assertThat(result.questions()).isEmpty();
+        assertThat(result.myAnswers()).isEmpty();
+    }
 }

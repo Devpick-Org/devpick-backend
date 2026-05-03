@@ -184,6 +184,18 @@ class ScrapServiceTest {
     }
 
     @Test
+    @DisplayName("검색어 있으면 findScrapsWithSearch 호출")
+    void getScraps_withQuery_callsFindScrapsWithSearch() {
+        given(scrapRepository.findScrapsWithSearch(any(), eq("spring"), any()))
+                .willReturn(new PageImpl<>(List.of(scrap)));
+
+        ScrapListResponse result = scrapService.getScraps(userId, "spring", "newest", Pageable.ofSize(10));
+
+        assertThat(result.content()).hasSize(1);
+        verify(scrapRepository).findScrapsWithSearch(eq(userId), eq("spring"), any());
+    }
+
+    @Test
     @DisplayName("DynamoDB 예외 시 원문 미리보기로 fallback")
     void getScraps_dynamoDbException_returnsPreviewFallback() {
         given(scrapRepository.findScraps(any(), any()))
