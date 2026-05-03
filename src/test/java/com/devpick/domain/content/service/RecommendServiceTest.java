@@ -346,20 +346,22 @@ class RecommendServiceTest {
     }
 
     @Test
-    @DisplayName("YouTube - history 태그 없고 user_tags도 없으면 → 빈 배열 반환, isPersonalized=false")
-    void getRecommendYoutube_noTags_returnsEmpty() throws JsonProcessingException {
+    @DisplayName("YouTube - history 태그 없고 user_tags도 없으면 → 최신 YouTube fallback, isPersonalized=false")
+    void getRecommendYoutube_noTags_fallsBackToLatest() throws JsonProcessingException {
         given(valueOps.get(anyString())).willReturn(null);
         given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
                 .willReturn(List.of());
         given(objectMapper.writeValueAsString(any())).willReturn("[]");
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of());
+        given(contentRepository.findLatestYoutubeExcludingScrapped(eq(userId), any()))
+                .willReturn(tenContents);
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 
-        assertThat(result.videos()).isEmpty();
+        assertThat(result.videos()).hasSize(10);
         assertThat(result.isPersonalized()).isFalse();
         assertThat(result.message()).isEqualTo(RecommendService.NOT_ENOUGH_MESSAGE);
-        verify(contentRepository, never()).findLatestYoutubeExcludingScrapped(any(), any());
+        verify(contentRepository).findLatestYoutubeExcludingScrapped(eq(userId), any());
     }
 
     @Test
@@ -456,8 +458,8 @@ class RecommendServiceTest {
     }
 
     @Test
-    @DisplayName("YouTube - user_tags 있지만 후보 없으면 → 빈 배열 반환, isPersonalized=false")
-    void getRecommendYoutube_userTagsButNoCandidates_returnsEmpty() throws JsonProcessingException {
+    @DisplayName("YouTube - user_tags 있지만 후보 없으면 → 최신 YouTube fallback, isPersonalized=false")
+    void getRecommendYoutube_userTagsButNoCandidates_fallsBackToLatest() throws JsonProcessingException {
         given(valueOps.get(anyString())).willReturn(null);
         given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
                 .willReturn(List.of());
@@ -470,12 +472,15 @@ class RecommendServiceTest {
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
         given(contentRepository.findYoutubeByTagNameInTitle(eq("Kotlin"), eq(userId), any()))
                 .willReturn(List.of());
+        given(contentRepository.findLatestYoutubeExcludingScrapped(eq(userId), any()))
+                .willReturn(tenContents);
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 
-        assertThat(result.videos()).isEmpty();
+        assertThat(result.videos()).hasSize(10);
         assertThat(result.isPersonalized()).isFalse();
         assertThat(result.message()).isEqualTo(RecommendService.NOT_ENOUGH_MESSAGE);
+        verify(contentRepository).findLatestYoutubeExcludingScrapped(eq(userId), any());
     }
 
     @Test
