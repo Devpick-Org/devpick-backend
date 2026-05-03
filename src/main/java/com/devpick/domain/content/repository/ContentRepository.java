@@ -37,7 +37,8 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     @Query("SELECT c FROM Content c " +
            "WHERE c.isAvailable = true " +
            "AND c.source.name <> 'YouTube' " +
-           "AND LOWER(c.title) LIKE LOWER(CONCAT('%', :tagName, '%')) " +
+           "AND (LOWER(c.title) LIKE LOWER(CONCAT('%', :tagName, '%')) " +
+           "OR LOWER(c.preview) LIKE LOWER(CONCAT('%', :tagName, '%'))) " +
            "AND NOT EXISTS (SELECT s FROM Scrap s WHERE s.user.id = :userId AND s.content = c) " +
            "ORDER BY c.publishedAt DESC")
     List<Content> findByTagNameInTitleExcludingYoutubeAndScrapped(
