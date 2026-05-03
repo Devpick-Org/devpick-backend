@@ -39,6 +39,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -142,9 +143,20 @@ public class JobService {
             return new JobListPageResponse(items, total, Math.max(1, totalPages), page, size);
         }
 
-        Sort jpaSort = "LATEST".equalsIgnoreCase(sort)
-                ? Sort.by(Sort.Order.desc("createdAt"))
-                : Sort.by(Sort.Order.desc("deadline").nullsLast(), Sort.Order.desc("createdAt"));
+        if ("DEADLINE".equalsIgnoreCase(sort)) {
+            List<JobPosting> all = jobPostingRepository.findAll(spec, PageRequest.of(0, MATCH_SORT_CAP)).getContent();
+            List<JobPosting> sorted = all.stream().sorted(deadlineImminentOrder()).toList();
+            long total = sorted.size();
+            int totalPages = (int) Math.ceil(total / (double) size);
+            int from = page * size;
+            List<JobPosting> slice = sorted.stream().skip(from).limit(size).toList();
+            List<JobListItemResponse> items = slice.stream()
+                    .map(p -> toListItem(p, userSkills, bookmarked.contains(p.getId())))
+                    .toList();
+            return new JobListPageResponse(items, total, Math.max(1, totalPages), page, size);
+        }
+
+        Sort jpaSort = Sort.by(Sort.Order.desc("createdAt"));
         Page<JobPosting> result = jobPostingRepository.findAll(spec, PageRequest.of(page, size, jpaSort));
         List<JobListItemResponse> items = result.getContent().stream()
                 .map(p -> toListItem(p, userSkills, bookmarked.contains(p.getId())))
@@ -156,6 +168,16 @@ public class JobService {
                 page,
                 size
         );
+    }
+
+    /**
+     * 마감일이 있는 공고를 오름차순(임박 순), 마감일 없음은 맨 뒤. 동일 시 최신 수집 순.
+     * JPA Sort + deadline nullsLast + Specification 조합에서 빈 페이지가 나오는 이슈를 피하기 위해 인메모리 정렬한다.
+     */
+    private static Comparator<JobPosting> deadlineImminentOrder() {
+        return Comparator
+                .comparing((JobPosting p) -> p.getDeadline() != null ? p.getDeadline() : LocalDate.MAX)
+                .thenComparing(JobPosting::getCreatedAt, Comparator.reverseOrder());
     }
 
     private record ScoredPosting(JobPosting posting, JobMatchingCalculator.MatchResult match) {}
