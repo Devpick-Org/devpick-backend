@@ -31,6 +31,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JobController {
 
+    /**
+     * {@code /jobs/mock-interviews} 등 하위 리소스가 {@code /{jobId}}에 매칭되어 UUID 파싱 400이 나지 않도록 제한한다.
+     */
+    private static final String JOB_ID = "{jobId:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}}";
+
     private final JobService jobService;
     private final JobInterviewService jobInterviewService;
 
@@ -76,7 +81,7 @@ public class JobController {
     }
 
     @Operation(summary = "채용 공고 상세")
-    @GetMapping("/{jobId}")
+    @GetMapping("/" + JOB_ID)
     public ApiResponse<JobDetailResponse> detail(
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID jobId) {
@@ -84,7 +89,7 @@ public class JobController {
     }
 
     @Operation(summary = "공고 북마크")
-    @PostMapping("/{jobId}/bookmark")
+    @PostMapping("/" + JOB_ID + "/bookmark")
     public ApiResponse<Void> bookmark(
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID jobId) {
@@ -93,7 +98,7 @@ public class JobController {
     }
 
     @Operation(summary = "공고 북마크 해제")
-    @DeleteMapping("/{jobId}/bookmark")
+    @DeleteMapping("/" + JOB_ID + "/bookmark")
     public ApiResponse<Void> unbookmark(
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID jobId) {
@@ -102,7 +107,7 @@ public class JobController {
     }
 
     @Operation(summary = "부족 역량 보완 추천")
-    @PostMapping("/{jobId}/skill-gap")
+    @PostMapping("/" + JOB_ID + "/skill-gap")
     public ApiResponse<SkillGapResponse> skillGap(
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID jobId) {
@@ -110,7 +115,7 @@ public class JobController {
     }
 
     @Operation(summary = "면접 Q&A 조회")
-    @GetMapping("/{jobId}/interview-qa")
+    @GetMapping("/" + JOB_ID + "/interview-qa")
     public ApiResponse<InterviewQaPayloadResponse> getInterviewQa(
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID jobId) {
@@ -119,7 +124,7 @@ public class JobController {
     }
 
     @Operation(summary = "면접 Q&A 생성·저장")
-    @PostMapping("/{jobId}/interview-qa/generate")
+    @PostMapping("/" + JOB_ID + "/interview-qa/generate")
     public ApiResponse<InterviewQaPayloadResponse> generateInterviewQa(
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID jobId) {
@@ -128,7 +133,7 @@ public class JobController {
     }
 
     @Operation(summary = "면접 Q&A 삭제")
-    @DeleteMapping("/{jobId}/interview-qa")
+    @DeleteMapping("/" + JOB_ID + "/interview-qa")
     public ApiResponse<Void> deleteInterviewQa(
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID jobId) {
