@@ -37,8 +37,11 @@ jobs:
             export GIT_TERMINAL_PROMPT=0
 
             git remote -v || true
-            git fetch origin developV2 || {
-              echo "::error title=GIT_FETCH_FAILED::EC2 에서 git fetch 에 실패했습니다. 원격 저장소가 private 면 배포 호스트 SSH 키/HTTPS 토큰(deploy token) 설정을 확인하세요."
+            # EC2 쪽 원격 추적 ref 가 꼬이면 다음 오류가 난다:
+            #   cannot lock ref 'refs/remotes/origin/developV2': is at ... but expected ...
+            git remote prune origin || true
+            git fetch origin "+refs/heads/developV2:refs/remotes/origin/developV2" || {
+              echo "::error title=GIT_FETCH_FAILED::원격 브랜치를 가져오지 못했습니다(EC2 저장소 상태나 네트워크·private repo 접근 확인)."
               exit 1
             }
             git checkout developV2
