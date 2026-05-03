@@ -9,6 +9,7 @@ import com.devpick.domain.content.repository.LikeRepository;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.entity.UserTag;
 import com.devpick.domain.user.entity.Tag;
+import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.domain.user.repository.UserTagRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -35,7 +36,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -51,6 +51,7 @@ class RecommendServiceTest {
     @Mock private HistoryRepository historyRepository;
     @Mock private ContentRepository contentRepository;
     @Mock private UserTagRepository userTagRepository;
+    @Mock private TagRepository tagRepository;
     @Mock private LikeRepository likeRepository;
     @Mock private AiSummaryService aiSummaryService;
     @Mock private StringRedisTemplate redisTemplate;
@@ -93,7 +94,9 @@ class RecommendServiceTest {
         given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
                 .willReturn(tagIds);
         given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        given(contentRepository.findRecommendCandidatesByTags(eq(tagIds), eq(userId), any()))
+        Tag tag = Tag.builder().name("Java").build();
+        given(tagRepository.findAllById(any())).willReturn(List.of(tag));
+        given(contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(anyString(), eq(userId), any()))
                 .willReturn(tenContents);
 
         RecommendContentsResponse result = recommendService.getRecommendContents(userId);
@@ -107,25 +110,25 @@ class RecommendServiceTest {
     @Test
     @DisplayName("history 태그 기반 후보 10개 미만 → user_tags fallback, isPersonalized=true")
     void getRecommendContents_historyTagsInsufficient_fallsBackToUserTags() throws JsonProcessingException {
-        UUID tagId = UUID.randomUUID();
-        List<UUID> historyTagIds = List.of(tagId);
+        List<UUID> historyTagIds = List.of(UUID.randomUUID());
         List<Content> fewContents = tenContents.subList(0, 5);
 
         given(valueOps.get(anyString())).willReturn(null);
         given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
                 .willReturn(historyTagIds);
         given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        given(contentRepository.findRecommendCandidatesByTags(eq(historyTagIds), eq(userId), any()))
+
+        Tag histTag = Tag.builder().name("History").build();
+        given(tagRepository.findAllById(any())).willReturn(List.of(histTag));
+        given(contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(eq("History"), eq(userId), any()))
                 .willReturn(fewContents);
 
         UUID userTagId = UUID.randomUUID();
-        Tag tag = Tag.builder().name("Spring").build();
-        ReflectionTestUtils.setField(tag, "id", userTagId);
-        UserTag userTag = UserTag.builder().tag(tag).build();
+        Tag springTag = Tag.builder().name("Spring").build();
+        ReflectionTestUtils.setField(springTag, "id", userTagId);
+        UserTag userTag = UserTag.builder().tag(springTag).build();
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-
-        List<UUID> userTagIds = List.of(userTagId);
-        given(contentRepository.findRecommendCandidatesByTags(eq(userTagIds), eq(userId), any()))
+        given(contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(eq("Spring"), eq(userId), any()))
                 .willReturn(tenContents);
 
         RecommendContentsResponse result = recommendService.getRecommendContents(userId);
@@ -220,7 +223,7 @@ class RecommendServiceTest {
         ReflectionTestUtils.setField(tag, "id", userTagId);
         UserTag userTag = UserTag.builder().tag(tag).build();
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findRecommendCandidatesByTags(eq(List.of(userTagId)), eq(userId), any()))
+        given(contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(eq("Kotlin"), eq(userId), any()))
                 .willReturn(tenContents);
 
         RecommendContentsResponse result = recommendService.getRecommendContents(userId);
@@ -244,7 +247,7 @@ class RecommendServiceTest {
         ReflectionTestUtils.setField(tag, "id", userTagId);
         UserTag userTag = UserTag.builder().tag(tag).build();
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findRecommendCandidatesByTags(eq(List.of(userTagId)), eq(userId), any()))
+        given(contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(eq("Kotlin"), eq(userId), any()))
                 .willReturn(List.of());
         given(contentRepository.findLatestExcludingYoutubeAndScrapped(eq(userId), any()))
                 .willReturn(tenContents);
@@ -298,7 +301,9 @@ class RecommendServiceTest {
         given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
                 .willReturn(tagIds);
         given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        given(contentRepository.findYoutubeRecommendCandidatesByTags(eq(tagIds), eq(userId), any()))
+        Tag tag = Tag.builder().name("Java").build();
+        given(tagRepository.findAllById(any())).willReturn(List.of(tag));
+        given(contentRepository.findYoutubeByTagNameInTitle(anyString(), eq(userId), any()))
                 .willReturn(tenContents);
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
@@ -319,15 +324,18 @@ class RecommendServiceTest {
         given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
                 .willReturn(historyTagIds);
         given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        given(contentRepository.findYoutubeRecommendCandidatesByTags(eq(historyTagIds), eq(userId), any()))
+
+        Tag histTag = Tag.builder().name("History").build();
+        given(tagRepository.findAllById(any())).willReturn(List.of(histTag));
+        given(contentRepository.findYoutubeByTagNameInTitle(eq("History"), eq(userId), any()))
                 .willReturn(fewContents);
 
         UUID userTagId = UUID.randomUUID();
-        Tag tag = Tag.builder().name("Spring").build();
-        ReflectionTestUtils.setField(tag, "id", userTagId);
-        UserTag userTag = UserTag.builder().tag(tag).build();
+        Tag springTag = Tag.builder().name("Spring").build();
+        ReflectionTestUtils.setField(springTag, "id", userTagId);
+        UserTag userTag = UserTag.builder().tag(springTag).build();
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findYoutubeRecommendCandidatesByTags(eq(List.of(userTagId)), eq(userId), any()))
+        given(contentRepository.findYoutubeByTagNameInTitle(eq("Spring"), eq(userId), any()))
                 .willReturn(tenContents);
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
@@ -367,7 +375,7 @@ class RecommendServiceTest {
         ReflectionTestUtils.setField(tag, "id", userTagId);
         UserTag userTag = UserTag.builder().tag(tag).build();
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findYoutubeRecommendCandidatesByTags(eq(List.of(userTagId)), eq(userId), any()))
+        given(contentRepository.findYoutubeByTagNameInTitle(eq("Kotlin"), eq(userId), any()))
                 .willReturn(tenContents);
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
@@ -398,7 +406,9 @@ class RecommendServiceTest {
         given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
                 .willReturn(tagIds);
         given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        given(contentRepository.findYoutubeRecommendCandidatesByTags(anyList(), eq(userId), any()))
+        Tag tag = Tag.builder().name("Java").build();
+        given(tagRepository.findAllById(any())).willReturn(List.of(tag));
+        given(contentRepository.findYoutubeByTagNameInTitle(anyString(), eq(userId), any()))
                 .willReturn(youtubeContents);
         given(objectMapper.readValue(anyString(), any(TypeReference.class)))
                 .willReturn(Map.of("videoId", "abc0", "channelName", "테스트채널", "duration", "PT10M"));
@@ -431,7 +441,9 @@ class RecommendServiceTest {
         given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
                 .willReturn(tagIds);
         given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        given(contentRepository.findYoutubeRecommendCandidatesByTags(anyList(), eq(userId), any()))
+        Tag tag = Tag.builder().name("Java").build();
+        given(tagRepository.findAllById(any())).willReturn(List.of(tag));
+        given(contentRepository.findYoutubeByTagNameInTitle(anyString(), eq(userId), any()))
                 .willReturn(youtubeContents);
         given(objectMapper.readValue(anyString(), any(TypeReference.class)))
                 .willThrow(new com.fasterxml.jackson.core.JsonParseException(null, "parse error"));
@@ -456,7 +468,7 @@ class RecommendServiceTest {
         ReflectionTestUtils.setField(tag, "id", userTagId);
         UserTag userTag = UserTag.builder().tag(tag).build();
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findYoutubeRecommendCandidatesByTags(eq(List.of(userTagId)), eq(userId), any()))
+        given(contentRepository.findYoutubeByTagNameInTitle(eq("Kotlin"), eq(userId), any()))
                 .willReturn(List.of());
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
@@ -484,7 +496,9 @@ class RecommendServiceTest {
         given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
                 .willReturn(List.of(UUID.randomUUID()));
         given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        given(contentRepository.findYoutubeRecommendCandidatesByTags(anyList(), eq(userId), any()))
+        Tag tag = Tag.builder().name("Java").build();
+        given(tagRepository.findAllById(any())).willReturn(List.of(tag));
+        given(contentRepository.findYoutubeByTagNameInTitle(anyString(), eq(userId), any()))
                 .willReturn(lotsOfContents);
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
@@ -510,7 +524,9 @@ class RecommendServiceTest {
         given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
                 .willReturn(List.of(UUID.randomUUID()));
         given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        given(contentRepository.findRecommendCandidatesByTags(anyList(), eq(userId), any()))
+        Tag tag = Tag.builder().name("Java").build();
+        given(tagRepository.findAllById(any())).willReturn(List.of(tag));
+        given(contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(anyString(), eq(userId), any()))
                 .willReturn(lotsOfContents);
 
         RecommendContentsResponse result = recommendService.getRecommendContents(userId);
