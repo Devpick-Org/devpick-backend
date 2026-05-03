@@ -10,6 +10,7 @@ import lombok.*;
         @Index(name = "idx_content_tags_content_id", columnList = "content_id"),
         @Index(name = "idx_content_tags_tag_id", columnList = "tag_id")
 })
+@AttributeOverride(name = "id", column = @Column(name = "id", columnDefinition = "uuid DEFAULT gen_random_uuid()"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
