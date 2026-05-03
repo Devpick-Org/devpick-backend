@@ -2,6 +2,8 @@ package com.devpick.domain.trend.controller;
 
 import com.devpick.domain.trend.dto.TrendAnalysisResponse;
 import com.devpick.domain.trend.dto.TrendingKeywordsResponse;
+import com.devpick.domain.trend.ecosystem.EcosystemTrendPageResponse;
+import com.devpick.domain.trend.ecosystem.EcosystemTrendService;
 import com.devpick.domain.trend.service.TrendAnalysisService;
 import com.devpick.domain.trend.service.TrendService;
 import com.devpick.global.common.exception.DevpickException;
@@ -26,9 +28,11 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -46,6 +50,9 @@ class TrendControllerTest {
 
     @Mock
     private TrendAnalysisService trendAnalysisService;
+
+    @Mock
+    private EcosystemTrendService ecosystemTrendService;
 
     @InjectMocks
     private TrendController trendController;
@@ -112,6 +119,23 @@ class TrendControllerTest {
         mockMvc.perform(get("/trends/analysis"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /trends/ecosystem - 생태계 트렌드 페이지 반환")
+    void getEcosystemTrends_returns200() throws Exception {
+        EcosystemTrendPageResponse eco = new EcosystemTrendPageResponse(
+                List.of(),
+                0,
+                Instant.parse("2026-05-03T12:00:00Z"),
+                Map.of());
+
+        given(ecosystemTrendService.getPage(any(), any(), anyInt(), anyInt())).willReturn(eco);
+
+        mockMvc.perform(get("/trends/ecosystem").param("limit", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.total").value(0));
     }
 
 }

@@ -2,6 +2,9 @@ package com.devpick.domain.trend.controller;
 
 import com.devpick.domain.trend.dto.TrendAnalysisResponse;
 import com.devpick.domain.trend.dto.TrendingKeywordsResponse;
+import com.devpick.domain.trend.ecosystem.EcosystemTrendCategory;
+import com.devpick.domain.trend.ecosystem.EcosystemTrendPageResponse;
+import com.devpick.domain.trend.ecosystem.EcosystemTrendService;
 import com.devpick.domain.trend.service.TrendAnalysisService;
 import com.devpick.domain.trend.service.TrendService;
 import com.devpick.global.common.response.ApiResponse;
@@ -26,6 +29,7 @@ public class TrendController {
 
     private final TrendService trendService;
     private final TrendAnalysisService trendAnalysisService;
+    private final EcosystemTrendService ecosystemTrendService;
 
     @Operation(summary = "트렌딩 키워드 조회",
             description = "Stack Overflow 활동 기반 최근 7일 트렌딩 기술 키워드 TOP 20을 반환합니다.")
@@ -49,6 +53,18 @@ public class TrendController {
             @Parameter(description = "범위 (global)", example = "global")
             @RequestParam(defaultValue = "global") String scope) {
         return ApiResponse.ok(trendAnalysisService.getLatest(unit, scope));
+    }
+
+    @Operation(summary = "생태계 트렌드(부트캠프·동아리·행사) 조회",
+            description = "부트캠퍼·테카·데브이벤트에서 수집한 목록을 필터·페이지네이션으로 반환합니다.")
+    @GetMapping("/ecosystem")
+    public ApiResponse<EcosystemTrendPageResponse> getEcosystemTrends(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false, defaultValue = "24") int limit,
+            @RequestParam(required = false, defaultValue = "0") int offset) {
+        return ApiResponse.ok(ecosystemTrendService.getPage(
+                EcosystemTrendCategory.fromParam(category), q, limit, offset));
     }
 
 }
