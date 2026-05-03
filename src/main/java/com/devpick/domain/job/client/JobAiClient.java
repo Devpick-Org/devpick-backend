@@ -94,6 +94,37 @@ public class JobAiClient {
         }
     }
 
+    public Map<String, Object> planMockInterview(Map<String, Object> body) {
+        return postJsonMap("/internal/jobs/mock-interview/plan", body);
+    }
+
+    public Map<String, Object> evaluateMockTurn(Map<String, Object> body) {
+        return postJsonMap("/internal/jobs/mock-interview/turn", body);
+    }
+
+    public Map<String, Object> finalizeMockInterview(Map<String, Object> body) {
+        return postJsonMap("/internal/jobs/mock-interview/finalize", body);
+    }
+
+    private Map<String, Object> postJsonMap(String path, Map<String, Object> body) {
+        try {
+            Map<String, Object> res = webClient.post()
+                    .uri(aiServerUrl + path)
+                    .header("X-Internal-Key", internalKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
+            if (res == null) {
+                throw new DevpickException(ErrorCode.AI_SERVER_ERROR);
+            }
+            return res;
+        } catch (WebClientException e) {
+            throw toDevpick(e);
+        }
+    }
+
     private DevpickException toDevpick(WebClientException e) {
         if (e instanceof WebClientRequestException requestEx
                 && requestEx.getCause() instanceof java.util.concurrent.TimeoutException) {
