@@ -17,13 +17,19 @@ public interface ScrapRepository extends JpaRepository<Scrap, UUID> {
     Optional<Scrap> findByUser_IdAndContent_Id(UUID userId, UUID contentId);
 
     @Query(value = "SELECT s FROM Scrap s JOIN FETCH s.content c JOIN FETCH c.source src " +
+                   "WHERE s.user.id = :userId AND c.isAvailable = true",
+           countQuery = "SELECT COUNT(s) FROM Scrap s JOIN s.content c JOIN c.source src " +
+                        "WHERE s.user.id = :userId AND c.isAvailable = true")
+    Page<Scrap> findScraps(@Param("userId") UUID userId, Pageable pageable);
+
+    @Query(value = "SELECT s FROM Scrap s JOIN FETCH s.content c JOIN FETCH c.source src " +
                    "WHERE s.user.id = :userId AND c.isAvailable = true " +
-                   "AND (:q IS NULL OR LOWER(c.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
+                   "AND (LOWER(c.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
                    "OR LOWER(src.name) LIKE LOWER(CONCAT('%', :q, '%')) " +
                    "OR LOWER(c.preview) LIKE LOWER(CONCAT('%', :q, '%')))",
            countQuery = "SELECT COUNT(s) FROM Scrap s JOIN s.content c JOIN c.source src " +
                         "WHERE s.user.id = :userId AND c.isAvailable = true " +
-                        "AND (:q IS NULL OR LOWER(c.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
+                        "AND (LOWER(c.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
                         "OR LOWER(src.name) LIKE LOWER(CONCAT('%', :q, '%')) " +
                         "OR LOWER(c.preview) LIKE LOWER(CONCAT('%', :q, '%')))")
     Page<Scrap> findScrapsWithSearch(@Param("userId") UUID userId, @Param("q") String q, Pageable pageable);

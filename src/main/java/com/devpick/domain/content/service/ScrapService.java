@@ -42,7 +42,9 @@ public class ScrapService {
                 : Sort.by(Sort.Direction.DESC, "createdAt");
         Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), jpaSort);
 
-        Page<Scrap> scrapPage = scrapRepository.findScrapsWithSearch(userId, normalizedQ, sortedPageable);
+        Page<Scrap> scrapPage = normalizedQ == null
+                ? scrapRepository.findScraps(userId, sortedPageable)
+                : scrapRepository.findScrapsWithSearch(userId, normalizedQ, sortedPageable);
 
         if (scrapPage.isEmpty()) {
             return new ScrapListResponse(List.of(), scrapPage.getNumber(), scrapPage.getSize(), 0L, 0);
