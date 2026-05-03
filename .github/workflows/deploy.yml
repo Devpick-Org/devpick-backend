@@ -16,18 +16,41 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          # SSH 접속 타임아웃 (다이얼 실패 시 짧게 끝나는 경우 많음 → SG/GitHub 호스트 허용 점검)
+          timeout: 2m
           # EC2에서 Gradle 빌드·이미지 생성이 길 수 있음 (기본 10m 초과 시 여기만 늘리면 됨)
           command_timeout: 20m
           script: |
             set -euo pipefail
+            diag() {
+              echo "---- deploy_diag ----"
+              echo "host: $(hostname)"
+              pwd
+              ls -la ~/devpick-backend | head -20 || true
+              docker compose ps 2>/dev/null || true
+              docker compose logs app --tail=80 2>/dev/null || true
+              echo "---- end_deploy_diag ----"
+            }
+            trap diag ERR
+
             cd ~/devpick-backend
-            git fetch origin developV2
+            export GIT_TERMINAL_PROMPT=0
+
+            git remote -v || true
+            git fetch origin developV2 || {
+              echo "::error title=GIT_FETCH_FAILED::EC2 에서 git fetch 에 실패했습니다. 원격 저장소가 private 면 배포 호스트 SSH 키/HTTPS 토큰(deploy token) 설정을 확인하세요."
+              exit 1
+            }
             git checkout developV2
             git reset --hard origin/developV2
+
             # 이전 배포에서 남은 동일 이름 컨테이너/고아 컨테이너로 인한 Conflict 방지 (볼륨은 유지)
             docker compose down --remove-orphans || true
             docker compose up -d --build
-            # 저품질/더미 채용공고 삭제 — 앱과 동일 DB 사용(.env의 DB_HOST). compose postgres는 로컬 전용이라 비어 있을 수 있음.
+
+            trap - ERR
+
+            # 저품질/더미 채용공고 삭제 — 실패 시에도 재배포는 완료되도록 처리(로그만 남김)
             set +u
             set -a
             [ -f .env ] && . ./.env
@@ -38,17 +61,22 @@ jobs:
             DB_USERNAME="${DB_USERNAME:-devpick}"
             DB_NAME="${DB_NAME:-devpick}"
             if [ "$DB_HOST" = "postgres" ]; then
-              for i in $(seq 1 30); do
+              for _ in $(seq 1 30); do
                 docker compose exec -T postgres pg_isready -U "$DB_USERNAME" -d "$DB_NAME" && break
                 sleep 2
               done
               docker compose exec -T postgres psql -U "$DB_USERNAME" -d "$DB_NAME" -v ON_ERROR_STOP=1 \
-                < scripts/delete-low-quality-job-postings.sql
+                < scripts/delete-low-quality-job-postings.sql \
+                || echo "::warning title=JOB_CLEANUP_FAILED::delete-low-quality SQL 실행에 실패했습니다. 필요 시 서버에서 수동 실행 하세요."
             else
-              : "${DB_PASSWORD:?DB_PASSWORD is required when DB_HOST is not postgres}"
-              export PGPASSWORD="$DB_PASSWORD"
-              docker run --rm --network host -e PGPASSWORD \
-                -v "$(pwd)/scripts/delete-low-quality-job-postings.sql:/cleanup.sql:ro" \
-                postgres:16-alpine \
-                psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f /cleanup.sql
+              if [ -z "${DB_PASSWORD:-}" ]; then
+                echo "::warning title=JOB_CLEANUP_SKIPPED::외부 DB 사용 중인데 EC2 의 .env 에 DB_PASSWORD 가 없습니다. CLEANUP 단계 건너뜁니다."
+              else
+                export PGPASSWORD="$DB_PASSWORD"
+                docker run --rm --network host -e PGPASSWORD \
+                  -v "$(pwd)/scripts/delete-low-quality-job-postings.sql:/cleanup.sql:ro" \
+                  postgres:16-alpine \
+                  psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f /cleanup.sql \
+                  || echo "::warning title=JOB_CLEANUP_FAILED::외부 DB cleanup SQL 에 실패했습니다."
+              fi
             fi
