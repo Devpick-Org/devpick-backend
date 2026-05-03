@@ -2,6 +2,7 @@ package com.devpick.domain.content.controller;
 
 import com.devpick.domain.content.dto.ContentDetailResponse;
 import com.devpick.domain.content.dto.ContentListResponse;
+import com.devpick.domain.content.dto.ContentTagFacetResponse;
 import com.devpick.domain.content.service.ContentService;
 import com.devpick.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -62,6 +63,16 @@ public class ContentController {
             @Parameter(description = "페이지 크기", example = "20") @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
         return ApiResponse.ok(contentService.search(userId, query, tags, pageable));
+    }
+
+    @Operation(summary = "수집 콘텐츠 태그 facet", description = "RDS에 크롤·저장된 사용 가능한 콘텐츠 기준 태그 빈도(글 수 중복 포함) 목록입니다. 채용 필터 등에서 선택지로 활용합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    })
+    @GetMapping("/tag-facets")
+    public ApiResponse<List<ContentTagFacetResponse>> listTagFacets(
+            @Parameter(description = "반환 최대 개수 (1~200, 기본 80)", example = "80") @RequestParam(required = false) Integer limit) {
+        return ApiResponse.ok(contentService.listPopularTagFacets(limit));
     }
 
     @Operation(summary = "콘텐츠 상세 조회", description = "특정 콘텐츠의 상세 내용을 조회합니다. 학습 히스토리(content_opened)는 원문 확인 시 POST /contents/{contentId}/read-original 로 기록합니다.")

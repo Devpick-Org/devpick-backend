@@ -70,6 +70,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/trends/analysis", "/trends/analysis/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/contents").permitAll()
                         .requestMatchers(HttpMethod.GET, "/contents/search").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/contents/tag-facets").permitAll()
                         .requestMatchers(new RegexRequestMatcher("^/contents/[0-9a-fA-F\\-]{36}$", "GET")).permitAll()
                         .requestMatchers(new RegexRequestMatcher("^/contents/[0-9a-fA-F\\-]{36}/recommendations$", "GET")).permitAll()
                         .requestMatchers(new RegexRequestMatcher("^/contents/[0-9a-fA-F\\-]{36}/summary$", "GET")).permitAll()

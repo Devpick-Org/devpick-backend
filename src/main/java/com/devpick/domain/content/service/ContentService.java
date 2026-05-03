@@ -2,11 +2,13 @@ package com.devpick.domain.content.service;
 
 import com.devpick.domain.content.dto.ContentDetailResponse;
 import com.devpick.domain.content.dto.ContentListResponse;
+import com.devpick.domain.content.dto.ContentTagFacetResponse;
 import com.devpick.domain.content.dto.ContentSummaryResponse;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.Like;
 import com.devpick.domain.content.entity.Scrap;
 import com.devpick.domain.content.repository.ContentRepository;
+import com.devpick.domain.content.repository.ContentTagRepository;
 import com.devpick.domain.content.repository.LikeRepository;
 import com.devpick.domain.content.repository.ScrapRepository;
 import com.devpick.domain.report.entity.History;
@@ -38,9 +40,12 @@ import java.util.UUID;
 public class ContentService {
 
     private static final String FEED_SUMMARY_LEVEL = "JUNIOR";
+    private static final int CONTENT_TAG_FACET_DEFAULT_LIMIT = 80;
+    private static final String CONTENT_TAG_FACET_SOURCE = "CONTENT_CRAWL";
 
     private final ContentRepository contentRepository;
     private final ScrapRepository scrapRepository;
+    private final ContentTagRepository contentTagRepository;
     private final LikeRepository likeRepository;
     private final HistoryRepository historyRepository;
     private final UserRepository userRepository;
@@ -91,6 +96,20 @@ public class ContentService {
                 page.getTotalElements(),
                 page.getTotalPages()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContentTagFacetResponse> listPopularTagFacets(Integer limit) {
+        int bounded = limit == null
+                ? CONTENT_TAG_FACET_DEFAULT_LIMIT
+                : Math.max(1, Math.min(limit, 200));
+        return contentTagRepository.findTopTagFacetsByAvailableContent(bounded).stream()
+                .map(row -> new ContentTagFacetResponse(
+                        row.getName(),
+                        row.getCount() != null ? row.getCount() : 0L,
+                        CONTENT_TAG_FACET_SOURCE
+                ))
+                .toList();
     }
 
     @Transactional
