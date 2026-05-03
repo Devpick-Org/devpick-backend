@@ -25,8 +25,6 @@ app:
     encryption-key: ${RESUME_ENCRYPTION_KEY:}
     import:
       enrichment-enabled: ${RESUME_IMPORT_ENRICHMENT_ENABLED:false}
-    import:
-      enrichment-enabled: ${RESUME_IMPORT_ENRICHMENT_ENABLED:false}
   # 로컬(http://localhost)에서는 cookie-secure=false + Lax 조합 필요(브라우저가 Secure 쿠키를 http에 저장하지 않음)
   auth:
     cookie-secure: ${AUTH_COOKIE_SECURE:true}

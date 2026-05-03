@@ -13,11 +13,12 @@ import java.util.UUID;
 
 public interface ContentRepository extends JpaRepository<Content, UUID> {
 
+    @Query("SELECT c FROM Content c WHERE c.isAvailable = true AND c.source.name <> 'YouTube' ORDER BY c.publishedAt DESC")
     Page<Content> findByIsAvailableTrueOrderByPublishedAtDesc(Pageable pageable);
 
     Optional<Content> findByIdAndIsAvailableTrue(UUID id);
 
-    @Query("SELECT DISTINCT c FROM Content c JOIN c.contentTags ct WHERE ct.tag.id IN :tagIds AND c.isAvailable = true ORDER BY c.publishedAt DESC")
+    @Query("SELECT DISTINCT c FROM Content c JOIN c.contentTags ct WHERE ct.tag.id IN :tagIds AND c.isAvailable = true AND c.source.name <> 'YouTube' ORDER BY c.publishedAt DESC")
     Page<Content> findByTagIdsAndIsAvailableTrue(@Param("tagIds") List<UUID> tagIds, Pageable pageable);
 
     @Query("SELECT DISTINCT c FROM Content c LEFT JOIN c.contentTags ct LEFT JOIN ct.tag t " +
@@ -30,7 +31,7 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
            "ORDER BY c.publishedAt DESC")
     Page<Content> searchContents(@Param("query") String query, @Param("tags") List<String> tags, Pageable pageable);
 
-    @Query("SELECT DISTINCT c FROM Content c JOIN c.contentTags ct WHERE ct.tag.id IN :tagIds AND c.isAvailable = true AND c.id <> :excludeId ORDER BY c.publishedAt DESC")
+    @Query("SELECT DISTINCT c FROM Content c JOIN c.contentTags ct WHERE ct.tag.id IN :tagIds AND c.isAvailable = true AND c.source.name <> 'YouTube' AND c.id <> :excludeId ORDER BY c.publishedAt DESC")
     Page<Content> findRecommendationsByTagIds(@Param("tagIds") List<UUID> tagIds, @Param("excludeId") UUID excludeId, Pageable pageable);
 
     @Query("SELECT DISTINCT c FROM Content c JOIN c.contentTags ct " +
