@@ -259,49 +259,20 @@ class BookRecommendServiceTest {
         assertThat(result.books()).isEmpty();
     }
 
+    // ── expandWithKorean ──────────────────────────────────────────────────
+
     @Test
-    @DisplayName("출판연도 2020년 미만 도서는 결과에서 제외")
-    void buildResponse_oldBook_excluded() {
-        KakaoBookDocument oldBook = new KakaoBookDocument(
-                "구책", List.of("저자"), "출판사",
-                "https://thumb.jpg", "https://url", "소개", "888", 20000, 18000, "2019-12-31T00:00:00.000+09:00");
-        given(historyRepository.findTagNameCountsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(tagRows(new Object[]{"Spring", 5L}, new Object[]{"Java", 4L}, new Object[]{"JPA", 3L}));
-        given(kakaoBookClient.searchBooks(anyString())).willReturn(List.of(oldBook));
-
-        BookRecommendResponse result = bookRecommendService.getRecommendBooks(userId);
-
-        assertThat(result.books()).isEmpty();
+    @DisplayName("변환 맵에 있는 태그는 영어+한글 둘 다 포함")
+    void expandWithKorean_knownTag_addsKorean() {
+        List<String> result = BookRecommendService.expandWithKorean(List.of("React", "Java"));
+        assertThat(result).contains("React", "리액트", "Java", "자바");
     }
 
     @Test
-    @DisplayName("datetime이 blank인 도서는 연도 필터 통과")
-    void buildResponse_blankDatetime_included() {
-        KakaoBookDocument noDate = new KakaoBookDocument(
-                "날짜없는책", List.of("저자"), "출판사",
-                "https://thumb.jpg", "https://url", "소개", "777", 20000, 18000, "");
-        given(historyRepository.findTagNameCountsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(tagRows(new Object[]{"Spring", 5L}, new Object[]{"Java", 4L}, new Object[]{"JPA", 3L}));
-        given(kakaoBookClient.searchBooks(anyString())).willReturn(List.of(noDate));
-
-        BookRecommendResponse result = bookRecommendService.getRecommendBooks(userId);
-
-        assertThat(result.books()).hasSize(1);
-    }
-
-    @Test
-    @DisplayName("datetime 파싱 불가 시 도서 포함")
-    void buildResponse_invalidDatetime_included() {
-        KakaoBookDocument invalidDate = new KakaoBookDocument(
-                "날짜오류책", List.of("저자"), "출판사",
-                "https://thumb.jpg", "https://url", "소개", "666", 20000, 18000, "INVALID");
-        given(historyRepository.findTagNameCountsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(tagRows(new Object[]{"Spring", 5L}, new Object[]{"Java", 4L}, new Object[]{"JPA", 3L}));
-        given(kakaoBookClient.searchBooks(anyString())).willReturn(List.of(invalidDate));
-
-        BookRecommendResponse result = bookRecommendService.getRecommendBooks(userId);
-
-        assertThat(result.books()).hasSize(1);
+    @DisplayName("변환 맵에 없는 태그는 원본만 포함")
+    void expandWithKorean_unknownTag_keepsOriginal() {
+        List<String> result = BookRecommendService.expandWithKorean(List.of("JPA"));
+        assertThat(result).containsExactly("JPA");
     }
 
     @Test

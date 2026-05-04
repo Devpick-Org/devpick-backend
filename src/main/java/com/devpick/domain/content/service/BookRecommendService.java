@@ -33,7 +33,25 @@ public class BookRecommendService {
     static final ZoneId KST = ZoneId.of("Asia/Seoul");
     static final int KEYWORD_COUNT = 3;
     static final int RESULT_SIZE = 10;
-    static final int MIN_PUBLISH_YEAR = 2020;
+    static final Map<String, String> KOREAN_TAG_MAP = Map.ofEntries(
+            Map.entry("react", "리액트"),
+            Map.entry("java", "자바"),
+            Map.entry("javascript", "자바스크립트"),
+            Map.entry("python", "파이썬"),
+            Map.entry("spring", "스프링"),
+            Map.entry("kotlin", "코틀린"),
+            Map.entry("typescript", "타입스크립트"),
+            Map.entry("docker", "도커"),
+            Map.entry("kubernetes", "쿠버네티스"),
+            Map.entry("linux", "리눅스"),
+            Map.entry("algorithm", "알고리즘"),
+            Map.entry("vue", "뷰"),
+            Map.entry("vue.js", "뷰"),
+            Map.entry("next.js", "넥스트"),
+            Map.entry("nodejs", "노드"),
+            Map.entry("node.js", "노드"),
+            Map.entry("android", "안드로이드")
+    );
 
     private final HistoryRepository historyRepository;
     private final UserTagRepository userTagRepository;
@@ -87,6 +105,15 @@ public class BookRecommendService {
         return selectRandom(new ArrayList<>(tagCounts.keySet()), userId, tagCounts.size());
     }
 
+    static List<String> expandWithKorean(List<String> keywords) {
+        List<String> expanded = new ArrayList<>(keywords);
+        for (String kw : keywords) {
+            String korean = KOREAN_TAG_MAP.get(kw.toLowerCase());
+            if (korean != null) expanded.add(korean);
+        }
+        return expanded;
+    }
+
     List<String> selectRandom(List<String> candidates, UUID userId, int count) {
         if (candidates.isEmpty()) return List.of();
         long seed = userId.getMostSignificantBits() ^ userId.getLeastSignificantBits()
@@ -97,22 +124,13 @@ public class BookRecommendService {
     }
 
     private BookRecommendResponse buildResponse(List<String> keywords, UUID userId, boolean isPersonalized) {
-        List<KakaoBookDocument> merged = keywords.stream()
+        List<KakaoBookDocument> merged = expandWithKorean(keywords).stream()
                 .flatMap(kw -> kakaoBookClient.searchBooks(kw).stream())
                 .toList();
 
         Set<String> seenIsbn = new LinkedHashSet<>();
         List<KakaoBookDocument> unique = merged.stream()
                 .filter(doc -> doc.thumbnail() != null && !doc.thumbnail().isBlank())
-                .filter(doc -> {
-                    if (doc.datetime() == null || doc.datetime().isBlank()) return true;
-                    try {
-                        int year = Integer.parseInt(doc.datetime().substring(0, 4));
-                        return year >= MIN_PUBLISH_YEAR;
-                    } catch (NumberFormatException e) {
-                        return true;
-                    }
-                })
                 .filter(doc -> {
                     if (doc.isbn() == null || doc.isbn().isBlank()) return true;
                     return seenIsbn.add(doc.isbn().split(" ")[0]);
