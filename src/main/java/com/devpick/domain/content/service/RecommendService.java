@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit;
 public class RecommendService {
 
     static final int CANDIDATE_LIMIT = 100;
-    static final int RESULT_SIZE = 10;
+    static final int RESULT_SIZE = 8;
     static final String REDIS_KEY_PREFIX = "recommend:tags:";
     static final long CACHE_TTL_HOURS = 24;
     static final String NOT_ENOUGH_MESSAGE = "아직 추천할 글이 부족해요. 더 많은 글을 읽어보세요!";

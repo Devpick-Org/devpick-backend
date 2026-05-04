@@ -103,7 +103,7 @@ class RecommendServiceTest {
 
         assertThat(result.isPersonalized()).isTrue();
         assertThat(result.message()).isNull();
-        assertThat(result.contents()).hasSize(10);
+        assertThat(result.contents()).hasSize(8);
         verify(userTagRepository, never()).findByUser_Id(any());
     }
 
@@ -310,7 +310,7 @@ class RecommendServiceTest {
 
         assertThat(result.isPersonalized()).isTrue();
         assertThat(result.message()).isNull();
-        assertThat(result.videos()).hasSize(10);
+        assertThat(result.videos()).hasSize(8);
         verify(userTagRepository, never()).findByUser_Id(any());
     }
 
@@ -358,7 +358,7 @@ class RecommendServiceTest {
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 
-        assertThat(result.videos()).hasSize(10);
+        assertThat(result.videos()).hasSize(8);
         assertThat(result.isPersonalized()).isFalse();
         assertThat(result.message()).isEqualTo(RecommendService.NOT_ENOUGH_MESSAGE);
         verify(contentRepository).findLatestYoutubeExcludingScrapped(eq(userId), any());
@@ -417,7 +417,7 @@ class RecommendServiceTest {
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 
-        assertThat(result.videos()).hasSize(10);
+        assertThat(result.videos()).hasSize(8);
         assertThat(result.videos()).allMatch(v -> v.channelName().equals("테스트채널"));
         assertThat(result.videos()).allMatch(v -> v.duration().equals("PT10M"));
     }
@@ -452,7 +452,7 @@ class RecommendServiceTest {
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 
-        assertThat(result.videos()).hasSize(10);
+        assertThat(result.videos()).hasSize(8);
         assertThat(result.videos()).allMatch(v -> v.videoId() == null);
         assertThat(result.videos()).allMatch(v -> v.channelName() == null);
     }
@@ -477,7 +477,7 @@ class RecommendServiceTest {
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 
-        assertThat(result.videos()).hasSize(10);
+        assertThat(result.videos()).hasSize(8);
         assertThat(result.isPersonalized()).isFalse();
         assertThat(result.message()).isEqualTo(RecommendService.NOT_ENOUGH_MESSAGE);
         verify(contentRepository).findLatestYoutubeExcludingScrapped(eq(userId), any());
@@ -508,7 +508,7 @@ class RecommendServiceTest {
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 
-        assertThat(result.videos()).hasSize(10);
+        assertThat(result.videos()).hasSize(8);
     }
 
     @Test
@@ -536,6 +536,6 @@ class RecommendServiceTest {
 
         RecommendContentsResponse result = recommendService.getRecommendContents(userId);
 
-        assertThat(result.contents()).hasSize(10);
+        assertThat(result.contents()).hasSize(8);
     }
 }

@@ -32,7 +32,7 @@ public class BookRecommendService {
             List.of("scrapped", "ai_summary_viewed", "ai_quiz_completed", "content_liked");
     static final ZoneId KST = ZoneId.of("Asia/Seoul");
     static final int KEYWORD_COUNT = 3;
-    static final int RESULT_SIZE = 10;
+    static final int RESULT_SIZE = 8;
     static final Map<String, String> KOREAN_TAG_MAP = Map.ofEntries(
             Map.entry("react", "리액트"),
             Map.entry("java", "자바"),
