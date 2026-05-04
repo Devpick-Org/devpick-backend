@@ -43,7 +43,7 @@ class KakaoBookClientTest {
     @Mock private ValueOperations<String, String> valueOperations;
 
     private static final String KEYWORD = "Spring";
-    private static final String CACHE_KEY = "books:Spring:1:5";
+    private static final String CACHE_KEY = "books:Spring:1:10";
 
     @BeforeEach
     void setUp() {

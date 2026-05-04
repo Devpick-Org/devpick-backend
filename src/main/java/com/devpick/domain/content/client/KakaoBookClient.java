@@ -22,7 +22,7 @@ public class KakaoBookClient {
 
     static final String CACHE_PREFIX = "books:";
     static final long CACHE_TTL_HOURS = 24;
-    static final int FETCH_SIZE = 5;
+    static final int FETCH_SIZE = 10;
 
     private final WebClient webClient;
     private final StringRedisTemplate redisTemplate;
