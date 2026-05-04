@@ -2,7 +2,9 @@ package com.devpick.domain.job.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public final class JobApiModels {
@@ -138,5 +140,26 @@ public final class JobApiModels {
             int matchScore,
             String payloadJson,
             String updatedAt
+    ) {}
+
+    public record JobBookmarkItemResponse(
+            UUID jobPostingId,
+            String companyName,
+            String companyLogo,
+            String title,
+            String employmentType,
+            String experienceLevel,
+            String location,
+            String deadline,
+            List<String> techStack,
+            Instant bookmarkedAt
+    ) {}
+
+    public record JobBookmarkListResponse(
+            List<JobBookmarkItemResponse> bookmarks,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
     ) {}
 }

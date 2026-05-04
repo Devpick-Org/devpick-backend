@@ -5,6 +5,8 @@ import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.job.client.JobAiClient;
 import com.devpick.domain.job.dto.JobApiModels.CompanyFacetResponse;
 import com.devpick.domain.job.dto.JobApiModels.ContentPickResponse;
+import com.devpick.domain.job.dto.JobApiModels.JobBookmarkItemResponse;
+import com.devpick.domain.job.dto.JobApiModels.JobBookmarkListResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobDetailResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobListItemResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobListPageResponse;
@@ -13,6 +15,7 @@ import com.devpick.domain.job.dto.JobApiModels.MatchItemResponse;
 import com.devpick.domain.job.dto.JobApiModels.MatchSubSectionResponse;
 import com.devpick.domain.job.dto.JobApiModels.SkillGapResponse;
 import com.devpick.domain.job.dto.JobApiModels.TechTagFacetResponse;
+import com.devpick.domain.job.entity.JobBookmark;
 import com.devpick.domain.job.entity.JobParseStatus;
 import com.devpick.domain.job.entity.JobPosting;
 import com.devpick.domain.job.entity.JobPostingCategory;
@@ -34,12 +37,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -305,6 +310,37 @@ public class JobService {
             throw new DevpickException(ErrorCode.JOB_BOOKMARK_NOT_FOUND);
         }
         jobBookmarkRepository.deleteByUserIdAndJobPosting_Id(userId, jobId);
+    }
+
+    @Transactional(readOnly = true)
+    public JobBookmarkListResponse getBookmarkedJobs(UUID userId, String q, Pageable pageable) {
+        String normalizedQ = (q != null && !q.isBlank()) ? q.trim() : null;
+        Page<JobBookmark> page = normalizedQ == null
+                ? jobBookmarkRepository.findByUserIdWithPosting(userId, pageable)
+                : jobBookmarkRepository.findByUserIdWithPostingAndSearch(userId, normalizedQ, pageable);
+        List<JobBookmarkItemResponse> items = page.getContent().stream()
+                .map(this::toBookmarkItem)
+                .toList();
+        return new JobBookmarkListResponse(items, page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
+    }
+
+    private JobBookmarkItemResponse toBookmarkItem(JobBookmark b) {
+        JobPosting p = b.getJobPosting();
+        String logo = p.getCompanyLogoUrl() != null && !p.getCompanyLogoUrl().isBlank()
+                ? p.getCompanyLogoUrl()
+                : LOGO_PLACEHOLDER;
+        return new JobBookmarkItemResponse(
+                p.getId(),
+                p.getCompanyName(),
+                logo,
+                p.getTitle(),
+                p.getEmploymentType().name(),
+                p.getExperienceLevel().name(),
+                p.getLocation() != null ? p.getLocation() : "",
+                formatDeadlineLabel(p),
+                new ArrayList<>(p.getTechStack()),
+                b.getCreatedAt().toInstant(ZoneOffset.UTC)
+        );
     }
 
     @Transactional(readOnly = true)
