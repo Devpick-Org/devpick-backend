@@ -1,14 +1,12 @@
 package com.devpick.domain.report.dto;
 
 import com.devpick.domain.report.entity.ReportActivity;
-import com.fasterxml.jackson.annotation.JsonRawValue;
-
 public record ReportActivityResponse(
         int contentsRead,
         int questionsCreated,
         int scrapsCount,
-        @JsonRawValue String topTags,
-        @JsonRawValue String prevWeekComparison
+        String topTags,
+        String prevWeekComparison
 ) {
     public static ReportActivityResponse of(ReportActivity activity) {
         return new ReportActivityResponse(
