@@ -633,6 +633,59 @@ class AiQuizServiceTest {
     }
 
     @Test
+    @DisplayName("submitQuiz — level이 display 포맷(JUNIOR)이어도 AI 서버 포맷(junior)으로 저장")
+    void submitQuiz_displayLevel_convertedToAiServerLevel() {
+        QuizSubmitRequest request = new QuizSubmitRequest("JUNIOR", 3, 5, false, null);
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+
+        ArgumentCaptor<QuizAttempt> captor = ArgumentCaptor.forClass(QuizAttempt.class);
+
+        aiQuizService.submitQuiz(userId, contentId, request);
+
+        verify(quizAttemptRepository).save(captor.capture());
+        assertThat(captor.getValue().getLevel()).isEqualTo("junior");
+    }
+
+    @Test
+    @DisplayName("submitQuiz — level=MIDDLE이어도 AI 서버 포맷(mid)으로 저장")
+    void submitQuiz_middleLevel_convertedToMid() {
+        QuizSubmitRequest request = new QuizSubmitRequest("MIDDLE", 3, 5, false, null);
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+
+        ArgumentCaptor<QuizAttempt> captor = ArgumentCaptor.forClass(QuizAttempt.class);
+
+        aiQuizService.submitQuiz(userId, contentId, request);
+
+        verify(quizAttemptRepository).save(captor.capture());
+        assertThat(captor.getValue().getLevel()).isEqualTo("mid");
+    }
+
+    @Test
+    @DisplayName("getQuizResult — attempt.level이 display 포맷(JUNIOR)이어도 DynamoDB 조회 성공")
+    void getQuizResult_displayFormatLevel_queriesDynamoWithAiLevel() {
+        UUID attemptId = UUID.randomUUID();
+        QuizAttempt attempt = QuizAttempt.builder()
+                .user(user).content(content).level("JUNIOR").score(2).totalQuestions(3).passed(false).build();
+        ReflectionTestUtils.setField(attempt, "id", attemptId);
+        ReflectionTestUtils.setField(attempt, "createdAt", LocalDateTime.now());
+
+        given(quizAttemptRepository.findById(attemptId)).willReturn(Optional.of(attempt));
+        given(aiQuizRepository.findByContentIdAndLevel(contentId.toString(), "junior"))
+                .willReturn(Optional.of(document));
+        given(quizAttemptAnswerRepository.findByAttempt_Id(attemptId)).willReturn(List.of());
+        given(pointLogRepository.sumPointsByUser_IdAndActionAndReferenceId(userId, PointAction.AI_QUIZ_PASS, contentId))
+                .willReturn(0);
+
+        QuizResultResponse result = aiQuizService.getQuizResult(userId, attemptId);
+
+        assertThat(result.questions()).hasSize(1);
+        assertThat(result.passingCount()).isEqualTo(1);
+        verify(aiQuizRepository).findByContentIdAndLevel(contentId.toString(), "junior");
+    }
+
+    @Test
     @DisplayName("getQuizResult — DynamoDB questions null 이면 빈 리스트 반환")
     void getQuizResult_documentQuestionsNull_returnsEmptyQuestions() {
         UUID attemptId = UUID.randomUUID();
