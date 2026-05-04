@@ -24,8 +24,8 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class EcosystemTrendService {
 
-    /** v4: 생태계 API limit 상향(부트캠프+동아리+행사 동시 표시)·데브이벤트 데이터 라우트 수집 */
-    private static final String CACHE_KEY = "trends:ecosystem:v4";
+    /** v5: 부트캠퍼 detailUrl 암호화 슬래그(class/{CryptoJS_AES}) · 썸네일 업로드 직링크 (v4 캐시 무효화) */
+    private static final String CACHE_KEY = "trends:ecosystem:v5";
     private static final Duration TTL = Duration.ofHours(25);
     private static final int DEFAULT_LIMIT = 24;
     /** 프론트가 큰 limit로 한 번에 받을 수 있게 (기존 100이면 행사가 목록 끝에서 잘림) */

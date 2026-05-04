@@ -5,10 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import java.io.IOException;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -96,13 +96,15 @@ public class BootcamperEcosystemFetcher {
                     continue;
                 }
                 String brand = c.path("brand").asText("").trim();
-                int courseId = c.path("id").asInt(0);
-                String detailUrl = courseId > 0 ? (ORIGIN + "/class/" + courseId) : URL;
+                int bootcamperRowId = c.path("id").asInt(0);
+                String slugSeg = BootcamperClassSlugCrypto.encodePathSlug(bootcamperRowId);
+                String detailUrl =
+                        (bootcamperRowId > 0 && slugSeg != null) ? (ORIGIN + "/class/" + slugSeg) : URL;
                 String thumbFile = c.path("thumbnail").asText("").trim();
                 String thumbnailUrl = null;
                 if (!thumbFile.isEmpty()) {
                     String path = thumbFile.startsWith("/") ? thumbFile : "/uploads/" + thumbFile;
-                    thumbnailUrl = bootcamperOptimizedThumbnail(path);
+                    thumbnailUrl = ORIGIN + UriUtils.encodePath(path, StandardCharsets.UTF_8);
                 }
                 List<String> tags = new ArrayList<>();
                 tagIfPresent(tags, c.path("classify").asText(""));
@@ -204,19 +206,6 @@ public class BootcamperEcosystemFetcher {
             log.warn("부트캠퍼 데이터 라우트 JSON 파싱 실패: {}", e.getMessage());
             return Optional.empty();
         }
-    }
-
-    /**
-     * Next.js 이미지 최적화 라우터는 {@code url} 에 경로 전체를 퍼센트 인코딩한 값을 기대합니다.
-     * {@link org.springframework.web.util.UriUtils#encodePath} 는 슬래시를 보존해 브라우저/프록시에서 URL 이 잘리는 사례가 있습니다.
-     */
-    static String bootcamperOptimizedThumbnail(String absoluteOrUploadPath) {
-        if (absoluteOrUploadPath == null || absoluteOrUploadPath.isBlank()) {
-            return null;
-        }
-        String path = absoluteOrUploadPath.strip();
-        String enc = URLEncoder.encode(path, StandardCharsets.UTF_8).replace("+", "%20");
-        return ORIGIN + "/_next/image?url=" + enc + "&w=640&q=75";
     }
 
     private static void tagIfPresent(List<String> tags, String v) {
