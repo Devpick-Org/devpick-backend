@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.web.util.UriUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import java.io.IOException;
@@ -104,7 +103,7 @@ public class BootcamperEcosystemFetcher {
                         (bootcamperRowId > 0 && slugSeg != null) ? (ORIGIN + "/class/" + slugSeg) : URL;
                 String thumbFile = c.path("thumbnail").asText("").trim();
                 String thumbnailUrl =
-                        thumbFile.isEmpty() ? null : bootcamperThumbnailForList(thumbFile);
+                        thumbFile.isEmpty() ? null : bootcamperListThumbnailUrl(thumbFile);
                 List<String> tags = new ArrayList<>();
                 tagIfPresent(tags, c.path("classify").asText(""));
                 tagIfPresent(tags, c.path("classMethod").asText(""));
@@ -207,60 +206,78 @@ public class BootcamperEcosystemFetcher {
         }
     }
 
-    /** courseList {@code thumbnail} 을 업로드 기준 상대경로 형태(/uploads/...)로 맞춥니다. 부트캠퍼 절대 URL 이 아니면 빈 문자열. */
-    static String normalizedBootcampUploadPath(String thumbnailField) {
+    /**
+     * 부트캠퍼 courseList 의 {@code thumbnail} 값과 동일한 파일명으로 공개 과정 썸네일을 제공하는 CDN URL.
+     * {@code bootcamper.co.kr/uploads} 직링크는 404이고, 부트캠퍼 {@code _next/image}는 외부 브라우저·프록시에서
+     * 처리되지 않는 경우가 있어 CloudFront 경로를 사용합니다.
+     */
+    private static final String THUMB_CDN_BASE = "https://d3op5pvc1439n3.cloudfront.net/course/thumbnail/";
+
+    static String bootcamperListThumbnailUrl(String thumbnailField) {
         if (thumbnailField == null) {
-            return "";
+            return null;
         }
         String s = thumbnailField.strip();
-        if (s.isEmpty()) {
-            return "";
+        if (s.isEmpty() || s.contains("..")) {
+            return null;
         }
         if (s.startsWith("http://") || s.startsWith("https://")) {
             try {
-                URI uri = URI.create(s);
-                if (!bootcamperHost(uri.getHost())) {
-                    return "";
-                }
+                int q = s.indexOf('?');
+                String noQuery = q >= 0 ? s.substring(0, q) : s;
+                URI uri = URI.create(noQuery);
+                String host = uri.getHost();
                 String path = uri.getPath();
-                if (path != null && path.startsWith("/uploads/")) {
-                    return UriUtils.decode(path, StandardCharsets.UTF_8);
+                if (host != null && path != null) {
+                    String h = host.toLowerCase();
+                    if (h.contains("cloudfront.net") && path.startsWith("/course/thumbnail/")) {
+                        return noQuery;
+                    }
+                    if (bootcamperHost(host) && path.startsWith("/uploads/")) {
+                        String file = lastUploadsFileName(path);
+                        if (file == null || file.isEmpty()) {
+                            return null;
+                        }
+                        return THUMB_CDN_BASE + encodePathSegment(file);
+                    }
                 }
-                return "";
+                return null;
             } catch (IllegalArgumentException e) {
-                return "";
+                return null;
             }
         }
-        String t = s;
-        if (!t.startsWith("/")) {
-            if (t.startsWith("uploads/")) {
-                t = "/" + t;
+        String rel = s;
+        if (!rel.startsWith("/")) {
+            if (rel.startsWith("uploads/")) {
+                rel = "/" + rel;
             } else {
-                t = "/uploads/" + t;
+                rel = "/uploads/" + rel;
             }
         }
-        if (!(t.startsWith("/uploads/"))) {
-            return "";
-        }
-        if (t.contains("..")) {
-            return "";
-        }
-        return UriUtils.decode(t, StandardCharsets.UTF_8);
-    }
-
-    /**
-     * 리스트 카드 썸네일용 URL. 업로드 직링크 경로(/uploads)는 라우터가 404이므로 Next 이미지 최적화 라우터를 사용합니다.
-     */
-    static String bootcamperThumbnailForList(String thumbnailField) {
-        String uploadPath = normalizedBootcampUploadPath(thumbnailField);
-        if (uploadPath.isEmpty()) {
+        if (!rel.startsWith("/uploads/")) {
             return null;
         }
-        String enc = URLEncoder.encode(uploadPath, StandardCharsets.UTF_8).replace("+", "%20");
-        return ORIGIN + "/_next/image?url=" + enc + "&w=640&q=75";
+        String file = lastUploadsFileName(rel);
+        if (file == null || file.isEmpty()) {
+            return null;
+        }
+        return THUMB_CDN_BASE + encodePathSegment(file);
     }
 
-    static boolean bootcamperHost(String host) {
+    private static String encodePathSegment(String file) {
+        return URLEncoder.encode(file, StandardCharsets.UTF_8).replace("+", "%20");
+    }
+
+    private static String lastUploadsFileName(String path) {
+        int i = path.lastIndexOf('/');
+        if (i < 0) {
+            return null;
+        }
+        String seg = path.substring(i + 1).strip();
+        return seg.isEmpty() ? null : seg;
+    }
+
+    private static boolean bootcamperHost(String host) {
         if (host == null || host.isEmpty()) {
             return false;
         }

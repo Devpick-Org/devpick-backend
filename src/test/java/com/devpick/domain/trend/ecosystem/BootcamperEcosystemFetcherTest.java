@@ -8,42 +8,53 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BootcamperEcosystemFetcherTest {
 
     @Test
-    @DisplayName("썸네일 파일명만 오면 Next 이미지 로더(/_next/image)에 업로드 경로를 넣습니다 (직링크 uploads 는 404)")
-    void bootcamperThumbnail_filenameOnly_usesNextImageLoader() {
-        String thumb = BootcamperEcosystemFetcher.bootcamperThumbnailForList("foo bar.png");
-        assertThat(thumb).startsWith("https://bootcamper.co.kr/_next/image?url=");
-        assertThat(thumb).contains("w=640&q=75");
-        assertThat(thumb).contains("%2Fuploads%2F");
-        assertThat(thumb).doesNotContain("?url=/uploads/");
+    @DisplayName("courseList thumbnail 파일명은 CloudFront 과정 썸네일 URL로 매핑된다")
+    void bootcamperListThumbnailUrl_mapsFilenameToCdn() {
+        assertThat(BootcamperEcosystemFetcher.bootcamperListThumbnailUrl("1777_foo-bar.webp"))
+                .isEqualTo(
+                        "https://d3op5pvc1439n3.cloudfront.net/course/thumbnail/1777_foo-bar.webp");
     }
 
     @Test
-    @DisplayName("uploads/ 접두(슬래시 없음)도 /uploads/ 로 규격화합니다")
-    void normalizedBootcampUploadPath_uploadsPrefixWithoutLeadingSlash() {
-        assertThat(BootcamperEcosystemFetcher.normalizedBootcampUploadPath("uploads/a.png")).isEqualTo("/uploads/a.png");
-        assertThat(BootcamperEcosystemFetcher.normalizedBootcampUploadPath("/uploads/a.png")).isEqualTo("/uploads/a.png");
-    }
-
-    @Test
-    @DisplayName("부트캠퍼 업로드 절대 URL 은 pathname 만 사용합니다")
-    void normalizedBootcampUploadPath_absoluteBootcamperHttps() {
+    @DisplayName("부트캠퍼 /uploads 경로에서 파일명만 추출해 CDN 으로 만든다")
+    void bootcamperListThumbnailUrl_extractsNameFromBootcamperUploadsUrl() {
         assertThat(
-                        BootcamperEcosystemFetcher.normalizedBootcampUploadPath(
-                                "https://bootcamper.co.kr/uploads/foo%20x.png"))
-                .isEqualTo("/uploads/foo x.png");
+                        BootcamperEcosystemFetcher.bootcamperListThumbnailUrl(
+                                "https://bootcamper.co.kr/uploads/abc.png"))
+                .isEqualTo("https://d3op5pvc1439n3.cloudfront.net/course/thumbnail/abc.png");
     }
 
     @Test
-    @DisplayName("다른 호스트 업로드 URL 은 무시합니다")
-    void bootcamperThumbnail_foreignHost_returnsNull() {
-        assertThat(BootcamperEcosystemFetcher.bootcamperThumbnailForList("https://evil.example/uploads/a.png"))
+    @DisplayName("이미 과정 썸네일 CDN URL 이면 정규화하여 그대로 반환한다")
+    void bootcamperListThumbnailUrl_preservesCloudFrontCourseThumbnail() {
+        String u =
+                "https://d3op5pvc1439n3.cloudfront.net/course/thumbnail/x.png?ignored=1";
+        assertThat(BootcamperEcosystemFetcher.bootcamperListThumbnailUrl(u))
+                .isEqualTo(
+                        "https://d3op5pvc1439n3.cloudfront.net/course/thumbnail/x.png");
+    }
+
+    @Test
+    @DisplayName("uploads/ 접두(파일명만 상대경로)도 basename 으로 처리한다")
+    void bootcamperListThumbnailUrl_uploadsPrefixRelative() {
+        assertThat(BootcamperEcosystemFetcher.bootcamperListThumbnailUrl("uploads/a.webp"))
+                .isEqualTo(
+                        "https://d3op5pvc1439n3.cloudfront.net/course/thumbnail/a.webp");
+    }
+
+    @Test
+    @DisplayName("다른 호스트 URL 은 과정 썸네일로 쓰지 않는다")
+    void bootcamperListThumbnailUrl_foreignHost_returnsNull() {
+        assertThat(BootcamperEcosystemFetcher.bootcamperListThumbnailUrl(
+                        "https://evil.example.com/phish.png"))
                 .isNull();
     }
 
     @Test
-    @DisplayName("경로 순회 문자열은 거부합니다")
-    void normalizedBootcampUploadPath_rejectsDotDot() {
-        assertThat(BootcamperEcosystemFetcher.normalizedBootcampUploadPath("/uploads/../etc/passwd")).isEmpty();
+    @DisplayName("경로 순회 문자열은 거부한다")
+    void bootcamperListThumbnailUrl_rejectsDotDot() {
+        assertThat(BootcamperEcosystemFetcher.bootcamperListThumbnailUrl("../x.png"))
+                .isNull();
     }
 
     @Test
@@ -51,13 +62,5 @@ class BootcamperEcosystemFetcherTest {
     void includedBootcampClassifies_containsExpectedUiCategories() {
         assertThat(BootcamperEcosystemFetcher.INCLUDED_BOOTCAMP_CLASSIFIES)
                 .containsExactlyInAnyOrder("웹개발", "앱개발", "클라우드/보안", "PM/기획", "AI/ML", "데이터");
-    }
-
-    @Test
-    @DisplayName("부트캠퍼 호스트 판별")
-    void bootcamperHost_acceptsWwwStrip() {
-        assertThat(BootcamperEcosystemFetcher.bootcamperHost("bootcamper.co.kr")).isTrue();
-        assertThat(BootcamperEcosystemFetcher.bootcamperHost("WWW.bootcamper.co.kr")).isTrue();
-        assertThat(BootcamperEcosystemFetcher.bootcamperHost("notbootcamper.co.kr")).isFalse();
     }
 }
