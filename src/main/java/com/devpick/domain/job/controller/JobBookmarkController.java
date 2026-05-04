@@ -29,8 +29,11 @@ public class JobBookmarkController {
     public ApiResponse<JobBookmarkListResponse> getBookmarks(
             @AuthenticationPrincipal UUID userId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ApiResponse.ok(jobService.getBookmarkedJobs(
-                userId, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "newest") String sort) {
+        Sort jpaSort = "oldest".equalsIgnoreCase(sort)
+                ? Sort.by(Sort.Direction.ASC, "createdAt")
+                : Sort.by(Sort.Direction.DESC, "createdAt");
+        return ApiResponse.ok(jobService.getBookmarkedJobs(userId, PageRequest.of(page, size, jpaSort)));
     }
 }

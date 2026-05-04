@@ -99,4 +99,14 @@ class JobBookmarkControllerTest {
         mockMvc.perform(get("/users/me/bookmarks").param("page", "1").param("size", "5"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("GET /users/me/bookmarks - sort=oldest 파라미터 전달 시 200 반환")
+    void getBookmarks_withOldestSort_returns200() throws Exception {
+        JobBookmarkListResponse response = new JobBookmarkListResponse(List.of(), 0, 20, 0L, 0);
+        given(jobService.getBookmarkedJobs(eq(userId), any())).willReturn(response);
+
+        mockMvc.perform(get("/users/me/bookmarks").param("sort", "oldest"))
+                .andExpect(status().isOk());
+    }
 }
