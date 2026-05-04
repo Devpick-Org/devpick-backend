@@ -5,6 +5,7 @@ import com.devpick.domain.community.dto.AiAnswerResponse;
 import com.devpick.domain.community.entity.AiAnswer;
 import com.devpick.domain.community.entity.AiQuestion;
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.community.repository.AiAnswerRepository;
 import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.PostRepository;
@@ -54,6 +55,7 @@ class AiAnswerServiceTest {
     void setUp() {
         postId = UUID.randomUUID();
         post = Post.builder()
+                .postType(PostType.TECH)
                 .title("Spring 질문")
                 .content("내용입니다")
                 .level(Level.JUNIOR)
@@ -138,6 +140,28 @@ class AiAnswerServiceTest {
         assertThat(result.isAdopted()).isFalse();
         verify(aiAnswerClient).generateAnswer(post, null);
         verify(aiAnswerRepository).save(any(AiAnswer.class));
+    }
+
+    @Test
+    @DisplayName("커리어 게시글에 AI 답변 요청 시 COMMUNITY_AI_NOT_SUPPORTED 예외가 발생한다")
+    void generateOrGetAnswer_careerPost_throwsException() {
+        Post careerPost = Post.builder()
+                .postType(PostType.CAREER)
+                .title("이직 고민")
+                .content("커리어 내용")
+                .level(Level.JUNIOR)
+                .build();
+        ReflectionTestUtils.setField(careerPost, "id", postId);
+
+        given(postRepository.findById(postId)).willReturn(Optional.of(careerPost));
+
+        assertThatThrownBy(() -> aiAnswerService.generateOrGetAnswer(postId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.COMMUNITY_AI_NOT_SUPPORTED));
+
+        verify(aiAnswerRepository, never()).save(any());
+        verify(aiAnswerClient, never()).generateAnswer(any(), any());
     }
 
     @Test

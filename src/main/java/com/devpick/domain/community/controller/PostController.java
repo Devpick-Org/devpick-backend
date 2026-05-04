@@ -4,6 +4,7 @@ import com.devpick.domain.community.dto.PostCreateRequest;
 import com.devpick.domain.community.dto.PostDetailResponse;
 import com.devpick.domain.community.dto.PostListResponse;
 import com.devpick.domain.community.dto.PostUpdateRequest;
+import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.community.service.CommunityLikeService;
 import com.devpick.domain.community.service.PostService;
 import com.devpick.global.common.response.ApiResponse;
@@ -59,11 +60,12 @@ public class PostController {
     })
     @GetMapping
     public ApiResponse<PostListResponse> getPosts(
+            @Parameter(description = "게시글 유형 (TECH, CAREER)", example = "TECH") @RequestParam(required = false) PostType postType,
             @Parameter(description = "검색 키워드 (제목·본문)", example = "Spring") @RequestParam(required = false) String query,
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기", example = "20") @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return ApiResponse.ok(postService.getPosts(pageable, query));
+        return ApiResponse.ok(postService.getPosts(pageable, query, postType));
     }
 
     @Operation(summary = "게시글 상세 조회", description = "특정 게시글의 상세 내용을 반환합니다.")

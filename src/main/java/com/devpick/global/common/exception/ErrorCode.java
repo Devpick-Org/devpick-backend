@@ -85,6 +85,7 @@ public enum ErrorCode {
     COMMUNITY_ANSWER_ALREADY_LIKED(HttpStatus.CONFLICT, "COMMUNITY_011", "이미 좋아요한 답변입니다."),
     COMMUNITY_ANSWER_NOT_LIKED(HttpStatus.NOT_FOUND, "COMMUNITY_012", "좋아요하지 않은 답변입니다."),
     COMMUNITY_DUPLICATE_POST(HttpStatus.CONFLICT, "COMMUNITY_013", "잠시 후 다시 시도해 주세요."),
+    COMMUNITY_AI_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "COMMUNITY_014", "커리어 게시글은 AI 기능을 지원하지 않습니다."),
 
     // Report
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "REPORT_001", "주간 리포트를 찾을 수 없습니다."),

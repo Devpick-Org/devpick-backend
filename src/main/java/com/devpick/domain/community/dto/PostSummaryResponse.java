@@ -1,6 +1,7 @@
 package com.devpick.domain.community.dto;
 
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.global.util.MarkdownPreviewUtils;
@@ -11,6 +12,7 @@ import java.util.UUID;
 
 public record PostSummaryResponse(
         UUID id,
+        PostType postType,
         String title,
         Level level,
         UUID authorId,
@@ -34,6 +36,7 @@ public record PostSummaryResponse(
 
         return new PostSummaryResponse(
                 post.getId(),
+                post.getPostType(),
                 post.getTitle(),
                 post.getLevel(),
                 post.getUser().getId(),

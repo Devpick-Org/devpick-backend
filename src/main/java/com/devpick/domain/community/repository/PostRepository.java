@@ -1,6 +1,7 @@
 package com.devpick.domain.community.repository;
 
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,12 +17,23 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     Page<Post> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
+    Page<Post> findAllByPostTypeOrderByCreatedAtDesc(PostType postType, Pageable pageable);
+
     @Query("""
             SELECT p FROM Post p
             WHERE LOWER(p.title) LIKE LOWER(CONCAT('%', :q, '%'))
                OR LOWER(p.content) LIKE LOWER(CONCAT('%', :q, '%'))
             """)
     Page<Post> searchByTitleOrContentContaining(@Param("q") String q, Pageable pageable);
+
+    @Query("""
+            SELECT p FROM Post p
+            WHERE p.postType = :postType
+              AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(p.content) LIKE LOWER(CONCAT('%', :q, '%')))
+            """)
+    Page<Post> searchByPostTypeAndTitleOrContentContaining(
+            @Param("postType") PostType postType, @Param("q") String q, Pageable pageable);
 
     List<Post> findByUser_IdOrderByCreatedAtDesc(UUID userId);
 
