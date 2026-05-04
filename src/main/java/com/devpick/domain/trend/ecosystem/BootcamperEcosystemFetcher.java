@@ -9,6 +9,8 @@ import org.springframework.web.util.UriUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -101,11 +103,8 @@ public class BootcamperEcosystemFetcher {
                 String detailUrl =
                         (bootcamperRowId > 0 && slugSeg != null) ? (ORIGIN + "/class/" + slugSeg) : URL;
                 String thumbFile = c.path("thumbnail").asText("").trim();
-                String thumbnailUrl = null;
-                if (!thumbFile.isEmpty()) {
-                    String path = thumbFile.startsWith("/") ? thumbFile : "/uploads/" + thumbFile;
-                    thumbnailUrl = ORIGIN + UriUtils.encodePath(path, StandardCharsets.UTF_8);
-                }
+                String thumbnailUrl =
+                        thumbFile.isEmpty() ? null : bootcamperThumbnailForList(thumbFile);
                 List<String> tags = new ArrayList<>();
                 tagIfPresent(tags, c.path("classify").asText(""));
                 tagIfPresent(tags, c.path("classMethod").asText(""));
@@ -206,6 +205,67 @@ public class BootcamperEcosystemFetcher {
             log.warn("부트캠퍼 데이터 라우트 JSON 파싱 실패: {}", e.getMessage());
             return Optional.empty();
         }
+    }
+
+    /** courseList {@code thumbnail} 을 업로드 기준 상대경로 형태(/uploads/...)로 맞춥니다. 부트캠퍼 절대 URL 이 아니면 빈 문자열. */
+    static String normalizedBootcampUploadPath(String thumbnailField) {
+        if (thumbnailField == null) {
+            return "";
+        }
+        String s = thumbnailField.strip();
+        if (s.isEmpty()) {
+            return "";
+        }
+        if (s.startsWith("http://") || s.startsWith("https://")) {
+            try {
+                URI uri = URI.create(s);
+                if (!bootcamperHost(uri.getHost())) {
+                    return "";
+                }
+                String path = uri.getPath();
+                if (path != null && path.startsWith("/uploads/")) {
+                    return UriUtils.decode(path, StandardCharsets.UTF_8);
+                }
+                return "";
+            } catch (IllegalArgumentException e) {
+                return "";
+            }
+        }
+        String t = s;
+        if (!t.startsWith("/")) {
+            if (t.startsWith("uploads/")) {
+                t = "/" + t;
+            } else {
+                t = "/uploads/" + t;
+            }
+        }
+        if (!(t.startsWith("/uploads/"))) {
+            return "";
+        }
+        if (t.contains("..")) {
+            return "";
+        }
+        return UriUtils.decode(t, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 리스트 카드 썸네일용 URL. 업로드 직링크 경로(/uploads)는 라우터가 404이므로 Next 이미지 최적화 라우터를 사용합니다.
+     */
+    static String bootcamperThumbnailForList(String thumbnailField) {
+        String uploadPath = normalizedBootcampUploadPath(thumbnailField);
+        if (uploadPath.isEmpty()) {
+            return null;
+        }
+        String enc = URLEncoder.encode(uploadPath, StandardCharsets.UTF_8).replace("+", "%20");
+        return ORIGIN + "/_next/image?url=" + enc + "&w=640&q=75";
+    }
+
+    static boolean bootcamperHost(String host) {
+        if (host == null || host.isEmpty()) {
+            return false;
+        }
+        String h = host.strip().toLowerCase();
+        return "bootcamper.co.kr".equals(h) || "www.bootcamper.co.kr".equals(h);
     }
 
     private static void tagIfPresent(List<String> tags, String v) {
