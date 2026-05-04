@@ -31,6 +31,10 @@ public class Post extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20, nullable = false)
+    private PostType postType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20, nullable = false)
     private Level level;
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)

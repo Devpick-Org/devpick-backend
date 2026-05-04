@@ -7,6 +7,7 @@ import com.devpick.domain.community.dto.PostSummaryResponse;
 import com.devpick.domain.community.dto.PostUpdateRequest;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.entity.PostAttachment;
+import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.community.repository.AiAnswerRepository;
 import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.AnswerLikeRepository;
@@ -70,6 +71,7 @@ public class PostService {
 
         Post post = Post.builder()
                 .user(user)
+                .postType(request.postType())
                 .title(request.title())
                 .content(request.content())
                 .level(request.level())
@@ -88,7 +90,7 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
-    public PostListResponse getPosts(Pageable pageable, String query) {
+    public PostListResponse getPosts(Pageable pageable, String query, PostType postType) {
         Page<Post> page;
         if (StringUtils.hasText(query)) {
             String q = query.trim();
@@ -98,9 +100,13 @@ public class PostService {
                     pageable.getSort().isSorted()
                             ? pageable.getSort()
                             : Sort.by(Sort.Direction.DESC, "createdAt"));
-            page = postRepository.searchByTitleOrContentContaining(q, sorted);
+            page = postType != null
+                    ? postRepository.searchByPostTypeAndTitleOrContentContaining(postType, q, sorted)
+                    : postRepository.searchByTitleOrContentContaining(q, sorted);
         } else {
-            page = postRepository.findAllByOrderByCreatedAtDesc(pageable);
+            page = postType != null
+                    ? postRepository.findAllByPostTypeOrderByCreatedAtDesc(postType, pageable)
+                    : postRepository.findAllByOrderByCreatedAtDesc(pageable);
         }
 
         List<Post> postList = page.getContent();
@@ -202,7 +208,9 @@ public class PostService {
         aiQuestionRepository.deleteByPostId(postId);
         postRepository.delete(post);
 
-        scheduleAiQuestionCleanup(postId);
+        if (post.getPostType() == PostType.TECH) {
+            scheduleAiQuestionCleanup(postId);
+        }
     }
 
     /**

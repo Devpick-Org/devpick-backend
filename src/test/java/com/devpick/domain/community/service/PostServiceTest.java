@@ -6,6 +6,7 @@ import com.devpick.domain.community.dto.PostListResponse;
 import com.devpick.domain.community.dto.PostUpdateRequest;
 import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.community.repository.AiAnswerRepository;
 import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.AnswerLikeRepository;
@@ -102,6 +103,7 @@ class PostServiceTest {
 
         post = Post.builder()
                 .user(user)
+                .postType(PostType.TECH)
                 .title("Test Post")
                 .content("Test Content")
                 .level(Level.JUNIOR)
@@ -112,7 +114,7 @@ class PostServiceTest {
     @Test
     @DisplayName("createPost — 성공 시 히스토리 저장하고 게시글 반환")
     void createPost_success_savesHistoryAndReturnsPost() {
-        PostCreateRequest request = new PostCreateRequest("Test Post", "Test Content", Level.JUNIOR, null);
+        PostCreateRequest request = new PostCreateRequest(PostType.TECH, "Test Post", "Test Content", Level.JUNIOR, null);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(postRepository.save(any(Post.class))).willReturn(post);
 
@@ -126,7 +128,7 @@ class PostServiceTest {
     @Test
     @DisplayName("createPost — 사용자 없으면 USER_NOT_FOUND 예외")
     void createPost_userNotFound_throwsException() {
-        PostCreateRequest request = new PostCreateRequest("title", "content", Level.JUNIOR, null);
+        PostCreateRequest request = new PostCreateRequest(PostType.TECH, "title", "content", Level.JUNIOR, null);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> postService.createPost(userId, request))
@@ -142,7 +144,7 @@ class PostServiceTest {
         given(postRepository.findAllByOrderByCreatedAtDesc(any()))
                 .willReturn(new PageImpl<>(List.of(post)));
 
-        PostListResponse response = postService.getPosts(PageRequest.of(0, 20), null);
+        PostListResponse response = postService.getPosts(PageRequest.of(0, 20), null, null);
 
         assertThat(response.posts()).hasSize(1);
         assertThat(response.posts().get(0).title()).isEqualTo("Test Post");
@@ -155,7 +157,7 @@ class PostServiceTest {
         given(postRepository.searchByTitleOrContentContaining(eq("Spring"), any()))
                 .willReturn(new PageImpl<>(List.of(post)));
 
-        PostListResponse response = postService.getPosts(PageRequest.of(0, 20), "Spring");
+        PostListResponse response = postService.getPosts(PageRequest.of(0, 20), "Spring", null);
 
         assertThat(response.posts()).hasSize(1);
         verify(postRepository).searchByTitleOrContentContaining(eq("Spring"), any());
@@ -294,7 +296,7 @@ class PostServiceTest {
     @Test
     @DisplayName("createPost — 10초 이내 동일 제목 중복 제출 시 COMMUNITY_DUPLICATE_POST 예외")
     void createPost_duplicatePost_throwsException() {
-        PostCreateRequest request = new PostCreateRequest("Test Post", "Test Content", Level.JUNIOR, null);
+        PostCreateRequest request = new PostCreateRequest(PostType.TECH, "Test Post", "Test Content", Level.JUNIOR, null);
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         given(postRepository.existsByUser_IdAndTitleAndCreatedAtAfter(eq(userId), eq("Test Post"), any(LocalDateTime.class)))
                 .willReturn(true);
@@ -312,7 +314,7 @@ class PostServiceTest {
         given(postRepository.findAllByOrderByCreatedAtDesc(any()))
                 .willReturn(new PageImpl<>(List.of()));
 
-        PostListResponse response = postService.getPosts(PageRequest.of(0, 20), null);
+        PostListResponse response = postService.getPosts(PageRequest.of(0, 20), null, null);
 
         assertThat(response.posts()).isEmpty();
         assertThat(response.totalElements()).isEqualTo(0L);
@@ -337,7 +339,7 @@ class PostServiceTest {
         given(answerRepository.findByPostIdsOrderByCreatedAtAsc(any()))
                 .willReturn(List.of(answer));
 
-        PostListResponse response = postService.getPosts(PageRequest.of(0, 20), null);
+        PostListResponse response = postService.getPosts(PageRequest.of(0, 20), null, null);
 
         assertThat(response.posts()).hasSize(1);
         assertThat(response.posts().get(0).answerCount()).isEqualTo(3L);

@@ -1,6 +1,7 @@
 package com.devpick.domain.community.dto;
 
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.domain.user.entity.User;
@@ -136,6 +137,7 @@ class PostSummaryResponseTest {
     private Post buildPost(String content) {
         return Post.builder()
                 .user(user)
+                .postType(PostType.TECH)
                 .title("Test Post")
                 .content(content)
                 .level(Level.JUNIOR)

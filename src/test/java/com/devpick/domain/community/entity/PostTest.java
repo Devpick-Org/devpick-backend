@@ -25,6 +25,7 @@ class PostTest {
         // when
         Post post = Post.builder()
                 .user(user)
+                .postType(PostType.TECH)
                 .title("Spring Batch 도입기")
                 .content("Spring Batch를 프로젝트에 도입했다...")
                 .level(Level.JUNIOR)

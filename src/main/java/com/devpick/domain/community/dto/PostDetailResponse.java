@@ -2,6 +2,7 @@ package com.devpick.domain.community.dto;
 
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.entity.PostAttachment;
+import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 public record PostDetailResponse(
         UUID id,
+        PostType postType,
         String title,
         String content,
         Level level,
@@ -31,6 +33,7 @@ public record PostDetailResponse(
                 .toList();
         return new PostDetailResponse(
                 post.getId(),
+                post.getPostType(),
                 post.getTitle(),
                 post.getContent(),
                 post.getLevel(),

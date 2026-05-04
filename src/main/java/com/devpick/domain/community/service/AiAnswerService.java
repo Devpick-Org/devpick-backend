@@ -5,6 +5,7 @@ import com.devpick.domain.community.dto.AiAnswerResponse;
 import com.devpick.domain.community.entity.AiAnswer;
 import com.devpick.domain.community.entity.AiQuestion;
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.community.repository.AiAnswerRepository;
 import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.PostRepository;
@@ -29,6 +30,10 @@ public class AiAnswerService {
     public AiAnswerResponse generateOrGetAnswer(UUID postId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.COMMUNITY_POST_NOT_FOUND));
+
+        if (post.getPostType() == PostType.CAREER) {
+            throw new DevpickException(ErrorCode.COMMUNITY_AI_NOT_SUPPORTED);
+        }
 
         return aiAnswerRepository.findByPost_Id(postId)
                 .map(AiAnswerResponse::of)
