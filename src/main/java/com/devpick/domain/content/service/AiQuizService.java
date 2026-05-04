@@ -116,7 +116,7 @@ public class AiQuizService {
             QuizAttempt savedAttempt = quizAttemptRepository.save(QuizAttempt.builder()
                     .user(user)
                     .content(content)
-                    .level(request.level())
+                    .level(AiSummaryService.toAiServerLevel(request.level()))
                     .score(request.score())
                     .totalQuestions(request.totalQuestions())
                     .passed(request.passed())
@@ -203,7 +203,7 @@ public class AiQuizService {
         int passingCount = 0;
         try {
             Optional<AiQuizDocument> doc = aiQuizRepository.findByContentIdAndLevel(
-                    attempt.getContent().getId().toString(), attempt.getLevel());
+                    attempt.getContent().getId().toString(), AiSummaryService.toAiServerLevel(attempt.getLevel()));
             if (doc.isPresent()) {
                 questions = doc.get().getQuestions() != null ? doc.get().getQuestions() : List.of();
                 passingCount = doc.get().getPassingCount();
