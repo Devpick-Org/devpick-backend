@@ -84,4 +84,31 @@ class JobBookmarkServiceTest {
         assertThat(result.bookmarks()).isEmpty();
         assertThat(result.totalElements()).isZero();
     }
+
+    @Test
+    @DisplayName("북마크 목록 조회 - 로고/위치가 있을 때 그대로 반환")
+    void getBookmarkedJobs_withLogoAndLocation_returnsValues() throws Exception {
+        UUID userId = UUID.randomUUID();
+        JobPosting posting = JobPosting.builder()
+                .companyName("네이버")
+                .companyLogoUrl("https://logo.naver.com/logo.png")
+                .title("프론트엔드 개발자")
+                .employmentType(EmploymentType.FULL_TIME)
+                .experienceLevel(PostingExperienceLevel.SENIOR)
+                .location("경기 성남시")
+                .build();
+        JobBookmark bookmark = JobBookmark.builder()
+                .userId(userId)
+                .jobPosting(posting)
+                .build();
+        setCreatedAt(bookmark, LocalDateTime.now());
+
+        given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
+                .willReturn(new PageImpl<>(List.of(bookmark)));
+
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, PageRequest.of(0, 20));
+
+        assertThat(result.bookmarks().get(0).companyLogo()).isEqualTo("https://logo.naver.com/logo.png");
+        assertThat(result.bookmarks().get(0).location()).isEqualTo("경기 성남시");
+    }
 }
