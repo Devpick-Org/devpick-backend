@@ -313,8 +313,11 @@ public class JobService {
     }
 
     @Transactional(readOnly = true)
-    public JobBookmarkListResponse getBookmarkedJobs(UUID userId, Pageable pageable) {
-        Page<JobBookmark> page = jobBookmarkRepository.findByUserIdWithPosting(userId, pageable);
+    public JobBookmarkListResponse getBookmarkedJobs(UUID userId, String q, Pageable pageable) {
+        String normalizedQ = (q != null && !q.isBlank()) ? q.trim() : null;
+        Page<JobBookmark> page = normalizedQ == null
+                ? jobBookmarkRepository.findByUserIdWithPosting(userId, pageable)
+                : jobBookmarkRepository.findByUserIdWithPostingAndSearch(userId, normalizedQ, pageable);
         List<JobBookmarkItemResponse> items = page.getContent().stream()
                 .map(this::toBookmarkItem)
                 .toList();

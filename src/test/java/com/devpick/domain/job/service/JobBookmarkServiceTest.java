@@ -65,7 +65,7 @@ class JobBookmarkServiceTest {
         given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
                 .willReturn(new PageImpl<>(List.of(bookmark)));
 
-        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, PageRequest.of(0, 20));
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20));
 
         assertThat(result.bookmarks()).hasSize(1);
         assertThat(result.bookmarks().get(0).companyName()).isEqualTo("카카오");
@@ -79,10 +79,22 @@ class JobBookmarkServiceTest {
         given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
                 .willReturn(new PageImpl<>(List.of()));
 
-        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, PageRequest.of(0, 20));
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20));
 
         assertThat(result.bookmarks()).isEmpty();
         assertThat(result.totalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("북마크 목록 조회 - 검색어 전달 시 검색 쿼리 호출됨")
+    void getBookmarkedJobs_withQuery_callsSearchRepository() {
+        UUID userId = UUID.randomUUID();
+        given(jobBookmarkRepository.findByUserIdWithPostingAndSearch(eq(userId), eq("카카오"), any()))
+                .willReturn(new PageImpl<>(List.of()));
+
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, "카카오", PageRequest.of(0, 20));
+
+        assertThat(result.bookmarks()).isEmpty();
     }
 
     @Test
@@ -106,7 +118,7 @@ class JobBookmarkServiceTest {
         given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
                 .willReturn(new PageImpl<>(List.of(bookmark)));
 
-        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, PageRequest.of(0, 20));
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20));
 
         assertThat(result.bookmarks().get(0).companyLogo()).isEqualTo("https://logo.naver.com/logo.png");
         assertThat(result.bookmarks().get(0).location()).isEqualTo("경기 성남시");

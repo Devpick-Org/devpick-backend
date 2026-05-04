@@ -25,6 +25,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -69,7 +70,7 @@ class JobBookmarkControllerTest {
                 "서울", "2026-06-30", List.of("Java", "Spring"), Instant.now()
         );
         JobBookmarkListResponse response = new JobBookmarkListResponse(List.of(item), 0, 20, 1L, 1);
-        given(jobService.getBookmarkedJobs(eq(userId), any())).willReturn(response);
+        given(jobService.getBookmarkedJobs(eq(userId), isNull(), any())).willReturn(response);
 
         mockMvc.perform(get("/users/me/bookmarks"))
                 .andExpect(status().isOk())
@@ -82,7 +83,7 @@ class JobBookmarkControllerTest {
     @DisplayName("GET /users/me/bookmarks - 북마크 없을 시 빈 배열 반환")
     void getBookmarks_empty_returns200WithEmptyList() throws Exception {
         JobBookmarkListResponse response = new JobBookmarkListResponse(List.of(), 0, 20, 0L, 0);
-        given(jobService.getBookmarkedJobs(any(), any())).willReturn(response);
+        given(jobService.getBookmarkedJobs(any(), any(), any())).willReturn(response);
 
         mockMvc.perform(get("/users/me/bookmarks"))
                 .andExpect(status().isOk())
@@ -91,12 +92,12 @@ class JobBookmarkControllerTest {
     }
 
     @Test
-    @DisplayName("GET /users/me/bookmarks - page/size 파라미터 전달 시 서비스에 전달됨")
-    void getBookmarks_withPageParam_passesToService() throws Exception {
-        JobBookmarkListResponse response = new JobBookmarkListResponse(List.of(), 1, 5, 0L, 0);
-        given(jobService.getBookmarkedJobs(eq(userId), any())).willReturn(response);
+    @DisplayName("GET /users/me/bookmarks - q 파라미터 전달 시 서비스에 전달됨")
+    void getBookmarks_withQuery_passesToService() throws Exception {
+        JobBookmarkListResponse response = new JobBookmarkListResponse(List.of(), 0, 20, 0L, 0);
+        given(jobService.getBookmarkedJobs(eq(userId), eq("카카오"), any())).willReturn(response);
 
-        mockMvc.perform(get("/users/me/bookmarks").param("page", "1").param("size", "5"))
+        mockMvc.perform(get("/users/me/bookmarks").param("q", "카카오"))
                 .andExpect(status().isOk());
     }
 
@@ -104,7 +105,7 @@ class JobBookmarkControllerTest {
     @DisplayName("GET /users/me/bookmarks - sort=oldest 파라미터 전달 시 200 반환")
     void getBookmarks_withOldestSort_returns200() throws Exception {
         JobBookmarkListResponse response = new JobBookmarkListResponse(List.of(), 0, 20, 0L, 0);
-        given(jobService.getBookmarkedJobs(eq(userId), any())).willReturn(response);
+        given(jobService.getBookmarkedJobs(eq(userId), isNull(), any())).willReturn(response);
 
         mockMvc.perform(get("/users/me/bookmarks").param("sort", "oldest"))
                 .andExpect(status().isOk());
