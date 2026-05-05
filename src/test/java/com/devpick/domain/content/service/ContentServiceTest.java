@@ -39,6 +39,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -69,6 +70,8 @@ class ContentServiceTest {
     private AiSummaryService aiSummaryService;
     @Mock
     private ContentViewLogService contentViewLogService;
+    @Mock
+    private com.devpick.domain.content.client.SimilarContentClient similarContentClient;
 
     private UUID userId;
     private UUID contentId;
@@ -519,6 +522,71 @@ class ContentServiceTest {
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.CONTENT_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("getRecommendations — AI 서버 성공 시 AI 결과 반환")
+    void getRecommendations_aiSuccess_returnsAiResults() {
+        UUID aiContentId = UUID.randomUUID();
+        Content aiContent = Content.builder()
+                .source(content.getSource())
+                .title("AI 추천 글")
+                .author("a")
+                .canonicalUrl("https://velog.io/@ai/rec")
+                .preview("AI 추천 미리보기")
+                .publishedAt(LocalDateTime.now().minusDays(1))
+                .build();
+        ReflectionTestUtils.setField(aiContent, "id", aiContentId);
+
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(similarContentClient.searchSimilar(eq(contentId), eq(userId), any(), eq(5)))
+                .willReturn(List.of(aiContentId));
+        given(contentRepository.findAllById(List.of(aiContentId))).willReturn(List.of(aiContent));
+        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+
+        ContentListResponse response = contentService.getRecommendations(userId, contentId, PageRequest.of(0, 5));
+
+        assertThat(response.contents()).hasSize(1);
+        assertThat(response.contents().get(0).title()).isEqualTo("AI 추천 글");
+        verify(contentRepository, never()).findByIsAvailableTrueOrderByPublishedAtDesc(any());
+        verify(contentRepository, never()).findRecommendationsByTagIds(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("getRecommendations — AI 서버가 빈 결과 반환 시 태그 매칭 fallback")
+    void getRecommendations_aiReturnsEmpty_fallsBackToTagMatching() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(similarContentClient.searchSimilar(any(), any(), any(), anyInt())).willReturn(List.of());
+        given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+
+        ContentListResponse response = contentService.getRecommendations(userId, contentId, PageRequest.of(0, 5));
+
+        assertThat(response.contents()).isNotEmpty();
+        verify(contentRepository).findByIsAvailableTrueOrderByPublishedAtDesc(any());
+    }
+
+    @Test
+    @DisplayName("getRecommendations — AI 서버 예외 시 태그 매칭 fallback")
+    void getRecommendations_aiThrowsException_fallsBackToTagMatching() {
+        given(contentRepository.findByIdAndIsAvailableTrue(contentId)).willReturn(Optional.of(content));
+        given(similarContentClient.searchSimilar(any(), any(), any(), anyInt()))
+                .willThrow(new RuntimeException("AI 서버 연결 실패"));
+        given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+
+        ContentListResponse response = contentService.getRecommendations(userId, contentId, PageRequest.of(0, 5));
+
+        assertThat(response.contents()).isNotEmpty();
+        verify(contentRepository).findByIsAvailableTrueOrderByPublishedAtDesc(any());
     }
 
     @Test

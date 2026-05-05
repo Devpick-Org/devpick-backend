@@ -20,6 +20,7 @@ import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
+import com.devpick.domain.content.client.SimilarContentClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,8 +32,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -53,6 +57,7 @@ public class ContentService {
     private final PointService pointService;
     private final AiSummaryService aiSummaryService;
     private final ContentViewLogService contentViewLogService;
+    private final SimilarContentClient similarContentClient;
 
     @Transactional(readOnly = true)
     public ContentListResponse getFeed(UUID userId, Pageable pageable) {
@@ -254,12 +259,38 @@ public class ContentService {
         Content content = contentRepository.findByIdAndIsAvailableTrue(contentId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.CONTENT_NOT_FOUND));
 
+        int requestedSize = pageable.getPageSize();
+        boolean loggedIn = userId != null;
+
+        // AI 서버로 FAISS 임베딩 기반 유사 콘텐츠 조회 시도
+        try {
+            String text = content.getTitle() + "\n" + content.getPreview();
+            List<UUID> aiIds = similarContentClient.searchSimilar(contentId, userId, text, requestedSize);
+            if (!aiIds.isEmpty()) {
+                Map<UUID, Content> contentMap = contentRepository.findAllById(aiIds).stream()
+                        .collect(Collectors.toMap(Content::getId, Function.identity()));
+                List<ContentSummaryResponse> aiContents = aiIds.stream()
+                        .filter(contentMap::containsKey)
+                        .map(id -> {
+                            Content c = contentMap.get(id);
+                            String preview = aiSummaryService.findCachedCoreSummary(c.getId(), FEED_SUMMARY_LEVEL)
+                                    .filter(s -> !s.isBlank()).orElse(c.getPreview());
+                            boolean scrapped = loggedIn && scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId());
+                            boolean liked = loggedIn && likeRepository.existsByUser_IdAndContent_Id(userId, c.getId());
+                            return ContentSummaryResponse.of(c, scrapped, liked, preview);
+                        })
+                        .toList();
+                return new ContentListResponse(aiContents, 0, aiContents.size(), (long) aiContents.size(), 1);
+            }
+        } catch (Exception e) {
+            log.warn("AI 유사 콘텐츠 조회 실패, fallback 사용: contentId={}", contentId);
+        }
+
+        // Fallback: 태그 매칭 + contentId 시드 셔플
         List<UUID> tagIds = content.getContentTags().stream()
                 .map(ct -> ct.getTag().getId())
                 .toList();
 
-        int requestedSize = pageable.getPageSize();
-        // 태그+최신순 상위만 쓰면 글마다 추천이 거의 동일해져서, 넓은 후보 풀 후 contentId 시드 셔플
         int poolSize = Math.min(150, Math.max(requestedSize * 15, 50));
 
         Page<Content> page;
@@ -275,29 +306,16 @@ public class ContentService {
         Collections.shuffle(pool, new Random(seed));
         List<Content> picked = pool.stream().limit(requestedSize).toList();
 
-        boolean loggedIn = userId != null;
         List<ContentSummaryResponse> contents = picked.stream()
                 .map(c -> {
                     String preview = aiSummaryService.findCachedCoreSummary(c.getId(), FEED_SUMMARY_LEVEL)
-                            .filter(s -> !s.isBlank())
-                            .orElse(c.getPreview());
+                            .filter(s -> !s.isBlank()).orElse(c.getPreview());
                     boolean scrapped = loggedIn && scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId());
                     boolean liked = loggedIn && likeRepository.existsByUser_IdAndContent_Id(userId, c.getId());
-                    return ContentSummaryResponse.of(
-                            c,
-                            scrapped,
-                            liked,
-                            preview
-                    );
+                    return ContentSummaryResponse.of(c, scrapped, liked, preview);
                 })
                 .toList();
 
-        return new ContentListResponse(
-                contents,
-                0,
-                contents.size(),
-                page.getTotalElements(),
-                page.getTotalPages()
-        );
+        return new ContentListResponse(contents, 0, contents.size(), page.getTotalElements(), page.getTotalPages());
     }
 }
