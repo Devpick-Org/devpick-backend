@@ -3,6 +3,7 @@ package com.devpick.domain.community.service;
 import com.devpick.domain.community.client.SimilarQuestionClient;
 import com.devpick.domain.community.dto.SimilarPostListResponse;
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.domain.user.entity.Level;
@@ -53,9 +54,29 @@ class SimilarQuestionServiceTest {
         post = Post.builder()
                 .title("Spring 질문")
                 .content("내용입니다")
+                .postType(PostType.TECH)
                 .level(Level.JUNIOR)
                 .build();
         ReflectionTestUtils.setField(post, "id", postId);
+    }
+
+    @Test
+    @DisplayName("CAREER 유형 게시글은 COMMUNITY_AI_NOT_SUPPORTED 예외가 발생한다")
+    void getSimilarPosts_careerPost_throwsException() {
+        Post careerPost = Post.builder()
+                .title("커리어 질문")
+                .content("내용입니다")
+                .postType(PostType.CAREER)
+                .level(Level.JUNIOR)
+                .build();
+        ReflectionTestUtils.setField(careerPost, "id", postId);
+
+        given(postRepository.findById(postId)).willReturn(Optional.of(careerPost));
+
+        assertThatThrownBy(() -> similarQuestionService.getSimilarPosts(postId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.COMMUNITY_AI_NOT_SUPPORTED));
     }
 
     @Test
@@ -152,7 +173,7 @@ class SimilarQuestionServiceTest {
     }
 
     private Post buildPost(UUID id, String title) {
-        Post p = Post.builder().title(title).content("내용").level(Level.JUNIOR).build();
+        Post p = Post.builder().title(title).content("내용").postType(PostType.TECH).level(Level.JUNIOR).build();
         ReflectionTestUtils.setField(p, "id", id);
         return p;
     }

@@ -4,6 +4,7 @@ import com.devpick.domain.community.client.SimilarQuestionClient;
 import com.devpick.domain.community.dto.SimilarPostListResponse;
 import com.devpick.domain.community.dto.SimilarPostResponse;
 import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.global.common.exception.DevpickException;
@@ -30,6 +31,10 @@ public class SimilarQuestionService {
     public SimilarPostListResponse getSimilarPosts(UUID postId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.COMMUNITY_POST_NOT_FOUND));
+
+        if (post.getPostType() == PostType.CAREER) {
+            throw new DevpickException(ErrorCode.COMMUNITY_AI_NOT_SUPPORTED);
+        }
 
         String searchText = post.getTitle() + " " + post.getContent();
         UUID userId = post.getUser() != null ? post.getUser().getId() : null;
