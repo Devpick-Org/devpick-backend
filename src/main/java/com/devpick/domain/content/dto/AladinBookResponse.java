@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record KakaoBookResponse(
-        List<KakaoBookDocument> documents
+public record AladinBookResponse(
+        List<AladinBookDocument> item
 ) {
 }

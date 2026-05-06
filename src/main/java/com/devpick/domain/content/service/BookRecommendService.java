@@ -1,9 +1,9 @@
 package com.devpick.domain.content.service;
 
-import com.devpick.domain.content.client.KakaoBookClient;
+import com.devpick.domain.content.client.AladinBookClient;
+import com.devpick.domain.content.dto.AladinBookDocument;
 import com.devpick.domain.content.dto.BookItem;
 import com.devpick.domain.content.dto.BookRecommendResponse;
-import com.devpick.domain.content.dto.KakaoBookDocument;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.user.repository.UserTagRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -33,6 +34,7 @@ public class BookRecommendService {
     static final ZoneId KST = ZoneId.of("Asia/Seoul");
     static final int KEYWORD_COUNT = 3;
     static final int RESULT_SIZE = 8;
+    static final int PER_KEYWORD_LIMIT = 5;
     static final Map<String, String> KOREAN_TAG_MAP = Map.ofEntries(
             Map.entry("react", "리액트"),
             Map.entry("java", "자바"),
@@ -55,7 +57,7 @@ public class BookRecommendService {
 
     private final HistoryRepository historyRepository;
     private final UserTagRepository userTagRepository;
-    private final KakaoBookClient kakaoBookClient;
+    private final AladinBookClient aladinBookClient;
 
     @Transactional(readOnly = true)
     public BookRecommendResponse getRecommendBooks(UUID userId) {
@@ -127,49 +129,57 @@ public class BookRecommendService {
         long seed = userId.getMostSignificantBits() ^ userId.getLeastSignificantBits()
                 ^ LocalDate.now(KST).toEpochDay();
 
+        Set<String> blogBestIsbnSet = aladinBookClient.getBlogBestIsbnSet();
+
         Set<String> seenIsbn = new LinkedHashSet<>();
         Set<String> seenTitlePrefix = new LinkedHashSet<>();
-        List<KakaoBookDocument> collected = new ArrayList<>();
+        List<AladinBookDocument> priority = new ArrayList<>();
+        List<AladinBookDocument> secondary = new ArrayList<>();
 
         for (String kw : expandWithKorean(keywords)) {
-            List<KakaoBookDocument> results = kakaoBookClient.searchBooks(kw).stream()
-                    .filter(doc -> doc.thumbnail() != null && !doc.thumbnail().isBlank())
-                    .filter(doc -> doc.salePrice() > 0)
-                    .filter(BookRecommendService::containsKorean)
+            List<AladinBookDocument> results = aladinBookClient.searchBooks(kw).stream()
+                    .filter(doc -> doc.cover() != null && !doc.cover().isBlank())
+                    .filter(doc -> doc.priceSales() > 0)
+                    .sorted((a, b) -> Integer.compare(b.salesPoint(), a.salesPoint()))
                     .filter(doc -> {
-                        if (doc.isbn() == null || doc.isbn().isBlank()) return true;
-                        return seenIsbn.add(doc.isbn().split(" ")[0]);
+                        if (doc.isbn13() == null || doc.isbn13().isBlank()) return true;
+                        return seenIsbn.add(doc.isbn13());
                     })
                     .filter(doc -> seenTitlePrefix.add(titlePrefix(doc.title())))
-                    .limit(3)
+                    .limit(PER_KEYWORD_LIMIT)
                     .toList();
-            collected.addAll(results);
+
+            for (AladinBookDocument doc : results) {
+                if (doc.isbn13() != null && blogBestIsbnSet.contains(doc.isbn13())) {
+                    priority.add(doc);
+                } else {
+                    secondary.add(doc);
+                }
+            }
         }
 
-        List<KakaoBookDocument> shuffled = new ArrayList<>(collected);
-        Collections.shuffle(shuffled, new Random(seed)); // NOSONAR java:S2245
+        Collections.shuffle(priority, new Random(seed)); // NOSONAR java:S2245
+        Collections.shuffle(secondary, new Random(seed)); // NOSONAR java:S2245
 
-        List<BookItem> books = shuffled.subList(0, Math.min(RESULT_SIZE, shuffled.size()))
+        List<AladinBookDocument> merged = new ArrayList<>(priority);
+        merged.addAll(secondary);
+
+        List<BookItem> books = merged.subList(0, Math.min(RESULT_SIZE, merged.size()))
                 .stream()
-                .map(doc -> new BookItem(
-                        doc.title(), doc.authors(), doc.publisher(),
-                        doc.thumbnail(), doc.url(), doc.contents(),
-                        doc.price(), doc.salePrice()))
+                .map(this::toBookItem)
                 .toList();
 
         return new BookRecommendResponse(books, isPersonalized, null);
     }
 
-    static boolean containsKorean(KakaoBookDocument doc) {
-        return hasKorean(doc.title())
-                || doc.authors().stream().anyMatch(BookRecommendService::hasKorean)
-                || hasKorean(doc.publisher())
-                || hasKorean(doc.contents());
-    }
-
-    static boolean hasKorean(String text) {
-        if (text == null || text.isBlank()) return false;
-        return text.chars().anyMatch(c -> c >= 0xAC00 && c <= 0xD7A3);
+    private BookItem toBookItem(AladinBookDocument doc) {
+        List<String> authors = (doc.author() != null && !doc.author().isBlank())
+                ? Arrays.stream(doc.author().split(",")).map(String::trim).toList()
+                : List.of();
+        return new BookItem(
+                doc.title(), authors, doc.publisher(),
+                doc.cover(), doc.link(), doc.description(),
+                doc.priceStandard(), doc.priceSales());
     }
 
     static String titlePrefix(String title) {
