@@ -76,6 +76,7 @@ class JobBookmarkControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.bookmarks[0].companyName").value("카카오"))
+                .andExpect(jsonPath("$.data.bookmarks[0].matchScore").value(75))
                 .andExpect(jsonPath("$.data.totalElements").value(1));
     }
 

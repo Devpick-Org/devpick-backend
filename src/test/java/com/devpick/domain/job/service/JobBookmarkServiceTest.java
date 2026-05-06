@@ -124,4 +124,53 @@ class JobBookmarkServiceTest {
         assertThat(result.bookmarks().get(0).companyLogo()).isEqualTo("https://logo.naver.com/logo.png");
         assertThat(result.bookmarks().get(0).location()).isEqualTo("경기 성남시");
     }
+
+    @Test
+    @DisplayName("북마크 목록 조회 - matchScore가 0 이상으로 반환됨")
+    void getBookmarkedJobs_returnsMatchScore() throws Exception {
+        UUID userId = UUID.randomUUID();
+        JobPosting posting = JobPosting.builder()
+                .companyName("라인")
+                .title("백엔드 개발자")
+                .employmentType(EmploymentType.FULL_TIME)
+                .experienceLevel(PostingExperienceLevel.JUNIOR)
+                .build();
+        JobBookmark bookmark = JobBookmark.builder()
+                .userId(userId)
+                .jobPosting(posting)
+                .build();
+        setCreatedAt(bookmark, LocalDateTime.now());
+
+        given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
+                .willReturn(new PageImpl<>(List.of(bookmark)));
+
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20));
+
+        assertThat(result.bookmarks().get(0).matchScore()).isGreaterThanOrEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("북마크 목록 조회 - 상시 채용 공고는 deadline이 '채용 시 마감'으로 반환됨")
+    void getBookmarkedJobs_rollingDeadline_returnsLabel() throws Exception {
+        UUID userId = UUID.randomUUID();
+        JobPosting posting = JobPosting.builder()
+                .companyName("토스")
+                .title("iOS 개발자")
+                .employmentType(EmploymentType.FULL_TIME)
+                .experienceLevel(PostingExperienceLevel.MIDDLE)
+                .rollingDeadline(true)
+                .build();
+        JobBookmark bookmark = JobBookmark.builder()
+                .userId(userId)
+                .jobPosting(posting)
+                .build();
+        setCreatedAt(bookmark, LocalDateTime.now());
+
+        given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
+                .willReturn(new PageImpl<>(List.of(bookmark)));
+
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20));
+
+        assertThat(result.bookmarks().get(0).deadline()).isEqualTo("채용 시 마감");
+    }
 }
