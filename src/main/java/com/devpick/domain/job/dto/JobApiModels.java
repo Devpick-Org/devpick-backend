@@ -152,6 +152,7 @@ public final class JobApiModels {
             String location,
             String deadline,
             List<String> techStack,
+            int matchScore,
             Instant bookmarkedAt
     ) {}
 
