@@ -69,6 +69,7 @@ class JobBookmarkServiceTest {
 
         assertThat(result.bookmarks()).hasSize(1);
         assertThat(result.bookmarks().get(0).companyName()).isEqualTo("카카오");
+        assertThat(result.bookmarks().get(0).matchScore()).isGreaterThanOrEqualTo(0);
         assertThat(result.totalElements()).isEqualTo(1);
     }
 

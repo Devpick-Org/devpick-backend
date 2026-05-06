@@ -67,7 +67,7 @@ class JobBookmarkControllerTest {
         JobBookmarkItemResponse item = new JobBookmarkItemResponse(
                 UUID.randomUUID(), "카카오", "https://logo.jpg",
                 "백엔드 개발자", "FULL_TIME", "JUNIOR",
-                "서울", "2026-06-30", List.of("Java", "Spring"), Instant.now()
+                "서울", "2026-06-30", List.of("Java", "Spring"), 75, Instant.now()
         );
         JobBookmarkListResponse response = new JobBookmarkListResponse(List.of(item), 0, 20, 1L, 1);
         given(jobService.getBookmarkedJobs(eq(userId), isNull(), any())).willReturn(response);

@@ -318,17 +318,19 @@ public class JobService {
         Page<JobBookmark> page = normalizedQ == null
                 ? jobBookmarkRepository.findByUserIdWithPosting(userId, pageable)
                 : jobBookmarkRepository.findByUserIdWithPostingAndSearch(userId, normalizedQ, pageable);
+        Map<String, Integer> userSkills = loadUserSkillProfile(userId);
         List<JobBookmarkItemResponse> items = page.getContent().stream()
-                .map(this::toBookmarkItem)
+                .map(b -> toBookmarkItem(b, userSkills))
                 .toList();
         return new JobBookmarkListResponse(items, page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
     }
 
-    private JobBookmarkItemResponse toBookmarkItem(JobBookmark b) {
+    private JobBookmarkItemResponse toBookmarkItem(JobBookmark b, Map<String, Integer> userSkills) {
         JobPosting p = b.getJobPosting();
         String logo = p.getCompanyLogoUrl() != null && !p.getCompanyLogoUrl().isBlank()
                 ? p.getCompanyLogoUrl()
                 : LOGO_PLACEHOLDER;
+        int matchScore = JobMatchingCalculator.compute(p, userSkills).matchScore();
         return new JobBookmarkItemResponse(
                 p.getId(),
                 p.getCompanyName(),
@@ -339,6 +341,7 @@ public class JobService {
                 p.getLocation() != null ? p.getLocation() : "",
                 formatDeadlineLabel(p),
                 new ArrayList<>(p.getTechStack()),
+                matchScore,
                 b.getCreatedAt().toInstant(ZoneOffset.UTC)
         );
     }
