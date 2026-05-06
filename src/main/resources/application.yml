@@ -31,6 +31,9 @@ app:
     refresh-token-same-site: ${AUTH_REFRESH_SAME_SITE:None}
     has-session-same-site: ${AUTH_HAS_SESSION_SAME_SITE:Lax}
 
+aladin:
+  ttb-key: ${ALADIN_TTB_KEY:}
+
 # Actuator: EC2/로드밸런서에서 /actuator/health 사용 시 노출 필요
 management:
   endpoints:
