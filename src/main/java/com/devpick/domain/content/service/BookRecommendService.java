@@ -124,22 +124,29 @@ public class BookRecommendService {
     }
 
     private BookRecommendResponse buildResponse(List<String> keywords, UUID userId, boolean isPersonalized) {
-        List<KakaoBookDocument> merged = expandWithKorean(keywords).stream()
-                .flatMap(kw -> kakaoBookClient.searchBooks(kw).stream())
-                .toList();
-
-        Set<String> seenIsbn = new LinkedHashSet<>();
-        List<KakaoBookDocument> unique = merged.stream()
-                .filter(doc -> doc.thumbnail() != null && !doc.thumbnail().isBlank())
-                .filter(doc -> {
-                    if (doc.isbn() == null || doc.isbn().isBlank()) return true;
-                    return seenIsbn.add(doc.isbn().split(" ")[0]);
-                })
-                .toList();
-
         long seed = userId.getMostSignificantBits() ^ userId.getLeastSignificantBits()
                 ^ LocalDate.now(KST).toEpochDay();
-        List<KakaoBookDocument> shuffled = new ArrayList<>(unique);
+
+        Set<String> seenIsbn = new LinkedHashSet<>();
+        Set<String> seenTitlePrefix = new LinkedHashSet<>();
+        List<KakaoBookDocument> collected = new ArrayList<>();
+
+        for (String kw : expandWithKorean(keywords)) {
+            List<KakaoBookDocument> results = kakaoBookClient.searchBooks(kw).stream()
+                    .filter(doc -> doc.thumbnail() != null && !doc.thumbnail().isBlank())
+                    .filter(doc -> doc.salePrice() > 0)
+                    .filter(BookRecommendService::containsKorean)
+                    .filter(doc -> {
+                        if (doc.isbn() == null || doc.isbn().isBlank()) return true;
+                        return seenIsbn.add(doc.isbn().split(" ")[0]);
+                    })
+                    .filter(doc -> seenTitlePrefix.add(titlePrefix(doc.title())))
+                    .limit(3)
+                    .toList();
+            collected.addAll(results);
+        }
+
+        List<KakaoBookDocument> shuffled = new ArrayList<>(collected);
         Collections.shuffle(shuffled, new Random(seed)); // NOSONAR java:S2245
 
         List<BookItem> books = shuffled.subList(0, Math.min(RESULT_SIZE, shuffled.size()))
@@ -151,5 +158,22 @@ public class BookRecommendService {
                 .toList();
 
         return new BookRecommendResponse(books, isPersonalized, null);
+    }
+
+    static boolean containsKorean(KakaoBookDocument doc) {
+        return hasKorean(doc.title())
+                || doc.authors().stream().anyMatch(BookRecommendService::hasKorean)
+                || hasKorean(doc.publisher())
+                || hasKorean(doc.contents());
+    }
+
+    static boolean hasKorean(String text) {
+        if (text == null || text.isBlank()) return false;
+        return text.chars().anyMatch(c -> c >= 0xAC00 && c <= 0xD7A3);
+    }
+
+    static String titlePrefix(String title) {
+        if (title == null) return "";
+        return title.replaceAll("\\s+", "").substring(0, Math.min(10, title.replaceAll("\\s+", "").length()));
     }
 }
