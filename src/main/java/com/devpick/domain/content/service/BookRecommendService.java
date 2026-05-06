@@ -176,9 +176,10 @@ public class BookRecommendService {
         List<String> authors = (doc.author() != null && !doc.author().isBlank())
                 ? Arrays.stream(doc.author().split(",")).map(String::trim).toList()
                 : List.of();
+        String cover = doc.cover() != null ? doc.cover().replace("coversum", "cover200") : null;
         return new BookItem(
                 doc.title(), authors, doc.publisher(),
-                doc.cover(), doc.link(), doc.description(),
+                cover, doc.link(), doc.description(),
                 doc.priceStandard(), doc.priceSales());
     }
 
