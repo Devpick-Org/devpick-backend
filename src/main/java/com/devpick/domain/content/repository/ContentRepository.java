@@ -23,6 +23,7 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
 
     @Query("SELECT DISTINCT c FROM Content c LEFT JOIN c.contentTags ct LEFT JOIN ct.tag t " +
            "WHERE c.isAvailable = true " +
+           "AND c.source.name <> 'YouTube' " +
            "AND (COALESCE(TRIM(:query), '') = '' OR " +
            "LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
            "LOWER(c.translatedTitle) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
