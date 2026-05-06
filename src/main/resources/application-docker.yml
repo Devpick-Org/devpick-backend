@@ -42,10 +42,8 @@ jwt:
   access-token-expiry: ${JWT_ACCESS_TOKEN_EXPIRY:3600000}
   refresh-token-expiry: ${JWT_REFRESH_TOKEN_EXPIRY:604800000}
 
-kakao:
-  book:
-    api-key: ${KAKAO_BOOK_API_KEY}
-    api-url: https://dapi.kakao.com
+aladin:
+  ttb-key: ${ALADIN_TTB_KEY:}
 
 ai-server:
   url: ${AI_SERVER_URL:http://ai-server:8000}

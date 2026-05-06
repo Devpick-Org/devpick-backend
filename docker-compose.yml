@@ -48,7 +48,7 @@ services:
       WEEKLY_REPORT_TRIGGER_KEY: ${WEEKLY_REPORT_TRIGGER_KEY:-}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
       AWS_S3_PUBLIC_BASE_URL: ${AWS_S3_PUBLIC_BASE_URL:-}
-      KAKAO_BOOK_API_KEY: ${KAKAO_BOOK_API_KEY:-}
+      ALADIN_TTB_KEY: ${ALADIN_TTB_KEY:-}
     dns:
       - 172.31.0.2  # AWS VPC DNS — ElastiCache 등 내부 hostname 해석용
     depends_on:
