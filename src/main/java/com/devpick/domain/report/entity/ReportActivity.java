@@ -64,6 +64,7 @@ public class ReportActivity extends BaseCreatedEntity {
     @Column(name = "tag_activities")
     private String tagActivities;
 
-    @Column(name = "highlights", columnDefinition = "TEXT")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "highlights")
     private String highlights;
 }
