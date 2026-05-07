@@ -290,6 +290,8 @@ public class RecommendService {
                 result.add(best);
                 channelCount.merge(extractChannel(best), 1, Integer::sum);
                 pool.remove(best);
+            } else {
+                break;
             }
         }
         return result;
