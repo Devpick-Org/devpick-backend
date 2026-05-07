@@ -18,6 +18,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -86,6 +87,22 @@ class AiQuestionClientTest {
         assertThat(result.refinedTitle()).isEqualTo("개선 제목");
         assertThat(result.refinedContent()).isEqualTo("개선 본문");
         assertThat(result.suggestions()).containsExactly("태그1", "태그2");
+    }
+
+    @Test
+    @DisplayName("postId가 있을 때 content_id 키로 요청이 성공한다")
+    void refine_withPostId_success() {
+        AiQuestionClient.RefineFastApiResponse fastApi =
+                new AiQuestionClient.RefineFastApiResponse(
+                        "개선 제목", "개선 본문", List.of("태그1"), 0.8, "2026-05-01T00:00:00Z");
+        mockWebClientChain(fastApi);
+
+        QuestionRefineRequest requestWithPostId =
+                new QuestionRefineRequest("제목", "본문", Level.JUNIOR, UUID.randomUUID());
+        QuestionRefineResponse result = aiQuestionClient.refine(requestWithPostId);
+
+        assertThat(result.refinedTitle()).isEqualTo("개선 제목");
+        assertThat(result.refinedContent()).isEqualTo("개선 본문");
     }
 
     @Test
