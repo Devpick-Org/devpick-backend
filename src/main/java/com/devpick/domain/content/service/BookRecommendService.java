@@ -16,6 +16,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -131,12 +132,26 @@ public class BookRecommendService {
 
         Set<String> blogBestIsbnSet = aladinBookClient.getBlogBestIsbnSet();
 
+        // 원본 키워드별 책 수 추적 — 같은 주제 편향 방지
+        Map<String, String> expandedToOrig = new HashMap<>();
+        for (String origKw : keywords) {
+            expandedToOrig.put(origKw.toLowerCase(), origKw);
+            String korean = KOREAN_TAG_MAP.get(origKw.toLowerCase());
+            if (korean != null) expandedToOrig.put(korean, origKw);
+        }
+        Map<String, Integer> countPerOrig = new HashMap<>();
+        int perOrigLimit = Math.max(2, (RESULT_SIZE + keywords.size() - 1) / keywords.size());
+
         Set<String> seenIsbn = new LinkedHashSet<>();
         Set<String> seenTitlePrefix = new LinkedHashSet<>();
         List<AladinBookDocument> priority = new ArrayList<>();
         List<AladinBookDocument> secondary = new ArrayList<>();
 
         for (String kw : expandWithKorean(keywords)) {
+            String origKw = expandedToOrig.getOrDefault(kw.toLowerCase(), kw);
+            int alreadyAdded = countPerOrig.getOrDefault(origKw, 0);
+            if (alreadyAdded >= perOrigLimit) continue;
+
             List<AladinBookDocument> results = aladinBookClient.searchBooks(kw).stream()
                     .filter(doc -> doc.cover() != null && !doc.cover().isBlank())
                     .filter(doc -> doc.priceSales() > 0)
@@ -149,13 +164,18 @@ public class BookRecommendService {
                     .limit(PER_KEYWORD_LIMIT)
                     .toList();
 
+            int canAdd = perOrigLimit - alreadyAdded;
+            int added = 0;
             for (AladinBookDocument doc : results) {
+                if (added >= canAdd) break;
                 if (doc.isbn13() != null && blogBestIsbnSet.contains(doc.isbn13())) {
                     priority.add(doc);
                 } else {
                     secondary.add(doc);
                 }
+                added++;
             }
+            countPerOrig.put(origKw, alreadyAdded + added);
         }
 
         Collections.shuffle(priority, new Random(seed)); // NOSONAR java:S2245
