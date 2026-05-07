@@ -1,17 +1,18 @@
 package com.devpick.domain.report.dto;
 
 import com.devpick.domain.report.entity.ReportActivity;
+import com.fasterxml.jackson.annotation.JsonRawValue;
 
 public record ReportActivityResponse(
         int contentsRead,
         int questionsCreated,
         int jobPostingsViewed,
-        String topTags,
-        String prevWeekComparison,
-        String jobTechStacks,
-        String contentKeywords,
-        String questionAnalysis,
-        String highlights
+        @JsonRawValue String topTags,
+        @JsonRawValue String prevWeekComparison,
+        @JsonRawValue String jobTechStacks,
+        @JsonRawValue String contentKeywords,
+        @JsonRawValue String questionAnalysis,
+        @JsonRawValue String highlights
 ) {
     public static ReportActivityResponse of(ReportActivity activity) {
         return new ReportActivityResponse(
