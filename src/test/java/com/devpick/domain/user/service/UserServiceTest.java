@@ -246,7 +246,7 @@ class UserServiceTest {
     void updateProfile_tags_returnsUpdatedTags() {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         Tag reactTag = Tag.builder().name("React").build();
-        given(tagRepository.findByName("React")).willReturn(Optional.of(reactTag));
+        given(tagRepository.findByNameIgnoreCase("React")).willReturn(Optional.of(reactTag));
         UserProfileUpdateRequest request = new UserProfileUpdateRequest(null, null, null, null, List.of("React"));
 
         UserProfileUpdateResponse response = userService.updateProfile(userId, request);
@@ -260,14 +260,43 @@ class UserServiceTest {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
         Tag reactTag = Tag.builder().name("React").build();
         Tag tsTag = Tag.builder().name("TypeScript").build();
-        given(tagRepository.findByName("React")).willReturn(Optional.of(reactTag));
-        given(tagRepository.findByName("TypeScript")).willReturn(Optional.of(tsTag));
+        given(tagRepository.findByNameIgnoreCase("React")).willReturn(Optional.of(reactTag));
+        given(tagRepository.findByNameIgnoreCase("TypeScript")).willReturn(Optional.of(tsTag));
         UserProfileUpdateRequest request = new UserProfileUpdateRequest(null, null, null, null, List.of("React", "TypeScript"));
 
         UserProfileUpdateResponse response = userService.updateProfile(userId, request);
 
         assertThat(response.tags()).containsExactlyInAnyOrder("React", "TypeScript");
         assertThat(response.tags()).doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("updateProfile — 대소문자 다른 태그 입력 시 기존 tag row 재사용, 신규 row 미생성")
+    void updateProfile_tags_caseInsensitive_reusesExistingTag() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        Tag cssTag = Tag.builder().name("CSS").build();
+        given(tagRepository.findByNameIgnoreCase("css")).willReturn(Optional.of(cssTag));
+        UserProfileUpdateRequest request = new UserProfileUpdateRequest(null, null, null, null, List.of("css"));
+
+        UserProfileUpdateResponse response = userService.updateProfile(userId, request);
+
+        assertThat(response.tags()).containsExactly("CSS");
+        verify(tagRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateProfile — 존재하지 않는 태그는 신규 생성된다")
+    void updateProfile_tags_unknown_createsNewRow() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        Tag newTag = Tag.builder().name("Zig").build();
+        given(tagRepository.findByNameIgnoreCase("Zig")).willReturn(Optional.empty());
+        given(tagRepository.save(any(Tag.class))).willReturn(newTag);
+        UserProfileUpdateRequest request = new UserProfileUpdateRequest(null, null, null, null, List.of("Zig"));
+
+        UserProfileUpdateResponse response = userService.updateProfile(userId, request);
+
+        assertThat(response.tags()).containsExactly("Zig");
+        verify(tagRepository).save(any(Tag.class));
     }
 
     @Test

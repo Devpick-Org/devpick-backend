@@ -114,10 +114,10 @@ public class UserService {
                 .orElse("JUNIOR");
     }
 
-    /** 태그명으로 Tag 조회, 없으면 신규 생성 후 반환. */
+    /** 태그명으로 대소문자 무관하게 Tag 조회, 없으면 신규 생성 후 반환. */
     private List<Tag> findOrCreateTags(List<String> names) {
         return names.stream()
-                .map(name -> tagRepository.findByName(name)
+                .map(name -> tagRepository.findByNameIgnoreCase(name)
                         .orElseGet(() -> tagRepository.save(Tag.builder().name(name).build())))
                 .toList();
     }

@@ -1,3 +1,52 @@
+-- DP-462: 중복 태그 제거 — css→CSS, Github→GitHub 병합 (case 버그로 생성된 중복 row 정리)
+DO $$
+DECLARE
+  v_dup_id  UUID;
+  v_keep_id UUID;
+BEGIN
+  -- css → CSS 병합
+  SELECT id INTO v_dup_id  FROM tags WHERE name = 'css';
+  SELECT id INTO v_keep_id FROM tags WHERE name = 'CSS';
+  IF v_dup_id IS NOT NULL AND v_keep_id IS NOT NULL THEN
+    UPDATE content_tags SET tag_id = v_keep_id
+      WHERE tag_id = v_dup_id
+        AND NOT EXISTS (SELECT 1 FROM content_tags x WHERE x.content_id = content_tags.content_id AND x.tag_id = v_keep_id);
+    DELETE FROM content_tags WHERE tag_id = v_dup_id;
+    UPDATE user_tags SET tag_id = v_keep_id
+      WHERE tag_id = v_dup_id
+        AND NOT EXISTS (SELECT 1 FROM user_tags x WHERE x.user_id = user_tags.user_id AND x.tag_id = v_keep_id);
+    DELETE FROM user_tags WHERE tag_id = v_dup_id;
+    DELETE FROM tags WHERE id = v_dup_id;
+  END IF;
+
+  -- Github → GitHub 병합
+  SELECT id INTO v_dup_id  FROM tags WHERE name = 'Github';
+  SELECT id INTO v_keep_id FROM tags WHERE name = 'GitHub';
+  IF v_dup_id IS NOT NULL AND v_keep_id IS NOT NULL THEN
+    UPDATE content_tags SET tag_id = v_keep_id
+      WHERE tag_id = v_dup_id
+        AND NOT EXISTS (SELECT 1 FROM content_tags x WHERE x.content_id = content_tags.content_id AND x.tag_id = v_keep_id);
+    DELETE FROM content_tags WHERE tag_id = v_dup_id;
+    UPDATE user_tags SET tag_id = v_keep_id
+      WHERE tag_id = v_dup_id
+        AND NOT EXISTS (SELECT 1 FROM user_tags x WHERE x.user_id = user_tags.user_id AND x.tag_id = v_keep_id);
+    DELETE FROM user_tags WHERE tag_id = v_dup_id;
+    DELETE FROM tags WHERE id = v_dup_id;
+  END IF;
+END $$;
+
+-- DP-462: 한국어 태그 → 영어 rename (AI 프롬프트 기준값 일치)
+UPDATE tags SET name = 'Algorithm'          WHERE name = '알고리즘';
+UPDATE tags SET name = 'Data Structure'     WHERE name = '자료구조';
+UPDATE tags SET name = 'OS'                 WHERE name = '운영체제';
+UPDATE tags SET name = 'Network'            WHERE name = '네트워크';
+UPDATE tags SET name = 'Design Pattern'     WHERE name = '디자인패턴';
+UPDATE tags SET name = 'Compiler'           WHERE name = '컴파일러';
+UPDATE tags SET name = 'Concurrency'        WHERE name = '동시성';
+UPDATE tags SET name = 'Parallel Programming' WHERE name = '병렬프로그래밍';
+UPDATE tags SET name = 'Memory Management'  WHERE name = '메모리관리';
+UPDATE tags SET name = 'Garbage Collection' WHERE name = '가비지컬렉션';
+
 -- DP-150: 태그 초기 데이터 삽입
 -- 서버 시작 시 tags 테이블에 기본 태그들을 삽입한다.
 -- 이미 존재하는 태그는 건너뜀 (ON CONFLICT DO NOTHING)
@@ -64,18 +113,18 @@ INSERT INTO tags (id, name, created_at) VALUES
 -- 아키텍처 / 설계
 (gen_random_uuid(), 'MSA', NOW()),
 (gen_random_uuid(), '시스템설계', NOW()),
-(gen_random_uuid(), '디자인패턴', NOW()),
+(gen_random_uuid(), 'Design Pattern', NOW()),
 (gen_random_uuid(), '클린코드', NOW()),
 (gen_random_uuid(), '객체지향', NOW()),
 (gen_random_uuid(), '함수형프로그래밍', NOW()),
 (gen_random_uuid(), 'DDD', NOW()),
 -- CS 기초
-(gen_random_uuid(), '네트워크', NOW()),
-(gen_random_uuid(), '운영체제', NOW()),
-(gen_random_uuid(), '컴파일러', NOW()),
+(gen_random_uuid(), 'Network', NOW()),
+(gen_random_uuid(), 'OS', NOW()),
+(gen_random_uuid(), 'Compiler', NOW()),
 (gen_random_uuid(), '데이터베이스이론', NOW()),
 (gen_random_uuid(), '컴퓨터구조', NOW()),
-(gen_random_uuid(), '병렬프로그래밍', NOW()),
+(gen_random_uuid(), 'Parallel Programming', NOW()),
 -- AI 모델 / 플랫폼
 (gen_random_uuid(), 'Claude', NOW()),
 (gen_random_uuid(), 'ChatGPT', NOW()),
@@ -154,13 +203,13 @@ INSERT INTO tags (id, name, created_at) VALUES
 (gen_random_uuid(), 'Hugging Face', NOW()),
 (gen_random_uuid(), 'Ollama', NOW()),
 -- CS 심화
-(gen_random_uuid(), '동시성', NOW()),
-(gen_random_uuid(), '메모리관리', NOW()),
-(gen_random_uuid(), '가비지컬렉션', NOW()),
+(gen_random_uuid(), 'Concurrency', NOW()),
+(gen_random_uuid(), 'Memory Management', NOW()),
+(gen_random_uuid(), 'Garbage Collection', NOW()),
 -- 기타
 (gen_random_uuid(), 'Git', NOW()),
-(gen_random_uuid(), '알고리즘', NOW()),
-(gen_random_uuid(), '자료구조', NOW()),
+(gen_random_uuid(), 'Algorithm', NOW()),
+(gen_random_uuid(), 'Data Structure', NOW()),
 (gen_random_uuid(), '보안', NOW()),
 (gen_random_uuid(), '테스트', NOW()),
 (gen_random_uuid(), 'AI/ML', NOW()),
