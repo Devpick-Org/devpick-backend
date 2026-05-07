@@ -85,7 +85,7 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
                    "AND h.action_type IN ('content_opened', 'ai_summary_viewed', 'scrapped') " +
                    "AND h.created_at BETWEEN :from AND :to " +
                    "AND c.tags IS NOT NULL AND c.tags != '[]' " +
-                   "GROUP BY tag_name ORDER BY cnt DESC",
+                   "GROUP BY tag_name ORDER BY cnt DESC LIMIT 10",
            nativeQuery = true)
     List<Object[]> findTopTagsByUserAndPeriod(
             @Param("userId") UUID userId,

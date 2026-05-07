@@ -377,18 +377,18 @@ public class WeeklyReportService {
             List<AiReportClient.QuestionItem> techItems = techPosts.stream()
                     .map(p -> new AiReportClient.QuestionItem(
                             p.getTitle(),
-                            p.getContent(),
+                            p.getContent() != null ? p.getContent() : "",
                             adoptedAnswerByPostId.containsKey(p.getId().toString())
-                                    ? adoptedAnswerByPostId.get(p.getId().toString()).getContent() : null
+                                    ? adoptedAnswerByPostId.get(p.getId().toString()).getContent() : ""
                     ))
                     .toList();
 
             List<AiReportClient.QuestionItem> careerItems = careerPosts.stream()
                     .map(p -> new AiReportClient.QuestionItem(
                             p.getTitle(),
-                            p.getContent(),
+                            p.getContent() != null ? p.getContent() : "",
                             adoptedAnswerByPostId.containsKey(p.getId().toString())
-                                    ? adoptedAnswerByPostId.get(p.getId().toString()).getContent() : null
+                                    ? adoptedAnswerByPostId.get(p.getId().toString()).getContent() : ""
                     ))
                     .toList();
 
