@@ -180,6 +180,7 @@ public class RecommendService {
 
         if (topTagIds.isEmpty()) {
             topTagIds = userTagRepository.findByUser_Id(userId).stream()
+                    .filter(ut -> ut.getTag() != null && ut.getTag().getId() != null)
                     .map(ut -> ut.getTag().getId()).toList();
         }
 
@@ -258,6 +259,7 @@ public class RecommendService {
 
     double computeScore(Content content, Map<UUID, Double> tagScores) {
         double tagScore = content.getContentTags().stream()
+                .filter(ct -> ct.getTag() != null && ct.getTag().getId() != null)
                 .mapToDouble(ct -> tagScores.getOrDefault(ct.getTag().getId(), 0.0))
                 .sum();
         double recencyBonus = 0;
@@ -298,13 +300,14 @@ public class RecommendService {
     }
 
     String extractChannel(Content content) {
-        if (content.getExtra() == null) return content.getId().toString();
+        String fallback = content.getId() != null ? content.getId().toString() : content.getCanonicalUrl();
+        if (content.getExtra() == null) return fallback;
         try {
             Map<String, Object> extra = objectMapper.readValue(content.getExtra(), new TypeReference<Map<String, Object>>() {});
             Object channelName = extra.get("channelName");
-            return channelName != null ? channelName.toString() : content.getId().toString();
+            return channelName != null ? channelName.toString() : fallback;
         } catch (JsonProcessingException e) {
-            return content.getId().toString();
+            return fallback;
         }
     }
 
