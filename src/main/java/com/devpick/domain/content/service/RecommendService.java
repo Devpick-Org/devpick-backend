@@ -240,9 +240,10 @@ public class RecommendService {
 
         for (Object[] row : rows) {
             UUID tagId = (UUID) row[0];
+            Number rawCount = (Number) row[2];
+            if (tagId == null || rawCount == null) continue;
             String actionType = (String) row[1];
-            long count = (long) row[2];
-            scores.merge(tagId, ACTION_WEIGHTS.getOrDefault(actionType, 1.0) * count, Double::sum);
+            scores.merge(tagId, ACTION_WEIGHTS.getOrDefault(actionType, 1.0) * rawCount.longValue(), Double::sum);
         }
         return scores;
     }
