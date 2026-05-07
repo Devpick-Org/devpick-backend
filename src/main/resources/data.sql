@@ -1,3 +1,17 @@
+-- DP-467: post_type NULL 백필 — 컬럼 추가 전 생성된 게시글 보정 및 NOT NULL 제약 적용
+DO $$
+BEGIN
+  UPDATE posts SET post_type = 'TECH' WHERE post_type IS NULL;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'posts'
+      AND column_name = 'post_type'
+      AND is_nullable = 'YES'
+  ) THEN
+    ALTER TABLE posts ALTER COLUMN post_type SET NOT NULL;
+  END IF;
+END $$;
+
 -- DP-462: 중복 태그 제거 — css→CSS, Github→GitHub 병합 (case 버그로 생성된 중복 row 정리)
 DO $$
 DECLARE
