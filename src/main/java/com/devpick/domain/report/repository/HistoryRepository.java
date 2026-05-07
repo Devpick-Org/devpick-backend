@@ -54,12 +54,16 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
     long countByUser_IdAndActionTypeAndCreatedAtBetween(
             UUID userId, String actionType, LocalDateTime from, LocalDateTime to);
 
-    @Query("SELECT ct.tag.name, COUNT(ct.tag.name) FROM History h " +
-           "JOIN h.content c JOIN c.contentTags ct " +
-           "WHERE h.user.id = :userId " +
-           "AND h.actionType IN ('content_opened', 'ai_summary_viewed', 'scrapped') " +
-           "AND h.createdAt BETWEEN :from AND :to " +
-           "GROUP BY ct.tag.name ORDER BY COUNT(ct.tag.name) DESC")
+    @Query(value = "SELECT tag_name, COUNT(*) AS cnt " +
+                   "FROM history h " +
+                   "JOIN contents c ON h.content_id = c.id, " +
+                   "jsonb_array_elements_text(c.tags::jsonb) AS tag_name " +
+                   "WHERE h.user_id = :userId " +
+                   "AND h.action_type IN ('content_opened', 'ai_summary_viewed', 'scrapped') " +
+                   "AND h.created_at BETWEEN :from AND :to " +
+                   "AND c.tags IS NOT NULL AND c.tags != '[]' " +
+                   "GROUP BY tag_name ORDER BY cnt DESC",
+           nativeQuery = true)
     List<Object[]> findTopTagsByUserAndPeriod(
             @Param("userId") UUID userId,
             @Param("from") LocalDateTime from,
