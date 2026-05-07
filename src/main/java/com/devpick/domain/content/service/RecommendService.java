@@ -25,8 +25,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -43,11 +47,21 @@ public class RecommendService {
 
     static final int CANDIDATE_LIMIT = 100;
     static final int RESULT_SIZE = 8;
+    static final int TOP_TAGS_LIMIT = 15;
+    static final int EXPLORE_SIZE = 2;
+    static final int PERSONALIZED_SIZE = RESULT_SIZE - EXPLORE_SIZE;
     static final String REDIS_KEY_PREFIX = "recommend:tags:";
     static final long CACHE_TTL_HOURS = 24;
     static final String NOT_ENOUGH_MESSAGE = "아직 추천할 글이 부족해요. 더 많은 글을 읽어보세요!";
     static final List<String> HISTORY_ACTION_TYPES =
             List.of("scrapped", "ai_summary_viewed", "ai_quiz_completed", "content_liked");
+    static final Map<String, Double> ACTION_WEIGHTS = Map.of(
+            "ai_quiz_completed", 5.0,
+            "scrapped",          4.0,
+            "content_liked",     3.0,
+            "ai_summary_viewed", 2.0,
+            "content_opened",    1.0
+    );
     static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final HistoryRepository historyRepository;
@@ -105,22 +119,6 @@ public class RecommendService {
         return result;
     }
 
-    private List<Content> findYoutubeByTagNamesInTitle(List<String> tagNames, UUID userId, int limit) {
-        Set<UUID> seen = new LinkedHashSet<>();
-        List<Content> result = new ArrayList<>();
-        for (String tagName : tagNames) {
-            for (Content c : contentRepository.findYoutubeByTagNameInTitle(
-                    tagName, userId, PageRequest.of(0, limit))) {
-                UUID id = c.getId();
-                if (id != null && seen.add(id)) {
-                    result.add(c);
-                    if (result.size() >= limit) return result;
-                }
-            }
-        }
-        return result;
-    }
-
     List<UUID> getOrCacheTagIds(UUID userId) {
         String today = LocalDate.now(KST).format(DateTimeFormatter.ISO_LOCAL_DATE);
         String redisKey = REDIS_KEY_PREFIX + userId + ":" + today;
@@ -165,34 +163,162 @@ public class RecommendService {
         return new RecommendContentsResponse(items, isPersonalized, message);
     }
 
+    // ─── YouTube 추천 (DP-463) ────────────────────────────────────────────────
+
     @Transactional(readOnly = true)
     public YoutubeRecommendResponse getRecommendYoutube(UUID userId) {
-        List<UUID> tagIds = getOrCacheTagIds(userId);
+        // 1. 행동 이력 기반 가중 태그 점수맵
+        Map<UUID, Double> tagScores = buildWeightedTagScores(userId);
 
-        if (!tagIds.isEmpty()) {
-            List<String> tagNames = tagRepository.findAllById(tagIds).stream()
-                    .map(Tag::getName).toList();
-            if (!tagNames.isEmpty()) {
-                List<Content> candidates = findYoutubeByTagNamesInTitle(tagNames, userId, CANDIDATE_LIMIT);
-                if (candidates.size() >= RESULT_SIZE) {
-                    return buildYoutubeResponse(shuffleAndTake(candidates, userId), userId, true, null);
+        // 2. 최근 3개월 시청 이력 (재추천 방지)
+        Set<UUID> viewedIds = new HashSet<>(
+                historyRepository.findViewedContentIdsSince(userId, LocalDateTime.now(KST).minusMonths(3)));
+
+        // 3. 상위 태그 ID (이력 없으면 프로필 태그)
+        List<UUID> topTagIds = getTopTagIds(tagScores, TOP_TAGS_LIMIT);
+        boolean isPersonalized = !tagScores.isEmpty();
+
+        if (topTagIds.isEmpty()) {
+            topTagIds = userTagRepository.findByUser_Id(userId).stream()
+                    .filter(ut -> ut.getTag() != null && ut.getTag().getId() != null)
+                    .map(ut -> ut.getTag().getId()).toList();
+        }
+
+        if (!topTagIds.isEmpty()) {
+            // 4. content_tags JOIN으로 YouTube 후보 조회 (스크랩 제외)
+            List<Content> candidates = contentRepository.findYoutubeByTagIdsExcludingScrapped(
+                    topTagIds, userId, PageRequest.of(0, CANDIDATE_LIMIT * 2));
+
+            // 5. 시청 이력 제외 후 채널 다양성 페널티 적용 랭킹
+            List<Content> ranked = applyChannelDiversityPenalty(
+                    candidates.stream().filter(c -> !viewedIds.contains(c.getId())).toList(),
+                    tagScores);
+
+            if (!ranked.isEmpty()) {
+                List<Content> result = new ArrayList<>(
+                        ranked.subList(0, Math.min(PERSONALIZED_SIZE, ranked.size())));
+
+                // 6. 탐색 여지: 관심 태그 외 영역 영상 2개
+                Set<UUID> resultIds = new HashSet<>(viewedIds);
+                result.stream().map(Content::getId).forEach(resultIds::add);
+                List<Content> explore = findExploreVideos(topTagIds, userId, resultIds, RESULT_SIZE - result.size());
+                result.addAll(explore);
+
+                // 7. 여전히 부족하면 최신 YouTube로 채움
+                if (result.size() < RESULT_SIZE) {
+                    resultIds = new HashSet<>(viewedIds);
+                    result.stream().map(Content::getId).forEach(resultIds::add);
+                    Set<UUID> finalResultIds = resultIds;
+                    contentRepository.findLatestYoutubeExcludingScrapped(userId, PageRequest.of(0, RESULT_SIZE))
+                            .stream()
+                            .filter(c -> !finalResultIds.contains(c.getId()))
+                            .limit((long) RESULT_SIZE - result.size())
+                            .forEach(result::add);
                 }
+
+                return buildYoutubeResponse(
+                        result.subList(0, Math.min(RESULT_SIZE, result.size())),
+                        userId, isPersonalized, null);
             }
         }
 
-        List<String> userTagNames = userTagRepository.findByUser_Id(userId).stream()
-                .map(ut -> ut.getTag().getName()).toList();
-
-        if (!userTagNames.isEmpty()) {
-            List<Content> candidates = findYoutubeByTagNamesInTitle(userTagNames, userId, CANDIDATE_LIMIT);
-            if (!candidates.isEmpty()) {
-                return buildYoutubeResponse(shuffleAndTake(candidates, userId), userId, true, null);
-            }
-        }
-
+        // 8. Cold start: 최신 YouTube
         List<Content> latest = contentRepository.findLatestYoutubeExcludingScrapped(
                 userId, PageRequest.of(0, CANDIDATE_LIMIT));
         return buildYoutubeResponse(shuffleAndTake(latest, userId), userId, false, NOT_ENOUGH_MESSAGE);
+    }
+
+    Map<UUID, Double> buildWeightedTagScores(UUID userId) {
+        Map<UUID, Double> scores = new HashMap<>();
+        List<String> actionTypes = new ArrayList<>(ACTION_WEIGHTS.keySet());
+
+        List<Object[]> rows = historyRepository.findTagIdActionCountsByUserActionsAfter(
+                userId, actionTypes, LocalDateTime.now(KST).minusMonths(1));
+        if (rows.isEmpty()) {
+            rows = historyRepository.findTagIdActionCountsByUserActionsAfter(
+                    userId, actionTypes, LocalDateTime.now(KST).minusMonths(3));
+        }
+
+        for (Object[] row : rows) {
+            UUID tagId = (UUID) row[0];
+            Number rawCount = (Number) row[2];
+            if (tagId == null || rawCount == null) continue;
+            String actionType = (String) row[1];
+            scores.merge(tagId, ACTION_WEIGHTS.getOrDefault(actionType, 1.0) * rawCount.longValue(), Double::sum);
+        }
+        return scores;
+    }
+
+    List<UUID> getTopTagIds(Map<UUID, Double> tagScores, int limit) {
+        return tagScores.entrySet().stream()
+                .sorted(Map.Entry.<UUID, Double>comparingByValue().reversed())
+                .limit(limit)
+                .map(Map.Entry::getKey)
+                .toList();
+    }
+
+    double computeScore(Content content, Map<UUID, Double> tagScores) {
+        double tagScore = content.getContentTags().stream()
+                .filter(ct -> ct.getTag() != null && ct.getTag().getId() != null)
+                .mapToDouble(ct -> tagScores.getOrDefault(ct.getTag().getId(), 0.0))
+                .sum();
+        double recencyBonus = 0;
+        if (content.getPublishedAt() != null) {
+            long daysOld = ChronoUnit.DAYS.between(content.getPublishedAt(), LocalDateTime.now(KST));
+            recencyBonus = Math.max(0, 30 - daysOld) * 0.1;
+        }
+        return tagScore + recencyBonus;
+    }
+
+    List<Content> applyChannelDiversityPenalty(List<Content> candidates, Map<UUID, Double> tagScores) {
+        Map<String, Integer> channelCount = new HashMap<>();
+        List<Content> pool = new ArrayList<>(candidates);
+        List<Content> result = new ArrayList<>();
+
+        while (!pool.isEmpty() && result.size() < candidates.size()) {
+            Content best = null;
+            double bestScore = Double.NEGATIVE_INFINITY;
+            for (Content c : pool) {
+                String channel = extractChannel(c);
+                int count = channelCount.getOrDefault(channel, 0);
+                double penalty = count >= 1 ? 2.0 * count : 0;
+                double score = computeScore(c, tagScores) - penalty;
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = c;
+                }
+            }
+            if (best != null) {
+                result.add(best);
+                channelCount.merge(extractChannel(best), 1, Integer::sum);
+                pool.remove(best);
+            } else {
+                break;
+            }
+        }
+        return result;
+    }
+
+    String extractChannel(Content content) {
+        String fallback = content.getId() != null ? content.getId().toString() : content.getCanonicalUrl();
+        if (content.getExtra() == null) return fallback;
+        try {
+            Map<String, Object> extra = objectMapper.readValue(content.getExtra(), new TypeReference<Map<String, Object>>() {});
+            Object channelName = extra.get("channelName");
+            return channelName != null ? channelName.toString() : fallback;
+        } catch (JsonProcessingException e) {
+            return fallback;
+        }
+    }
+
+    private List<Content> findExploreVideos(List<UUID> usedTagIds, UUID userId, Set<UUID> excludeIds, int limit) {
+        if (limit <= 0 || usedTagIds.isEmpty()) return List.of();
+        return contentRepository.findYoutubeByExcludeTagIdsExcludingScrapped(
+                        usedTagIds, userId, PageRequest.of(0, limit * 3))
+                .stream()
+                .filter(c -> !excludeIds.contains(c.getId()))
+                .limit(limit)
+                .toList();
     }
 
     private YoutubeRecommendResponse buildYoutubeResponse(

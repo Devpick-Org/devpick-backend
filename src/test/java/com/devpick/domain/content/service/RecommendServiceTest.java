@@ -1,14 +1,16 @@
 package com.devpick.domain.content.service;
 
 import com.devpick.domain.content.dto.RecommendContentsResponse;
+import com.devpick.domain.content.dto.YoutubeRecommendItem;
 import com.devpick.domain.content.dto.YoutubeRecommendResponse;
 import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.ContentSource;
+import com.devpick.domain.content.entity.ContentTag;
 import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.content.repository.LikeRepository;
 import com.devpick.domain.report.repository.HistoryRepository;
-import com.devpick.domain.user.entity.UserTag;
 import com.devpick.domain.user.entity.Tag;
+import com.devpick.domain.user.entity.UserTag;
 import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.domain.user.repository.UserTagRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -21,13 +23,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,6 +43,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -85,6 +88,8 @@ class RecommendServiceTest {
         lenient().when(aiSummaryService.findCachedCoreSummary(any(), any())).thenReturn(Optional.empty());
         lenient().when(likeRepository.existsByUser_IdAndContent_Id(any(), any())).thenReturn(false);
     }
+
+    // ─── 글 추천 테스트 ───────────────────────────────────────────────────────
 
     @Test
     @DisplayName("history 태그 기반 후보 10개 이상 → 개인화 응답, isPersonalized=true")
@@ -182,7 +187,7 @@ class RecommendServiceTest {
         List<UUID> result = recommendService.getOrCacheTagIds(userId);
 
         assertThat(result).containsExactly(tagId);
-        verify(historyRepository, org.mockito.Mockito.times(2))
+        verify(historyRepository, times(2))
                 .findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any());
     }
 
@@ -291,229 +296,9 @@ class RecommendServiceTest {
         assertThat(result).containsExactly(tagId);
     }
 
-    // ─── YouTube 추천 테스트 ───────────────────────────────────────────────────
-
     @Test
-    @DisplayName("YouTube - history 태그 기반 후보 10개 이상 → 개인화 응답")
-    void getRecommendYoutube_historyTags_returnsPersonalized() throws JsonProcessingException {
-        List<UUID> tagIds = List.of(UUID.randomUUID());
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(tagIds);
-        given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        Tag tag = Tag.builder().name("Java").build();
-        given(tagRepository.findAllById(any())).willReturn(List.of(tag));
-        given(contentRepository.findYoutubeByTagNameInTitle(anyString(), eq(userId), any()))
-                .willReturn(tenContents);
-
-        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
-
-        assertThat(result.isPersonalized()).isTrue();
-        assertThat(result.message()).isNull();
-        assertThat(result.videos()).hasSize(8);
-        verify(userTagRepository, never()).findByUser_Id(any());
-    }
-
-    @Test
-    @DisplayName("YouTube - history 태그 기반 후보 10개 미만 → user_tags fallback")
-    void getRecommendYoutube_historyTagsInsufficient_fallsBackToUserTags() throws JsonProcessingException {
-        List<UUID> historyTagIds = List.of(UUID.randomUUID());
-        List<Content> fewContents = tenContents.subList(0, 5);
-
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(historyTagIds);
-        given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-
-        Tag histTag = Tag.builder().name("History").build();
-        given(tagRepository.findAllById(any())).willReturn(List.of(histTag));
-        given(contentRepository.findYoutubeByTagNameInTitle(eq("History"), eq(userId), any()))
-                .willReturn(fewContents);
-
-        UUID userTagId = UUID.randomUUID();
-        Tag springTag = Tag.builder().name("Spring").build();
-        ReflectionTestUtils.setField(springTag, "id", userTagId);
-        UserTag userTag = UserTag.builder().tag(springTag).build();
-        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findYoutubeByTagNameInTitle(eq("Spring"), eq(userId), any()))
-                .willReturn(tenContents);
-
-        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
-
-        assertThat(result.isPersonalized()).isTrue();
-        assertThat(result.videos()).isNotEmpty();
-        verify(userTagRepository).findByUser_Id(userId);
-    }
-
-    @Test
-    @DisplayName("YouTube - history 태그 없고 user_tags도 없으면 → 최신 YouTube fallback, isPersonalized=false")
-    void getRecommendYoutube_noTags_fallsBackToLatest() throws JsonProcessingException {
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(List.of());
-        given(objectMapper.writeValueAsString(any())).willReturn("[]");
-        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of());
-        given(contentRepository.findLatestYoutubeExcludingScrapped(eq(userId), any()))
-                .willReturn(tenContents);
-
-        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
-
-        assertThat(result.videos()).hasSize(8);
-        assertThat(result.isPersonalized()).isFalse();
-        assertThat(result.message()).isEqualTo(RecommendService.NOT_ENOUGH_MESSAGE);
-        verify(contentRepository).findLatestYoutubeExcludingScrapped(eq(userId), any());
-    }
-
-    @Test
-    @DisplayName("YouTube - history 태그 없고 user_tags 있으면 → user_tags 기반 개인화")
-    void getRecommendYoutube_noHistoryTags_userTagsFallback() throws JsonProcessingException {
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(List.of());
-        given(objectMapper.writeValueAsString(any())).willReturn("[]");
-
-        UUID userTagId = UUID.randomUUID();
-        Tag tag = Tag.builder().name("Kotlin").build();
-        ReflectionTestUtils.setField(tag, "id", userTagId);
-        UserTag userTag = UserTag.builder().tag(tag).build();
-        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findYoutubeByTagNameInTitle(eq("Kotlin"), eq(userId), any()))
-                .willReturn(tenContents);
-
-        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
-
-        assertThat(result.isPersonalized()).isTrue();
-        assertThat(result.videos()).isNotEmpty();
-        verify(contentRepository, never()).findLatestYoutubeExcludingScrapped(any(), any());
-    }
-
-    @Test
-    @DisplayName("YouTube - extra JSON 파싱 성공 시 videoId/channelName/duration 추출")
-    void getRecommendYoutube_extraJsonParsed_fieldsExtracted() throws JsonProcessingException {
-        ContentSource source = ContentSource.builder()
-                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
-        List<Content> youtubeContents = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            Content c = Content.builder()
-                    .source(source).title("유튜브 영상 " + i).author("채널명")
-                    .canonicalUrl("https://youtube.com/watch?v=v" + i)
-                    .extra("{\"videoId\":\"abc" + i + "\",\"channelName\":\"테스트채널\",\"duration\":\"PT10M\"}")
-                    .publishedAt(java.time.LocalDateTime.now().minusDays(i)).build();
-            ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
-            youtubeContents.add(c);
-        }
-
-        List<UUID> tagIds = List.of(UUID.randomUUID());
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(tagIds);
-        given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        Tag tag = Tag.builder().name("Java").build();
-        given(tagRepository.findAllById(any())).willReturn(List.of(tag));
-        given(contentRepository.findYoutubeByTagNameInTitle(anyString(), eq(userId), any()))
-                .willReturn(youtubeContents);
-        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
-                .willReturn(Map.of("videoId", "abc0", "channelName", "테스트채널", "duration", "PT10M"));
-
-        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
-
-        assertThat(result.videos()).hasSize(8);
-        assertThat(result.videos()).allMatch(v -> v.channelName().equals("테스트채널"));
-        assertThat(result.videos()).allMatch(v -> v.duration().equals("PT10M"));
-    }
-
-    @Test
-    @DisplayName("YouTube - extra JSON 파싱 실패 시 videoId null로 처리")
-    void getRecommendYoutube_extraJsonParseFails_fieldsAreNull() throws JsonProcessingException {
-        ContentSource source = ContentSource.builder()
-                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
-        List<Content> youtubeContents = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            Content c = Content.builder()
-                    .source(source).title("유튜브 영상 " + i).author("채널명")
-                    .canonicalUrl("https://youtube.com/watch?v=bad" + i)
-                    .extra("{invalid-json}")
-                    .publishedAt(java.time.LocalDateTime.now().minusDays(i)).build();
-            ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
-            youtubeContents.add(c);
-        }
-
-        List<UUID> tagIds = List.of(UUID.randomUUID());
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(tagIds);
-        given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        Tag tag = Tag.builder().name("Java").build();
-        given(tagRepository.findAllById(any())).willReturn(List.of(tag));
-        given(contentRepository.findYoutubeByTagNameInTitle(anyString(), eq(userId), any()))
-                .willReturn(youtubeContents);
-        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
-                .willThrow(new com.fasterxml.jackson.core.JsonParseException(null, "parse error"));
-
-        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
-
-        assertThat(result.videos()).hasSize(8);
-        assertThat(result.videos()).allMatch(v -> v.videoId() == null);
-        assertThat(result.videos()).allMatch(v -> v.channelName() == null);
-    }
-
-    @Test
-    @DisplayName("YouTube - user_tags 있지만 후보 없으면 → 최신 YouTube fallback, isPersonalized=false")
-    void getRecommendYoutube_userTagsButNoCandidates_fallsBackToLatest() throws JsonProcessingException {
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(List.of());
-        given(objectMapper.writeValueAsString(any())).willReturn("[]");
-
-        UUID userTagId = UUID.randomUUID();
-        Tag tag = Tag.builder().name("Kotlin").build();
-        ReflectionTestUtils.setField(tag, "id", userTagId);
-        UserTag userTag = UserTag.builder().tag(tag).build();
-        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findYoutubeByTagNameInTitle(eq("Kotlin"), eq(userId), any()))
-                .willReturn(List.of());
-        given(contentRepository.findLatestYoutubeExcludingScrapped(eq(userId), any()))
-                .willReturn(tenContents);
-
-        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
-
-        assertThat(result.videos()).hasSize(8);
-        assertThat(result.isPersonalized()).isFalse();
-        assertThat(result.message()).isEqualTo(RecommendService.NOT_ENOUGH_MESSAGE);
-        verify(contentRepository).findLatestYoutubeExcludingScrapped(eq(userId), any());
-    }
-
-    @Test
-    @DisplayName("YouTube - 결과가 최대 10개")
-    void getRecommendYoutube_returnsAtMostTen() throws JsonProcessingException {
-        List<Content> lotsOfContents = new ArrayList<>(tenContents);
-        ContentSource source = ContentSource.builder()
-                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
-        for (int i = 10; i < 50; i++) {
-            Content c = Content.builder()
-                    .source(source).title("유튜브 " + i).author("채널")
-                    .canonicalUrl("https://youtube.com/" + i)
-                    .publishedAt(java.time.LocalDateTime.now().minusDays(i)).build();
-            ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
-            lotsOfContents.add(c);
-        }
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(List.of(UUID.randomUUID()));
-        given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        Tag tag = Tag.builder().name("Java").build();
-        given(tagRepository.findAllById(any())).willReturn(List.of(tag));
-        given(contentRepository.findYoutubeByTagNameInTitle(anyString(), eq(userId), any()))
-                .willReturn(lotsOfContents);
-
-        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
-
-        assertThat(result.videos()).hasSize(8);
-    }
-
-    @Test
-    @DisplayName("결과가 최대 10개")
-    void getRecommendContents_returnsAtMostTen() throws JsonProcessingException {
+    @DisplayName("결과가 최대 8개")
+    void getRecommendContents_returnsAtMostEight() throws JsonProcessingException {
         List<Content> lotsOfContents = new ArrayList<>(tenContents);
         ContentSource source = ContentSource.builder()
                 .name("Velog").url("https://velog.io").collectMethod("graphql").build();
@@ -537,5 +322,348 @@ class RecommendServiceTest {
         RecommendContentsResponse result = recommendService.getRecommendContents(userId);
 
         assertThat(result.contents()).hasSize(8);
+    }
+
+    // ─── YouTube 추천 테스트 (DP-463) ─────────────────────────────────────────
+
+    private List<Content> makeYoutubeContents(int count) {
+        ContentSource source = ContentSource.builder()
+                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
+        List<Content> list = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            Content c = Content.builder()
+                    .source(source).title("유튜브 영상 " + i).author("채널")
+                    .canonicalUrl("https://youtube.com/v" + i)
+                    .extra("{\"channelName\":\"채널" + (i % 3) + "\",\"videoId\":\"v" + i + "\"}")
+                    .publishedAt(LocalDateTime.now().minusDays(i)).build();
+            ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
+            list.add(c);
+        }
+        return list;
+    }
+
+    @Test
+    @DisplayName("YouTube - 행동 이력 태그 기반 후보 충분 → isPersonalized=true, 8개 반환")
+    void getRecommendYoutube_historyTags_returnsPersonalized() throws JsonProcessingException {
+        UUID tagId = UUID.randomUUID();
+        given(historyRepository.findTagIdActionCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(Collections.singletonList(new Object[]{tagId, "ai_summary_viewed", 3L}));
+        given(historyRepository.findViewedContentIdsSince(eq(userId), any())).willReturn(Collections.emptyList());
+        given(contentRepository.findYoutubeByTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(makeYoutubeContents(12));
+        given(contentRepository.findYoutubeByExcludeTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(makeYoutubeContents(4));
+        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .willReturn(Map.of("channelName", "채널0", "videoId", "v0"));
+
+        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
+
+        assertThat(result.isPersonalized()).isTrue();
+        assertThat(result.message()).isNull();
+        assertThat(result.videos()).hasSize(8);
+        verify(userTagRepository, never()).findByUser_Id(any());
+    }
+
+    @Test
+    @DisplayName("YouTube - 행동 이력 없으면 user_tags로 fallback")
+    void getRecommendYoutube_noHistory_userTagsFallback() throws JsonProcessingException {
+        given(historyRepository.findTagIdActionCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(List.of());
+        given(historyRepository.findViewedContentIdsSince(eq(userId), any())).willReturn(List.of());
+
+        UUID tagId = UUID.randomUUID();
+        Tag tag = Tag.builder().name("Java").build();
+        ReflectionTestUtils.setField(tag, "id", tagId);
+        UserTag userTag = UserTag.builder().tag(tag).build();
+        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
+
+        given(contentRepository.findYoutubeByTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(makeYoutubeContents(8));
+        given(contentRepository.findYoutubeByExcludeTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(List.of());
+        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .willReturn(Map.of("channelName", "채널0", "videoId", "v0"));
+
+        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
+
+        assertThat(result.videos()).isNotEmpty();
+        verify(userTagRepository).findByUser_Id(userId);
+    }
+
+    @Test
+    @DisplayName("YouTube - 태그 없으면 최신 YouTube cold start, isPersonalized=false")
+    void getRecommendYoutube_noTags_coldStart() throws JsonProcessingException {
+        given(historyRepository.findTagIdActionCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(List.of());
+        given(historyRepository.findViewedContentIdsSince(eq(userId), any())).willReturn(List.of());
+        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of());
+        given(contentRepository.findLatestYoutubeExcludingScrapped(eq(userId), any()))
+                .willReturn(makeYoutubeContents(10));
+        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .willReturn(Map.of("channelName", "채널0", "videoId", "v0"));
+
+        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
+
+        assertThat(result.isPersonalized()).isFalse();
+        assertThat(result.message()).isEqualTo(RecommendService.NOT_ENOUGH_MESSAGE);
+        assertThat(result.videos()).hasSize(8);
+        verify(contentRepository).findLatestYoutubeExcludingScrapped(eq(userId), any());
+    }
+
+    @Test
+    @DisplayName("YouTube - 시청 이력에 있는 영상은 결과에서 제외")
+    void getRecommendYoutube_viewedContentsExcluded() throws JsonProcessingException {
+        UUID tagId = UUID.randomUUID();
+        given(historyRepository.findTagIdActionCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(Collections.singletonList(new Object[]{tagId, "scrapped", 2L}));
+
+        List<Content> candidates = makeYoutubeContents(10);
+        List<UUID> viewedIds = List.of(candidates.get(0).getId(), candidates.get(1).getId());
+        given(historyRepository.findViewedContentIdsSince(eq(userId), any())).willReturn(viewedIds);
+        given(contentRepository.findYoutubeByTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(candidates);
+        given(contentRepository.findYoutubeByExcludeTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(List.of());
+        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .willReturn(Map.of("channelName", "채널0", "videoId", "v0"));
+
+        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
+
+        List<UUID> resultIds = result.videos().stream().map(YoutubeRecommendItem::contentId).toList();
+        assertThat(resultIds).isNotEmpty().doesNotContain(viewedIds.get(0), viewedIds.get(1));
+    }
+
+    @Test
+    @DisplayName("YouTube - 후보 부족 시 최신 YouTube로 채워서 8개 반환")
+    void getRecommendYoutube_insufficientCandidates_filledWithLatest() throws JsonProcessingException {
+        UUID tagId = UUID.randomUUID();
+        given(historyRepository.findTagIdActionCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(Collections.singletonList(new Object[]{tagId, "content_opened", 1L}));
+        given(historyRepository.findViewedContentIdsSince(eq(userId), any())).willReturn(Collections.emptyList());
+
+        given(contentRepository.findYoutubeByTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(makeYoutubeContents(3));
+        given(contentRepository.findYoutubeByExcludeTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(List.of());
+        given(contentRepository.findLatestYoutubeExcludingScrapped(eq(userId), any()))
+                .willReturn(makeYoutubeContents(10));
+        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .willReturn(Map.of("channelName", "채널0", "videoId", "v0"));
+
+        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
+
+        assertThat(result.videos()).hasSize(8);
+        assertThat(result.isPersonalized()).isTrue();
+    }
+
+    @Test
+    @DisplayName("YouTube - 1개월 이력 없으면 3개월로 재조회")
+    void getRecommendYoutube_emptyOneMonth_expandsToThreeMonths() throws JsonProcessingException {
+        UUID tagId = UUID.randomUUID();
+        given(historyRepository.findTagIdActionCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(Collections.emptyList())
+                .willReturn(Collections.singletonList(new Object[]{tagId, "scrapped", 1L}));
+        given(historyRepository.findViewedContentIdsSince(eq(userId), any())).willReturn(Collections.emptyList());
+        given(contentRepository.findYoutubeByTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(makeYoutubeContents(8));
+        given(contentRepository.findYoutubeByExcludeTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(List.of());
+        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .willReturn(Map.of("channelName", "채널0", "videoId", "v0"));
+
+        recommendService.getRecommendYoutube(userId);
+
+        verify(historyRepository, times(2))
+                .findTagIdActionCountsByUserActionsAfter(eq(userId), anyList(), any());
+    }
+
+    // ─── 신규 헬퍼 메서드 단위 테스트 ─────────────────────────────────────────
+
+    @Test
+    @DisplayName("buildWeightedTagScores - 액션별 가중치 누적 합산")
+    void buildWeightedTagScores_multipleActions_accumulated() {
+        UUID tagId = UUID.randomUUID();
+        given(historyRepository.findTagIdActionCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(List.of(
+                        new Object[]{tagId, "ai_quiz_completed", 2L},
+                        new Object[]{tagId, "scrapped", 1L}
+                ));
+
+        Map<UUID, Double> scores = recommendService.buildWeightedTagScores(userId);
+
+        // 퀴즈완료(5.0×2) + 스크랩(4.0×1) = 14.0
+        assertThat(scores).containsEntry(tagId, 14.0);
+    }
+
+    @Test
+    @DisplayName("buildWeightedTagScores - 1개월 이력 없으면 3개월로 확장")
+    void buildWeightedTagScores_emptyOneMonth_expandsToThreeMonths() {
+        given(historyRepository.findTagIdActionCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(Collections.emptyList())
+                .willReturn(Collections.singletonList(new Object[]{UUID.randomUUID(), "scrapped", 1L}));
+
+        recommendService.buildWeightedTagScores(userId);
+
+        verify(historyRepository, times(2))
+                .findTagIdActionCountsByUserActionsAfter(eq(userId), anyList(), any());
+    }
+
+    @Test
+    @DisplayName("getTopTagIds - 점수 내림차순 상위 N개 반환")
+    void getTopTagIds_returnsSortedTopN() {
+        UUID id1 = UUID.randomUUID(), id2 = UUID.randomUUID(), id3 = UUID.randomUUID();
+        Map<UUID, Double> scores = Map.of(id1, 3.0, id2, 10.0, id3, 5.0);
+
+        List<UUID> top2 = recommendService.getTopTagIds(scores, 2);
+
+        assertThat(top2).containsExactly(id2, id3);
+    }
+
+    @Test
+    @DisplayName("computeScore - 태그 점수 + 최신성 보너스 합산")
+    void computeScore_tagAndRecency() {
+        UUID tagId = UUID.randomUUID();
+        Tag tag = Tag.builder().name("Java").build();
+        ReflectionTestUtils.setField(tag, "id", tagId);
+
+        ContentSource source = ContentSource.builder()
+                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
+        Content content = Content.builder()
+                .source(source).title("Java 강의")
+                .canonicalUrl("https://youtube.com/java")
+                .publishedAt(LocalDateTime.now().minusDays(10))
+                .build();
+        ReflectionTestUtils.setField(content, "id", UUID.randomUUID());
+
+        ContentTag ct = ContentTag.builder().content(content).tag(tag).build();
+        ReflectionTestUtils.setField(content, "contentTags", List.of(ct));
+
+        Map<UUID, Double> tagScores = Map.of(tagId, 5.0);
+        double score = recommendService.computeScore(content, tagScores);
+
+        // tagScore=5.0 + recencyBonus=(30-10)*0.1=2.0 → 7.0
+        assertThat(score).isEqualTo(7.0);
+    }
+
+    @Test
+    @DisplayName("computeScore - 30일 이상 된 영상은 최신성 보너스 0")
+    void computeScore_oldContent_noRecencyBonus() {
+        UUID tagId = UUID.randomUUID();
+        Tag tag = Tag.builder().name("Java").build();
+        ReflectionTestUtils.setField(tag, "id", tagId);
+
+        ContentSource source = ContentSource.builder()
+                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
+        Content content = Content.builder()
+                .source(source).title("Java 강의")
+                .canonicalUrl("https://youtube.com/old")
+                .publishedAt(LocalDateTime.now().minusDays(40))
+                .build();
+        ReflectionTestUtils.setField(content, "id", UUID.randomUUID());
+
+        ContentTag ct = ContentTag.builder().content(content).tag(tag).build();
+        ReflectionTestUtils.setField(content, "contentTags", List.of(ct));
+
+        Map<UUID, Double> tagScores = Map.of(tagId, 5.0);
+        double score = recommendService.computeScore(content, tagScores);
+
+        assertThat(score).isEqualTo(5.0);
+    }
+
+    @Test
+    @DisplayName("applyChannelDiversityPenalty - 같은 채널 두 번째 영상은 페널티 적용")
+    void applyChannelDiversityPenalty_sameChannel_penaltyApplied() throws JsonProcessingException {
+        UUID tagId = UUID.randomUUID();
+        Map<UUID, Double> tagScores = Map.of(tagId, 10.0);
+
+        ContentSource source = ContentSource.builder()
+                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
+
+        // 같은 채널 "Fireship" 영상 3개 (점수 동일)
+        List<Content> candidates = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            Content c = Content.builder()
+                    .source(source).title("Fireship " + i).author("Fireship")
+                    .canonicalUrl("https://youtube.com/fireship/" + i)
+                    .extra("{\"channelName\":\"Fireship\"}")
+                    .publishedAt(LocalDateTime.now().minusDays(i)).build();
+            ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
+            candidates.add(c);
+        }
+
+        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .willReturn(Map.of("channelName", "Fireship"));
+
+        List<Content> ranked = recommendService.applyChannelDiversityPenalty(candidates, tagScores);
+
+        // 결과는 3개 모두 포함하되 첫 번째가 페널티 없이 선택됨
+        assertThat(ranked).hasSize(3);
+        assertThat(ranked.get(0)).isEqualTo(candidates.get(0));
+    }
+
+    @Test
+    @DisplayName("extractChannel - extra가 null이면 contentId 반환")
+    void extractChannel_nullExtra_returnsContentId() {
+        ContentSource source = ContentSource.builder()
+                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
+        Content c = Content.builder().source(source).title("영상").canonicalUrl("https://youtube.com/v1").build();
+        ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
+
+        assertThat(recommendService.extractChannel(c)).isEqualTo(c.getId().toString());
+    }
+
+    @Test
+    @DisplayName("extractChannel - channelName 키 없으면 contentId 반환")
+    void extractChannel_noChannelName_returnsContentId() throws JsonProcessingException {
+        ContentSource source = ContentSource.builder()
+                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
+        Content c = Content.builder().source(source).title("영상").canonicalUrl("https://youtube.com/v2")
+                .extra("{\"videoId\":\"abc\"}").build();
+        ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
+
+        given(objectMapper.readValue(anyString(), any(TypeReference.class))).willReturn(Map.of("videoId", "abc"));
+
+        assertThat(recommendService.extractChannel(c)).isEqualTo(c.getId().toString());
+    }
+
+    @Test
+    @DisplayName("extractChannel - JSON 파싱 실패 시 contentId 반환")
+    void extractChannel_parseError_returnsContentId() throws JsonProcessingException {
+        ContentSource source = ContentSource.builder()
+                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
+        Content c = Content.builder().source(source).title("영상").canonicalUrl("https://youtube.com/v3")
+                .extra("{invalid}").build();
+        ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
+
+        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .willThrow(new com.fasterxml.jackson.core.JsonParseException(null, "error"));
+
+        assertThat(recommendService.extractChannel(c)).isEqualTo(c.getId().toString());
+    }
+
+    @Test
+    @DisplayName("YouTube - extra JSON 파싱 실패 시 빈 맵으로 대체, 결과 정상 반환")
+    void getRecommendYoutube_extraParseError_returnsEmptyExtra() throws JsonProcessingException {
+        UUID tagId = UUID.randomUUID();
+        given(historyRepository.findTagIdActionCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(Collections.singletonList(new Object[]{tagId, "scrapped", 1L}));
+        given(historyRepository.findViewedContentIdsSince(eq(userId), any())).willReturn(Collections.emptyList());
+
+        List<Content> videos = makeYoutubeContents(1);
+        given(contentRepository.findYoutubeByTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(videos);
+        given(contentRepository.findYoutubeByExcludeTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(Collections.emptyList());
+        given(contentRepository.findLatestYoutubeExcludingScrapped(eq(userId), any()))
+                .willReturn(Collections.emptyList());
+
+        // extractChannel 호출(applyChannelDiversityPenalty)은 성공, parseExtra(buildYoutubeResponse)는 실패
+        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .willReturn(Map.of("channelName", "채널0"))
+                .willThrow(new com.fasterxml.jackson.core.JsonParseException(null, "error"));
+
+        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
+
+        assertThat(result.videos()).hasSize(1);
     }
 }

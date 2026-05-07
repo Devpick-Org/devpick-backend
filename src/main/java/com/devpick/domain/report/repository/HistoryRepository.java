@@ -15,6 +15,29 @@ import java.util.UUID;
 
 public interface HistoryRepository extends JpaRepository<History, UUID> {
 
+    /** YouTube 추천용: 태그 ID + 액션 타입 + 횟수 (가중 점수 계산용) */
+    @Query("SELECT ct.tag.id, h.actionType, COUNT(h) FROM History h " +
+           "JOIN h.content c JOIN c.contentTags ct " +
+           "WHERE h.user.id = :userId " +
+           "AND h.actionType IN :actionTypes " +
+           "AND h.createdAt >= :since " +
+           "AND h.content IS NOT NULL " +
+           "GROUP BY ct.tag.id, h.actionType " +
+           "ORDER BY COUNT(h) DESC")
+    List<Object[]> findTagIdActionCountsByUserActionsAfter(
+            @Param("userId") UUID userId,
+            @Param("actionTypes") List<String> actionTypes,
+            @Param("since") LocalDateTime since);
+
+    /** YouTube 추천용: 사용자가 열람한 콘텐츠 ID (중복 노출 방지) */
+    @Query("SELECT DISTINCT h.content.id FROM History h " +
+           "WHERE h.user.id = :userId " +
+           "AND h.content IS NOT NULL " +
+           "AND h.createdAt >= :since")
+    List<UUID> findViewedContentIdsSince(
+            @Param("userId") UUID userId,
+            @Param("since") LocalDateTime since);
+
     /** 도서 추천용: 태그명 + 빈도 수 조회 */
     @Query("SELECT ct.tag.name, COUNT(ct.tag.name) FROM History h " +
            "JOIN h.content c JOIN c.contentTags ct " +
