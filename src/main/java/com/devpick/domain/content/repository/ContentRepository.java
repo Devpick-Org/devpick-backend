@@ -59,20 +59,33 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     @Query("SELECT c FROM Content c " +
            "WHERE c.isAvailable = true " +
            "AND c.source.name = 'YouTube' " +
-           "AND LOWER(c.title) LIKE LOWER(CONCAT('%', :tagName, '%')) " +
-           "AND NOT EXISTS (SELECT s FROM Scrap s WHERE s.user.id = :userId AND s.content = c) " +
-           "ORDER BY c.publishedAt DESC")
-    List<Content> findYoutubeByTagNameInTitle(
-            @Param("tagName") String tagName,
-            @Param("userId") UUID userId,
-            Pageable pageable);
-
-    @Query("SELECT c FROM Content c " +
-           "WHERE c.isAvailable = true " +
-           "AND c.source.name = 'YouTube' " +
            "AND NOT EXISTS (SELECT s FROM Scrap s WHERE s.user.id = :userId AND s.content = c) " +
            "ORDER BY c.publishedAt DESC")
     List<Content> findLatestYoutubeExcludingScrapped(
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /** YouTube 추천용: content_tags JOIN, 스크랩 제외 */
+    @Query("SELECT DISTINCT c FROM Content c JOIN c.contentTags ct " +
+           "WHERE c.isAvailable = true " +
+           "AND c.source.name = 'YouTube' " +
+           "AND ct.tag.id IN :tagIds " +
+           "AND NOT EXISTS (SELECT s FROM Scrap s WHERE s.user.id = :userId AND s.content = c) " +
+           "ORDER BY c.publishedAt DESC")
+    List<Content> findYoutubeByTagIdsExcludingScrapped(
+            @Param("tagIds") List<UUID> tagIds,
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /** YouTube 추천용: 탐색 여지 — 관심 태그 외 영역의 YouTube 영상 */
+    @Query("SELECT DISTINCT c FROM Content c JOIN c.contentTags ct " +
+           "WHERE c.isAvailable = true " +
+           "AND c.source.name = 'YouTube' " +
+           "AND ct.tag.id NOT IN :excludeTagIds " +
+           "AND NOT EXISTS (SELECT s FROM Scrap s WHERE s.user.id = :userId AND s.content = c) " +
+           "ORDER BY c.publishedAt DESC")
+    List<Content> findYoutubeByExcludeTagIdsExcludingScrapped(
+            @Param("excludeTagIds") List<UUID> excludeTagIds,
             @Param("userId") UUID userId,
             Pageable pageable);
 }
