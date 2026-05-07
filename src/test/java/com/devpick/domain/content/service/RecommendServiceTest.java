@@ -600,4 +600,70 @@ class RecommendServiceTest {
         assertThat(ranked).hasSize(3);
         assertThat(ranked.get(0)).isEqualTo(candidates.get(0));
     }
+
+    @Test
+    @DisplayName("extractChannel - extra가 null이면 contentId 반환")
+    void extractChannel_nullExtra_returnsContentId() {
+        ContentSource source = ContentSource.builder()
+                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
+        Content c = Content.builder().source(source).title("영상").canonicalUrl("https://youtube.com/v1").build();
+        ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
+
+        assertThat(recommendService.extractChannel(c)).isEqualTo(c.getId().toString());
+    }
+
+    @Test
+    @DisplayName("extractChannel - channelName 키 없으면 contentId 반환")
+    void extractChannel_noChannelName_returnsContentId() throws JsonProcessingException {
+        ContentSource source = ContentSource.builder()
+                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
+        Content c = Content.builder().source(source).title("영상").canonicalUrl("https://youtube.com/v2")
+                .extra("{\"videoId\":\"abc\"}").build();
+        ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
+
+        given(objectMapper.readValue(anyString(), any(TypeReference.class))).willReturn(Map.of("videoId", "abc"));
+
+        assertThat(recommendService.extractChannel(c)).isEqualTo(c.getId().toString());
+    }
+
+    @Test
+    @DisplayName("extractChannel - JSON 파싱 실패 시 contentId 반환")
+    void extractChannel_parseError_returnsContentId() throws JsonProcessingException {
+        ContentSource source = ContentSource.builder()
+                .name("YouTube").url("https://youtube.com").collectMethod("api").build();
+        Content c = Content.builder().source(source).title("영상").canonicalUrl("https://youtube.com/v3")
+                .extra("{invalid}").build();
+        ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
+
+        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .willThrow(new com.fasterxml.jackson.core.JsonParseException(null, "error"));
+
+        assertThat(recommendService.extractChannel(c)).isEqualTo(c.getId().toString());
+    }
+
+    @Test
+    @DisplayName("YouTube - extra JSON 파싱 실패 시 빈 맵으로 대체, 결과 정상 반환")
+    void getRecommendYoutube_extraParseError_returnsEmptyExtra() throws JsonProcessingException {
+        UUID tagId = UUID.randomUUID();
+        given(historyRepository.findTagIdActionCountsByUserActionsAfter(eq(userId), anyList(), any()))
+                .willReturn(Collections.singletonList(new Object[]{tagId, "scrapped", 1L}));
+        given(historyRepository.findViewedContentIdsSince(eq(userId), any())).willReturn(Collections.emptyList());
+
+        List<Content> videos = makeYoutubeContents(1);
+        given(contentRepository.findYoutubeByTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(videos);
+        given(contentRepository.findYoutubeByExcludeTagIdsExcludingScrapped(anyList(), eq(userId), any()))
+                .willReturn(Collections.emptyList());
+        given(contentRepository.findLatestYoutubeExcludingScrapped(eq(userId), any()))
+                .willReturn(Collections.emptyList());
+
+        // extractChannel 호출(applyChannelDiversityPenalty)은 성공, parseExtra(buildYoutubeResponse)는 실패
+        given(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .willReturn(Map.of("channelName", "채널0"))
+                .willThrow(new com.fasterxml.jackson.core.JsonParseException(null, "error"));
+
+        YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
+
+        assertThat(result.videos()).hasSize(1);
+    }
 }
