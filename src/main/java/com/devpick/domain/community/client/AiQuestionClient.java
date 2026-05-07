@@ -37,7 +37,7 @@ public class AiQuestionClient {
             body.put("title", request.title());
             body.put("content", request.content());
             if (request.postId() != null) {
-                body.put("question_id", request.postId().toString());
+                body.put("content_id", request.postId().toString());
             }
 
             RefineFastApiResponse response = webClient.post()
