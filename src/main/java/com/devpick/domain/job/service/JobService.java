@@ -358,7 +358,9 @@ public class JobService {
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
         ensureListableJob(p);
         Map<String, Integer> userSkills = loadUserSkillProfile(userId);
-        List<String> missing = p.getRequiredSkills().stream()
+        // requiredSkills가 비어있으면(파싱 전/실패) techStack으로 폴백해 missing 계산
+        List<String> baseSkills = p.getRequiredSkills().isEmpty() ? p.getTechStack() : p.getRequiredSkills();
+        List<String> missing = baseSkills.stream()
                 .filter(s -> !skillMet(userSkills, s))
                 .toList();
         JsonNode resume = loadResumeJson(userId);
@@ -372,15 +374,17 @@ public class JobService {
         @SuppressWarnings("unchecked")
         List<String> roadmap = (List<String>) ai.getOrDefault("roadmap", List.of());
 
-        List<ContentPickResponse> picks = recommendContents(missing);
+        // missing이 비어있으면(스킬 모두 보유) techStack 기준으로 콘텐츠 추천
+        List<String> contentSkills = missing.isEmpty() ? p.getTechStack() : missing;
+        List<ContentPickResponse> picks = recommendContents(contentSkills);
         return new SkillGapResponse(roadmap, picks);
     }
 
-    private List<ContentPickResponse> recommendContents(List<String> missingSkills) {
-        if (missingSkills.isEmpty()) {
+    private List<ContentPickResponse> recommendContents(List<String> skills) {
+        if (skills.isEmpty()) {
             return List.of();
         }
-        List<Tag> tags = tagRepository.findByNameIgnoreCaseIn(missingSkills.stream().map(String::trim).toList());
+        List<Tag> tags = tagRepository.findByNameIgnoreCaseIn(skills.stream().map(String::trim).toList());
         List<UUID> tagIds = tags.stream().map(Tag::getId).toList();
         if (tagIds.isEmpty()) {
             Page<Content> page = contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(PageRequest.of(0, 3));
