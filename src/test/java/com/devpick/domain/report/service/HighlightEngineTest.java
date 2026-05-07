@@ -228,4 +228,134 @@ class HighlightEngineTest {
             assertThat(c.get("description")).isNotBlank();
         });
     }
+
+    @Test
+    @DisplayName("success — 전주보다 읽은 글 늘었으면 증가 카드 (Rule 4)")
+    void successCard_prevWeekIncrease() {
+        // activeDays=2 (<4, Rule2 fail), contentsRead=4 (<5, Rule3 fail), questionsCreated=0 (Rule1 fail)
+        // prevContents=2 < 4 → Rule4 fires
+        HighlightEngine.HighlightInput input = new HighlightEngine.HighlightInput(
+                4, 0, 0,
+                topTagsJson("Java", 4),
+                dailyJson(2, 2, 0, 0, 0, 0, 0),
+                prevJson(2, 0, 0),
+                "[]",
+                contentKeywordsJson(List.of(), 0),
+                questionAnalysisJson(0, 0, 0, 0)
+        );
+        List<Map<String, String>> cards = parse(engine.generate(input));
+        assertThat(cards.get(0).get("title")).contains("더 읽었어요");
+    }
+
+    @Test
+    @DisplayName("info — 관심태그 매칭률 60% 이상이면 매칭 카드 (Rule 3)")
+    void infoCard_interestTagMatchRate() {
+        // no keyword overlap (empty keywords), all days equal (ratio<30%, Rule2 fail), matchRate=70 → Rule3 fires
+        // success: contentsRead=2<3 (Rule2 fail), <5 (Rule3 fail), prev=0 (Rule4 fail) → fallback
+        HighlightEngine.HighlightInput input = new HighlightEngine.HighlightInput(
+                2, 0, 0,
+                topTagsJson("Java", 2),
+                dailyJson(1, 1, 1, 1, 1, 1, 1),
+                prevJson(0, 0, 0),
+                "[]",
+                contentKeywordsJson(List.of(), 70),
+                questionAnalysisJson(0, 0, 0, 0)
+        );
+        List<Map<String, String>> cards = parse(engine.generate(input));
+        assertThat(cards.get(1).get("title")).contains("매칭률");
+    }
+
+    @Test
+    @DisplayName("info — 채용 공고 3건 이상 탐색하면 공고 탐색 카드 (Rule 4)")
+    void infoCard_jobPostingsViewed() {
+        // no overlap (empty keywords), daily all equal (ratio<30%), matchRate=0 → Rules 1-3 fail
+        // jobPostingsViewed=5 → Rule 4 fires
+        HighlightEngine.HighlightInput input = new HighlightEngine.HighlightInput(
+                2, 0, 5,
+                topTagsJson("Java", 2),
+                dailyJson(1, 1, 1, 1, 1, 0, 0),
+                prevJson(0, 0, 0),
+                "[]",
+                contentKeywordsJson(List.of(), 0),
+                questionAnalysisJson(0, 0, 0, 0)
+        );
+        List<Map<String, String>> cards = parse(engine.generate(input));
+        assertThat(cards.get(1).get("title")).contains("채용 공고");
+    }
+
+    @Test
+    @DisplayName("warning — topTag 비율 70% 이상이면 편중 카드 (Rule 4) + computeTopTagRatio 다중 태그")
+    void warningCard_topTagBias() {
+        // no streak (all days active), questionsCreated=1 (Rule2 fail), prevContents=0 (Rule3 fail)
+        // topTagRatio: Java=8, React=2 → 8/10=0.8 ≥ 0.7 → Rule4 fires
+        String multiTopTags = toJson(List.of(
+                Map.of("tag", "Java", "count", 8),
+                Map.of("tag", "React", "count", 2)
+        ));
+        HighlightEngine.HighlightInput input = new HighlightEngine.HighlightInput(
+                4, 1, 0,
+                multiTopTags,
+                dailyJson(1, 1, 1, 1, 1, 1, 1),
+                prevJson(0, 0, 0),
+                "[]",
+                contentKeywordsJson(List.of(), 0),
+                questionAnalysisJson(1, 0, 0, 0)
+        );
+        List<Map<String, String>> cards = parse(engine.generate(input));
+        assertThat(cards.get(2).get("title")).contains("집중됐어요");
+    }
+
+    @Test
+    @DisplayName("warning — 읽은 글 2편 이하이면 학습량 부족 카드 (Rule 5)")
+    void warningCard_lowContent() {
+        // no streak, questionsCreated=1 (Rule2 fail), prevContents=0 (Rule3 fail)
+        // topTagRatio: Java=3,React=3 → 0.5 < 0.7 (Rule4 fail)
+        // contentsRead=1 ≤ 2 → Rule5 fires
+        String equalTags = toJson(List.of(
+                Map.of("tag", "Java", "count", 3),
+                Map.of("tag", "React", "count", 3)
+        ));
+        HighlightEngine.HighlightInput input = new HighlightEngine.HighlightInput(
+                1, 1, 0,
+                equalTags,
+                dailyJson(1, 0, 1, 0, 1, 1, 1),
+                prevJson(0, 0, 0),
+                "[]",
+                contentKeywordsJson(List.of(), 0),
+                questionAnalysisJson(1, 0, 0, 0)
+        );
+        List<Map<String, String>> cards = parse(engine.generate(input));
+        assertThat(cards.get(2).get("title")).contains("학습량이 적었어요");
+    }
+
+    @Test
+    @DisplayName("info — 키워드가 공고 기술스택을 부분 포함하면 교집합 카드 (partial match)")
+    void infoCard_keywordPartialMatch() {
+        // "Spring Boot" keyword vs "spring" tech → lower.contains(tech) = true → overlap found
+        HighlightEngine.HighlightInput input = new HighlightEngine.HighlightInput(
+                5, 0, 2,
+                topTagsJson("Spring", 5),
+                dailyJson(5, 0, 0, 0, 0, 0, 0),
+                prevJson(0, 0, 0),
+                jobTechStacksJson("spring"),
+                contentKeywordsJson(List.of("Spring Boot", "JPA"), 0),
+                questionAnalysisJson(0, 0, 0, 0)
+        );
+        List<Map<String, String>> cards = parse(engine.generate(input));
+        assertThat(cards.get(1).get("title")).contains("등장했어요");
+    }
+
+    @Test
+    @DisplayName("null JSON 입력 시 fallback 카드 3개 반환 — null 분기 커버")
+    void nullJsonFields_returnsFallbackCards() {
+        HighlightEngine.HighlightInput input = new HighlightEngine.HighlightInput(
+                0, 0, 0, null, null, null, null, null, null
+        );
+        List<Map<String, String>> cards = parse(engine.generate(input));
+        assertThat(cards).hasSize(3);
+        cards.forEach(c -> {
+            assertThat(c.get("title")).isNotBlank();
+            assertThat(c.get("description")).isNotBlank();
+        });
+    }
 }

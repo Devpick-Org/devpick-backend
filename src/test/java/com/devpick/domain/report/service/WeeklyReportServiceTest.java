@@ -1,5 +1,12 @@
 package com.devpick.domain.report.service;
 
+import com.devpick.domain.community.entity.Answer;
+import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostType;
+import com.devpick.domain.community.repository.AnswerRepository;
+import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.content.entity.Content;
+import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.report.client.AiReportClient;
 import com.devpick.domain.report.dto.ChartDataResponse;
 import com.devpick.domain.report.dto.ReportSummaryResponse;
@@ -34,6 +41,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -69,6 +77,12 @@ class WeeklyReportServiceTest {
     private WeeklyReportBatchRunner weeklyReportBatchRunner;
     @Mock
     private HighlightEngine highlightEngine;
+    @Mock
+    private PostRepository postRepository;
+    @Mock
+    private AnswerRepository answerRepository;
+    @Mock
+    private ContentRepository contentRepository;
 
     private UUID userId;
     private UUID reportId;
@@ -476,5 +490,117 @@ class WeeklyReportServiceTest {
         weeklyReportService.generateWeeklyReports();
 
         verify(weeklyReportRepository).save(any(WeeklyReport.class));
+    }
+
+    @Test
+    @DisplayName("generateOrGetReport — 읽은 콘텐츠 있으면 AI 키워드 분석 호출")
+    void generateOrGetReport_withContents_callsContentKeywordsAi() {
+        UUID contentId = UUID.randomUUID();
+        Content content = Content.builder().title("Spring Boot 입문").build();
+        ReflectionTestUtils.setField(content, "id", contentId);
+
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(false);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(eq(userId), any(), any(), any()))
+                .willReturn(3L);
+        given(historyRepository.findTopTagsByUserAndPeriod(eq(userId), any(), any())).willReturn(List.of());
+        given(historyRepository.findDailyActivityCountsByUserAndPeriod(eq(userId), any(), any())).willReturn(List.of());
+        given(historyRepository.findReadContentIdsByUserAndPeriod(eq(userId), any(), any()))
+                .willReturn(List.of(contentId));
+        given(contentRepository.findAllById(any())).willReturn(List.of(content));
+        given(aiReportClient.requestContentKeywords(any())).willReturn(
+                new AiReportClient.ContentKeywordsResponse(
+                        List.of(new AiReportClient.KeywordCount("Spring", 3))));
+        given(weeklyReportRepository.save(any(WeeklyReport.class))).willReturn(report);
+
+        WeeklyReportResponse response = weeklyReportService.generateOrGetReport(userId, weekStart);
+
+        assertThat(response.reportId()).isEqualTo(reportId);
+        verify(aiReportClient).requestContentKeywords(any());
+    }
+
+    @Test
+    @DisplayName("generateOrGetReport — 작성한 질문 있으면 AI 질문 키워드 분석 호출")
+    void generateOrGetReport_withQuestions_callsQuestionKeywordsAi() {
+        UUID techPostId = UUID.randomUUID();
+        UUID careerPostId = UUID.randomUUID();
+
+        Post techPost = Post.builder().title("JPA N+1 문제").content("내용").postType(PostType.TECH).build();
+        Post careerPost = Post.builder().title("이직 시기").content("내용").postType(PostType.CAREER).build();
+        ReflectionTestUtils.setField(techPost, "id", techPostId);
+        ReflectionTestUtils.setField(careerPost, "id", careerPostId);
+
+        Answer adoptedAnswer = Answer.builder().post(techPost).content("답변 내용").build();
+        adoptedAnswer.adopt();
+        ReflectionTestUtils.setField(adoptedAnswer, "id", UUID.randomUUID());
+
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(false);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(eq(userId), any(), any(), any()))
+                .willReturn(2L);
+        given(historyRepository.findTopTagsByUserAndPeriod(eq(userId), any(), any())).willReturn(List.of());
+        given(historyRepository.findDailyActivityCountsByUserAndPeriod(eq(userId), any(), any())).willReturn(List.of());
+        given(historyRepository.findCreatedPostIdsByUserAndPeriod(eq(userId), any(), any()))
+                .willReturn(List.of(techPostId, careerPostId));
+        given(postRepository.findAllById(any())).willReturn(List.of(techPost, careerPost));
+        given(answerRepository.findByPostIdsOrderByCreatedAtAsc(any())).willReturn(List.of(adoptedAnswer));
+        given(aiReportClient.requestQuestionKeywords(any())).willReturn(
+                new AiReportClient.QuestionKeywordsResponse(List.of("JPA"), List.of("이직")));
+        given(weeklyReportRepository.save(any(WeeklyReport.class))).willReturn(report);
+
+        WeeklyReportResponse response = weeklyReportService.generateOrGetReport(userId, weekStart);
+
+        assertThat(response.reportId()).isEqualTo(reportId);
+        verify(aiReportClient).requestQuestionKeywords(any());
+    }
+
+    @Test
+    @DisplayName("generateOrGetReport — 공고 기술스택 rows 있으면 jobTechStacksJson 빌드")
+    void generateOrGetReport_withJobTechRows_buildsJobTechStacksJson() {
+        List<Object[]> techRows = new ArrayList<>();
+        techRows.add(new Object[]{"Spring", 3L});
+
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(false);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(eq(userId), any(), any(), any()))
+                .willReturn(2L);
+        given(historyRepository.findTopTagsByUserAndPeriod(eq(userId), any(), any())).willReturn(List.of());
+        given(historyRepository.findDailyActivityCountsByUserAndPeriod(eq(userId), any(), any())).willReturn(List.of());
+        given(historyRepository.findJobTechStackFrequencyByUserAndPeriod(eq(userId), any(), any()))
+                .willReturn(techRows);
+        given(weeklyReportRepository.save(any(WeeklyReport.class))).willReturn(report);
+
+        WeeklyReportResponse response = weeklyReportService.generateOrGetReport(userId, weekStart);
+
+        assertThat(response.reportId()).isEqualTo(reportId);
+        verify(weeklyReportRepository).save(any(WeeklyReport.class));
+    }
+
+    @Test
+    @DisplayName("backfillWeeklyReportsFromHistory — 히스토리 기준 누락 주차 생성")
+    void backfillWeeklyReportsFromHistory_createsForMissingWeeks() {
+        LocalDate twoWeeksAgo = weekStart.minusWeeks(2);
+        given(userRepository.findAllByIsActiveTrueAndDeletedAtIsNull()).willReturn(List.of(user));
+        given(historyRepository.findMinCreatedAtByUserId(userId))
+                .willReturn(Optional.of(twoWeeksAgo.atStartOfDay()));
+        given(weeklyReportBatchRunner.createReportIfAbsent(eq(userId), any())).willReturn(1);
+
+        Map<String, Integer> result = weeklyReportService.backfillWeeklyReportsFromHistory();
+
+        assertThat(result.get("usersProcessed")).isEqualTo(1);
+        assertThat(result.get("created")).isGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("backfillWeeklyReportsFromHistory — 유저 히스토리 없으면 가입일 기준으로 처리")
+    void backfillWeeklyReportsFromHistory_noHistory_usesCreatedAt() {
+        ReflectionTestUtils.setField(user, "createdAt", weekStart.minusWeeks(1).atStartOfDay());
+        given(userRepository.findAllByIsActiveTrueAndDeletedAtIsNull()).willReturn(List.of(user));
+        given(historyRepository.findMinCreatedAtByUserId(userId)).willReturn(Optional.empty());
+        given(weeklyReportBatchRunner.createReportIfAbsent(eq(userId), any())).willReturn(0);
+
+        Map<String, Integer> result = weeklyReportService.backfillWeeklyReportsFromHistory();
+
+        assertThat(result.get("usersProcessed")).isEqualTo(1);
     }
 }
