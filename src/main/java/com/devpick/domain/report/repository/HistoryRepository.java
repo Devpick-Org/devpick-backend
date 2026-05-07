@@ -43,6 +43,11 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
     boolean existsByUser_IdAndContent_IdAndActionType(
             UUID userId, UUID contentId, String actionType);
 
+    /** 동일 공고 당일 조회 중복 방지용 */
+    boolean existsByUser_IdAndJobPosting_IdAndActionTypeAndCreatedAtBetween(
+            UUID userId, UUID jobPostingId, String actionType,
+            LocalDateTime from, LocalDateTime to);
+
     @Query("SELECT MIN(h.createdAt) FROM History h WHERE h.user.id = :userId")
     Optional<LocalDateTime> findMinCreatedAtByUserId(@Param("userId") UUID userId);
 
@@ -60,14 +65,56 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 
-    // 섹션 2 바 차트: 요일별 활동 수 (ISODOW: 1=월 ~ 7=일)
+    // 섹션 2 바 차트: 요일별 활동 수 (ISODOW: 1=월 ~ 7=일), 학습 관련 action_type 화이트리스트
     @Query(value = "SELECT EXTRACT(ISODOW FROM h.created_at) AS dow, COUNT(*) AS cnt " +
                    "FROM history h " +
                    "WHERE h.user_id = :userId AND h.created_at BETWEEN :from AND :to " +
+                   "AND h.action_type IN ('content_opened', 'ai_summary_viewed', 'scrapped', " +
+                   "'question_created', 'post_created', 'ai_quiz_completed', 'job_posting_viewed') " +
                    "GROUP BY EXTRACT(ISODOW FROM h.created_at) " +
                    "ORDER BY dow",
            nativeQuery = true)
     List<Object[]> findDailyActivityCountsByUserAndPeriod(
+            @Param("userId") UUID userId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    // 확인 공고 분석: 조회한 공고 ID 목록
+    @Query("SELECT DISTINCT h.jobPosting.id FROM History h " +
+           "WHERE h.user.id = :userId AND h.actionType = 'job_posting_viewed' " +
+           "AND h.createdAt BETWEEN :from AND :to AND h.jobPosting IS NOT NULL")
+    List<UUID> findViewedJobPostingIdsByUserAndPeriod(
+            @Param("userId") UUID userId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    // 확인 공고 분석: 조회한 공고의 기술 스택 빈도 집계
+    @Query(value = "SELECT jt.tech, COUNT(DISTINCT h.job_posting_id) AS cnt " +
+                   "FROM history h " +
+                   "JOIN job_posting_tech_stack jt ON jt.job_posting_id = h.job_posting_id " +
+                   "WHERE h.user_id = :userId AND h.action_type = 'job_posting_viewed' " +
+                   "AND h.created_at BETWEEN :from AND :to " +
+                   "GROUP BY jt.tech ORDER BY cnt DESC LIMIT 10",
+           nativeQuery = true)
+    List<Object[]> findJobTechStackFrequencyByUserAndPeriod(
+            @Param("userId") UUID userId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    // 읽은 글 분석: 조회/스크랩한 콘텐츠 ID 목록
+    @Query("SELECT DISTINCT h.content.id FROM History h " +
+           "WHERE h.user.id = :userId AND h.actionType IN ('content_opened', 'scrapped') " +
+           "AND h.createdAt BETWEEN :from AND :to AND h.content IS NOT NULL")
+    List<UUID> findReadContentIdsByUserAndPeriod(
+            @Param("userId") UUID userId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    // 질문 분석: 이번 주 작성한 게시글 ID 목록
+    @Query("SELECT DISTINCT h.post.id FROM History h " +
+           "WHERE h.user.id = :userId AND h.actionType = 'question_created' " +
+           "AND h.createdAt BETWEEN :from AND :to AND h.post IS NOT NULL")
+    List<UUID> findCreatedPostIdsByUserAndPeriod(
             @Param("userId") UUID userId,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
@@ -150,6 +197,7 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
            "LEFT JOIN FETCH h.post " +
            "LEFT JOIN FETCH h.answer " +
            "LEFT JOIN FETCH h.comment " +
+           "LEFT JOIN FETCH h.jobPosting " +
            "WHERE h.id IN :ids " +
            "ORDER BY h.createdAt DESC")
     List<History> findHistoriesWithAssociationsByIds(@Param("ids") List<UUID> ids);

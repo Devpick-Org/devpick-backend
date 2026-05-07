@@ -13,7 +13,6 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,7 +37,7 @@ class AiReportClientTest {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private void mockPostChain(Object monoResult) {
+    private <T> void mockPostChain(Class<T> responseType, Object monoResult) {
         WebClient.RequestBodyUriSpec uriSpec = mock(WebClient.RequestBodyUriSpec.class);
         WebClient.RequestBodySpec bodySpec = mock(WebClient.RequestBodySpec.class);
         WebClient.RequestHeadersSpec headersSpec = mock(WebClient.RequestHeadersSpec.class);
@@ -51,55 +50,61 @@ class AiReportClientTest {
         given(headersSpec.retrieve()).willReturn(responseSpec);
 
         if (monoResult instanceof Throwable) {
-            given(responseSpec.bodyToMono(eq(AiReportClient.InsightResponse.class)))
+            given(responseSpec.bodyToMono(eq(responseType)))
                     .willReturn(Mono.error((Throwable) monoResult));
         } else {
-            given(responseSpec.bodyToMono(eq(AiReportClient.InsightResponse.class)))
-                    .willReturn(Mono.justOrEmpty((AiReportClient.InsightResponse) monoResult));
+            given(responseSpec.bodyToMono(eq(responseType)))
+                    .willReturn(Mono.justOrEmpty((T) monoResult));
         }
     }
 
     @Test
-    @DisplayName("requestInsight — 정상 응답")
-    void requestInsight_success() {
-        AiReportClient.InsightResponse expected = new AiReportClient.InsightResponse(
-                "rid", "잘함", "부족", "다음주", "2024-01-01T00:00:00Z");
-        mockPostChain(expected);
+    @DisplayName("requestContentKeywords — 정상 응답")
+    void requestContentKeywords_success() {
+        AiReportClient.ContentKeywordsResponse expected = new AiReportClient.ContentKeywordsResponse(
+                List.of(new AiReportClient.KeywordCount("Spring", 3)));
+        mockPostChain(AiReportClient.ContentKeywordsResponse.class, expected);
 
-        AiReportClient.ActivityData data = new AiReportClient.ActivityData(
-                1, 2, 3, List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
-        AiReportClient.InsightRequest req = new AiReportClient.InsightRequest(
-                "rid", "uid", "2024-01-01", "2024-01-07", data);
+        AiReportClient.ContentKeywordsRequest req = new AiReportClient.ContentKeywordsRequest(
+                List.of(new AiReportClient.ContentItem("cid", "Spring Boot 입문", "", List.of("Java"))));
 
-        AiReportClient.InsightResponse result = aiReportClient.requestInsight(req);
-
-        assertThat(result).isEqualTo(expected);
+        assertThat(aiReportClient.requestContentKeywords(req)).isEqualTo(expected);
     }
 
     @Test
-    @DisplayName("requestInsight — null 응답 시 null (실패 로그만)")
-    void requestInsight_nullResponse_returnsNull() {
-        mockPostChain(null);
+    @DisplayName("requestContentKeywords — WebClient 오류 시 null")
+    void requestContentKeywords_error_returnsNull() {
+        mockPostChain(AiReportClient.ContentKeywordsResponse.class,
+                WebClientResponseException.create(500, "err", null, null, null));
 
-        AiReportClient.ActivityData data = new AiReportClient.ActivityData(
-                0, 0, 0, List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
-        AiReportClient.InsightRequest req = new AiReportClient.InsightRequest(
-                "r", "u", "2024-01-01", "2024-01-07", data);
+        AiReportClient.ContentKeywordsRequest req = new AiReportClient.ContentKeywordsRequest(List.of());
 
-        assertThat(aiReportClient.requestInsight(req)).isNull();
+        assertThat(aiReportClient.requestContentKeywords(req)).isNull();
     }
 
     @Test
-    @DisplayName("requestInsight — WebClient 오류 시 null")
-    void requestInsight_webClientError_returnsNull() {
-        mockPostChain(WebClientResponseException.create(500, "err", null, null, null));
+    @DisplayName("requestQuestionKeywords — 정상 응답")
+    void requestQuestionKeywords_success() {
+        AiReportClient.QuestionKeywordsResponse expected = new AiReportClient.QuestionKeywordsResponse(
+                List.of("JPA", "Spring"), List.of("이직", "면접"));
+        mockPostChain(AiReportClient.QuestionKeywordsResponse.class, expected);
 
-        AiReportClient.ActivityData data = new AiReportClient.ActivityData(
-                0, 0, 0, List.of(Map.of("tag", "java", "count", 1)),
-                List.of(), List.of(), List.of(), List.of(), List.of());
-        AiReportClient.InsightRequest req = new AiReportClient.InsightRequest(
-                "r", "u", "2024-01-01", "2024-01-07", data);
+        AiReportClient.QuestionKeywordsRequest req = new AiReportClient.QuestionKeywordsRequest(
+                List.of(new AiReportClient.QuestionItem("JPA N+1이란?", "내용", null)),
+                List.of(new AiReportClient.QuestionItem("이직 시기", "내용", null)));
 
-        assertThat(aiReportClient.requestInsight(req)).isNull();
+        assertThat(aiReportClient.requestQuestionKeywords(req)).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("requestQuestionKeywords — WebClient 오류 시 null")
+    void requestQuestionKeywords_error_returnsNull() {
+        mockPostChain(AiReportClient.QuestionKeywordsResponse.class,
+                WebClientResponseException.create(500, "err", null, null, null));
+
+        AiReportClient.QuestionKeywordsRequest req = new AiReportClient.QuestionKeywordsRequest(
+                List.of(), List.of());
+
+        assertThat(aiReportClient.requestQuestionKeywords(req)).isNull();
     }
 }

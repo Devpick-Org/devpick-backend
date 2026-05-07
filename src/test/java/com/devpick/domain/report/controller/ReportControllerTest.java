@@ -2,7 +2,6 @@ package com.devpick.domain.report.controller;
 
 import com.devpick.domain.report.dto.ChartDataResponse;
 import com.devpick.domain.report.dto.ReportActivityResponse;
-import com.devpick.domain.report.dto.ReportInsightResponse;
 import com.devpick.domain.report.dto.ReportSummaryResponse;
 import com.devpick.domain.report.dto.ShareLinkResponse;
 import com.devpick.domain.report.dto.WeeklyReportResponse;
@@ -80,8 +79,8 @@ class ReportControllerTest {
                         List.of(new SimpleGrantedAuthority("ROLE_USER")))
         );
 
-        ReportActivityResponse activity = new ReportActivityResponse(5, 2, 3,
-                "[{\"tag\":\"Java\",\"count\":3}]", null);
+        ReportActivityResponse activity = new ReportActivityResponse(5, 2, 0,
+                "[{\"tag\":\"Java\",\"count\":3}]", null, null, null, null, null);
 
         ChartDataResponse chartData = new ChartDataResponse(
                 List.of(new ChartDataResponse.DailyActivity("MON", 5)),
@@ -98,8 +97,7 @@ class ReportControllerTest {
                 "generated",
                 false,
                 List.of(activity),
-                chartData,
-                null
+                chartData
         );
     }
 
@@ -138,31 +136,7 @@ class ReportControllerTest {
                 .andExpect(jsonPath("$.data.status").value("generated"))
                 .andExpect(jsonPath("$.data.activities[0].contentsRead").value(5))
                 .andExpect(jsonPath("$.data.chartData.dailyActivities[0].dayOfWeek").value("MON"))
-                .andExpect(jsonPath("$.data.chartData.tagActivities[0].tagName").value("Java"))
-                .andExpect(jsonPath("$.data.aiInsight").doesNotExist());
-    }
-
-    @Test
-    @DisplayName("GET /reports/weekly - AI 인사이트 포함 시 응답에 포함")
-    void getCurrentWeekReport_withInsight_returns200() throws Exception {
-        ReportInsightResponse insight = new ReportInsightResponse(
-                "React 글을 집중적으로 읽었어요",
-                "백엔드 학습이 부족했어요",
-                "Spring Boot 기초부터 시작해보세요"
-        );
-        WeeklyReportResponse responseWithInsight = new WeeklyReportResponse(
-                reportId,
-                LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay().toInstant(ZoneOffset.UTC),
-                LocalDate.now().with(DayOfWeek.MONDAY).plusDays(6).atStartOfDay().toInstant(ZoneOffset.UTC),
-                "generated", false, reportResponse.activities(), reportResponse.chartData(), insight
-        );
-        given(weeklyReportService.getCurrentWeekReport(userId)).willReturn(responseWithInsight);
-
-        mockMvc.perform(get("/reports/weekly"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.aiInsight.wellDone").value("React 글을 집중적으로 읽었어요"))
-                .andExpect(jsonPath("$.data.aiInsight.lacking").value("백엔드 학습이 부족했어요"))
-                .andExpect(jsonPath("$.data.aiInsight.nextWeek").value("Spring Boot 기초부터 시작해보세요"));
+                .andExpect(jsonPath("$.data.chartData.tagActivities[0].tagName").value("Java"));
     }
 
     @Test

@@ -14,10 +14,9 @@ public record WeeklyReportResponse(
         String status,
         boolean isShared,
         List<ReportActivityResponse> activities,
-        ChartDataResponse chartData,
-        ReportInsightResponse aiInsight
+        ChartDataResponse chartData
 ) {
-    public static WeeklyReportResponse of(WeeklyReport report, ChartDataResponse chartData, ReportInsightResponse aiInsight) {
+    public static WeeklyReportResponse of(WeeklyReport report, ChartDataResponse chartData) {
         List<ReportActivityResponse> activityResponses = report.getActivities().stream()
                 .map(ReportActivityResponse::of)
                 .toList();
@@ -29,8 +28,7 @@ public record WeeklyReportResponse(
                 report.getStatus(),
                 report.getShareToken() != null,
                 activityResponses,
-                chartData,
-                aiInsight
+                chartData
         );
     }
 }

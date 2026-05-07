@@ -1,7 +1,13 @@
 package com.devpick.domain.report.service;
 
+import com.devpick.domain.community.entity.Answer;
+import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostType;
+import com.devpick.domain.community.repository.AnswerRepository;
+import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.content.entity.Content;
+import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.report.client.AiReportClient;
-import com.devpick.domain.report.document.ReportInsightDocument;
 import com.devpick.domain.report.dto.ChartDataResponse;
 import com.devpick.domain.report.dto.ReportSummaryResponse;
 import com.devpick.domain.report.dto.ShareLinkResponse;
@@ -9,7 +15,6 @@ import com.devpick.domain.report.dto.WeeklyReportResponse;
 import com.devpick.domain.report.entity.ReportActivity;
 import com.devpick.domain.report.entity.WeeklyReport;
 import com.devpick.domain.report.repository.HistoryRepository;
-import com.devpick.domain.report.repository.ReportInsightRepository;
 import com.devpick.domain.report.repository.WeeklyReportRepository;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
@@ -36,13 +41,13 @@ import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
@@ -65,13 +70,19 @@ class WeeklyReportServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
-    private ReportInsightRepository reportInsightRepository;
-    @Mock
     private AiReportClient aiReportClient;
     @Mock
     private ObjectMapper objectMapper;
     @Mock
     private WeeklyReportBatchRunner weeklyReportBatchRunner;
+    @Mock
+    private HighlightEngine highlightEngine;
+    @Mock
+    private PostRepository postRepository;
+    @Mock
+    private AnswerRepository answerRepository;
+    @Mock
+    private ContentRepository contentRepository;
 
     private UUID userId;
     private UUID reportId;
@@ -98,6 +109,7 @@ class WeeklyReportServiceTest {
                 .level(Level.JUNIOR)
                 .build();
         ReflectionTestUtils.setField(user, "id", userId);
+        lenient().when(highlightEngine.generate(any())).thenReturn("[]");
 
         ReportActivity activity = ReportActivity.builder()
                 .contentsRead(5)
@@ -126,9 +138,6 @@ class WeeklyReportServiceTest {
         ReflectionTestUtils.setField(reportPrevWeek, "id", reportId);
         ReflectionTestUtils.setField(reportPrevWeek, "activities", new ArrayList<>(activities));
 
-        // AI 인사이트는 아직 FastAPI 미구현 — 모든 조회 테스트에 기본 null 반환
-        lenient().when(reportInsightRepository.findByReportId(anyString())).thenReturn(Optional.empty());
-
         lenient().doAnswer(invocation -> {
             try {
                 Object arg = invocation.getArgument(0);
@@ -150,7 +159,6 @@ class WeeklyReportServiceTest {
 
         assertThat(response.reportId()).isEqualTo(reportId);
         assertThat(response.chartData()).isNotNull();
-        assertThat(response.aiInsight()).isNull();
         verify(historyRepository).save(any());
     }
 
@@ -253,30 +261,6 @@ class WeeklyReportServiceTest {
     }
 
     @Test
-    @DisplayName("getCurrentWeekReport — AI 인사이트 존재 시 응답에 포함")
-    void getCurrentWeekReport_withInsight_returnsAiInsight() {
-        ReportInsightDocument insight = ReportInsightDocument.builder()
-                .reportId(reportId.toString())
-                .userId(userId.toString())
-                .wellDone("React 글을 집중적으로 읽었어요")
-                .lacking("백엔드 학습이 부족했어요")
-                .nextWeek("Spring Boot 기초부터 시작해보세요")
-                .build();
-
-        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, prevWeekStart))
-                .willReturn(Optional.of(reportPrevWeek));
-        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(reportInsightRepository.findByReportId(reportId.toString())).willReturn(Optional.of(insight));
-
-        WeeklyReportResponse response = weeklyReportService.getCurrentWeekReport(userId);
-
-        assertThat(response.aiInsight()).isNotNull();
-        assertThat(response.aiInsight().wellDone()).isEqualTo("React 글을 집중적으로 읽었어요");
-        assertThat(response.aiInsight().lacking()).isEqualTo("백엔드 학습이 부족했어요");
-        assertThat(response.aiInsight().nextWeek()).isEqualTo("Spring Boot 기초부터 시작해보세요");
-    }
-
-    @Test
     @DisplayName("getReportById — 성공 시 리포트 반환 및 weekly_report_viewed 기록")
     void getReportById_success_returnsReport() {
         given(weeklyReportRepository.findWithActivitiesById(reportId)).willReturn(Optional.of(report));
@@ -356,7 +340,6 @@ class WeeklyReportServiceTest {
 
         assertThat(response.reportId()).isEqualTo(reportId);
         assertThat(response.chartData()).isNotNull();
-        assertThat(response.aiInsight()).isNull();
     }
 
     @Test
@@ -507,5 +490,117 @@ class WeeklyReportServiceTest {
         weeklyReportService.generateWeeklyReports();
 
         verify(weeklyReportRepository).save(any(WeeklyReport.class));
+    }
+
+    @Test
+    @DisplayName("generateOrGetReport — 읽은 콘텐츠 있으면 AI 키워드 분석 호출")
+    void generateOrGetReport_withContents_callsContentKeywordsAi() {
+        UUID contentId = UUID.randomUUID();
+        Content content = Content.builder().title("Spring Boot 입문").build();
+        ReflectionTestUtils.setField(content, "id", contentId);
+
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(false);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(eq(userId), any(), any(), any()))
+                .willReturn(3L);
+        given(historyRepository.findTopTagsByUserAndPeriod(eq(userId), any(), any())).willReturn(List.of());
+        given(historyRepository.findDailyActivityCountsByUserAndPeriod(eq(userId), any(), any())).willReturn(List.of());
+        given(historyRepository.findReadContentIdsByUserAndPeriod(eq(userId), any(), any()))
+                .willReturn(List.of(contentId));
+        given(contentRepository.findAllById(any())).willReturn(List.of(content));
+        given(aiReportClient.requestContentKeywords(any())).willReturn(
+                new AiReportClient.ContentKeywordsResponse(
+                        List.of(new AiReportClient.KeywordCount("Spring", 3))));
+        given(weeklyReportRepository.save(any(WeeklyReport.class))).willReturn(report);
+
+        WeeklyReportResponse response = weeklyReportService.generateOrGetReport(userId, weekStart);
+
+        assertThat(response.reportId()).isEqualTo(reportId);
+        verify(aiReportClient).requestContentKeywords(any());
+    }
+
+    @Test
+    @DisplayName("generateOrGetReport — 작성한 질문 있으면 AI 질문 키워드 분석 호출")
+    void generateOrGetReport_withQuestions_callsQuestionKeywordsAi() {
+        UUID techPostId = UUID.randomUUID();
+        UUID careerPostId = UUID.randomUUID();
+
+        Post techPost = Post.builder().title("JPA N+1 문제").content("내용").postType(PostType.TECH).build();
+        Post careerPost = Post.builder().title("이직 시기").content("내용").postType(PostType.CAREER).build();
+        ReflectionTestUtils.setField(techPost, "id", techPostId);
+        ReflectionTestUtils.setField(careerPost, "id", careerPostId);
+
+        Answer adoptedAnswer = Answer.builder().post(techPost).content("답변 내용").build();
+        adoptedAnswer.adopt();
+        ReflectionTestUtils.setField(adoptedAnswer, "id", UUID.randomUUID());
+
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(false);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(eq(userId), any(), any(), any()))
+                .willReturn(2L);
+        given(historyRepository.findTopTagsByUserAndPeriod(eq(userId), any(), any())).willReturn(List.of());
+        given(historyRepository.findDailyActivityCountsByUserAndPeriod(eq(userId), any(), any())).willReturn(List.of());
+        given(historyRepository.findCreatedPostIdsByUserAndPeriod(eq(userId), any(), any()))
+                .willReturn(List.of(techPostId, careerPostId));
+        given(postRepository.findAllById(any())).willReturn(List.of(techPost, careerPost));
+        given(answerRepository.findByPostIdsOrderByCreatedAtAsc(any())).willReturn(List.of(adoptedAnswer));
+        given(aiReportClient.requestQuestionKeywords(any())).willReturn(
+                new AiReportClient.QuestionKeywordsResponse(List.of("JPA"), List.of("이직")));
+        given(weeklyReportRepository.save(any(WeeklyReport.class))).willReturn(report);
+
+        WeeklyReportResponse response = weeklyReportService.generateOrGetReport(userId, weekStart);
+
+        assertThat(response.reportId()).isEqualTo(reportId);
+        verify(aiReportClient).requestQuestionKeywords(any());
+    }
+
+    @Test
+    @DisplayName("generateOrGetReport — 공고 기술스택 rows 있으면 jobTechStacksJson 빌드")
+    void generateOrGetReport_withJobTechRows_buildsJobTechStacksJson() {
+        List<Object[]> techRows = new ArrayList<>();
+        techRows.add(new Object[]{"Spring", 3L});
+
+        given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(false);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        given(historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(eq(userId), any(), any(), any()))
+                .willReturn(2L);
+        given(historyRepository.findTopTagsByUserAndPeriod(eq(userId), any(), any())).willReturn(List.of());
+        given(historyRepository.findDailyActivityCountsByUserAndPeriod(eq(userId), any(), any())).willReturn(List.of());
+        given(historyRepository.findJobTechStackFrequencyByUserAndPeriod(eq(userId), any(), any()))
+                .willReturn(techRows);
+        given(weeklyReportRepository.save(any(WeeklyReport.class))).willReturn(report);
+
+        WeeklyReportResponse response = weeklyReportService.generateOrGetReport(userId, weekStart);
+
+        assertThat(response.reportId()).isEqualTo(reportId);
+        verify(weeklyReportRepository).save(any(WeeklyReport.class));
+    }
+
+    @Test
+    @DisplayName("backfillWeeklyReportsFromHistory — 히스토리 기준 누락 주차 생성")
+    void backfillWeeklyReportsFromHistory_createsForMissingWeeks() {
+        LocalDate twoWeeksAgo = weekStart.minusWeeks(2);
+        given(userRepository.findAllByIsActiveTrueAndDeletedAtIsNull()).willReturn(List.of(user));
+        given(historyRepository.findMinCreatedAtByUserId(userId))
+                .willReturn(Optional.of(twoWeeksAgo.atStartOfDay()));
+        given(weeklyReportBatchRunner.createReportIfAbsent(eq(userId), any())).willReturn(1);
+
+        Map<String, Integer> result = weeklyReportService.backfillWeeklyReportsFromHistory();
+
+        assertThat(result.get("usersProcessed")).isEqualTo(1);
+        assertThat(result.get("created")).isGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("backfillWeeklyReportsFromHistory — 유저 히스토리 없으면 가입일 기준으로 처리")
+    void backfillWeeklyReportsFromHistory_noHistory_usesCreatedAt() {
+        ReflectionTestUtils.setField(user, "createdAt", weekStart.minusWeeks(1).atStartOfDay());
+        given(userRepository.findAllByIsActiveTrueAndDeletedAtIsNull()).willReturn(List.of(user));
+        given(historyRepository.findMinCreatedAtByUserId(userId)).willReturn(Optional.empty());
+        given(weeklyReportBatchRunner.createReportIfAbsent(eq(userId), any())).willReturn(0);
+
+        Map<String, Integer> result = weeklyReportService.backfillWeeklyReportsFromHistory();
+
+        assertThat(result.get("usersProcessed")).isEqualTo(1);
     }
 }

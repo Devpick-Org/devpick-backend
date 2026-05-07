@@ -1,8 +1,14 @@
 package com.devpick.domain.report.service;
 
+import com.devpick.domain.community.entity.Answer;
+import com.devpick.domain.community.entity.Post;
+import com.devpick.domain.community.entity.PostType;
+import com.devpick.domain.community.repository.AnswerRepository;
+import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.content.entity.Content;
+import com.devpick.domain.content.repository.ContentRepository;
 import com.devpick.domain.report.client.AiReportClient;
 import com.devpick.domain.report.dto.ChartDataResponse;
-import com.devpick.domain.report.dto.ReportInsightResponse;
 import com.devpick.domain.report.dto.ReportSummaryResponse;
 import com.devpick.domain.report.dto.ShareLinkResponse;
 import com.devpick.domain.report.dto.WeeklyReportResponse;
@@ -10,9 +16,9 @@ import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.entity.ReportActivity;
 import com.devpick.domain.report.entity.WeeklyReport;
 import com.devpick.domain.report.repository.HistoryRepository;
-import com.devpick.domain.report.repository.ReportInsightRepository;
 import com.devpick.domain.report.repository.WeeklyReportRepository;
 import com.devpick.domain.user.entity.User;
+import com.devpick.domain.user.entity.UserTag;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -37,7 +43,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -51,10 +59,13 @@ public class WeeklyReportService {
     private final WeeklyReportRepository weeklyReportRepository;
     private final HistoryRepository historyRepository;
     private final UserRepository userRepository;
-    private final ReportInsightRepository reportInsightRepository;
     private final AiReportClient aiReportClient;
     private final ObjectMapper objectMapper;
     private final WeeklyReportBatchRunner weeklyReportBatchRunner;
+    private final PostRepository postRepository;
+    private final AnswerRepository answerRepository;
+    private final ContentRepository contentRepository;
+    private final HighlightEngine highlightEngine;
 
     // DP-256: 리포트 목록 조회 (드롭다운용 최소 필드)
     @Transactional(readOnly = true)
@@ -200,7 +211,6 @@ public class WeeklyReportService {
     }
 
     private WeeklyReport generateReportForUser(User user, LocalDate weekStart, LocalDate weekEnd) {
-        // history.created_at 은 JVM(보통 UTC) 기준 LocalDateTime — 한국 주 경계를 UTC instant로 맞춤
         ZonedDateTime fromZ = weekStart.atStartOfDay(ZONE_SEOUL);
         ZonedDateTime toZ = weekEnd.atTime(23, 59, 59, 999_999_999).atZone(ZONE_SEOUL);
         LocalDateTime from = LocalDateTime.ofInstant(fromZ.toInstant(), ZoneOffset.UTC);
@@ -210,8 +220,8 @@ public class WeeklyReportService {
                 user.getId(), "content_opened", from, to);
         long questionsCreated = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
                 user.getId(), "question_created", from, to);
-        long scrapsCount = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
-                user.getId(), "scrapped", from, to);
+        long jobPostingsViewed = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
+                user.getId(), "job_posting_viewed", from, to);
 
         LocalDate prevWeekStart = weekStart.minusWeeks(1);
         LocalDate prevWeekEnd = prevWeekStart.plusDays(6);
@@ -224,18 +234,34 @@ public class WeeklyReportService {
                 user.getId(), "content_opened", prevFrom, prevTo);
         long prevQuestionsCreated = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
                 user.getId(), "question_created", prevFrom, prevTo);
-        long prevScrapsCount = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
-                user.getId(), "scrapped", prevFrom, prevTo);
+        long prevJobPostingsViewed = historyRepository.countByUser_IdAndActionTypeAndCreatedAtBetween(
+                user.getId(), "job_posting_viewed", prevFrom, prevTo);
+
         String prevWeekComparisonJson = toJson(Map.of(
                 "contentsRead", prevContentsRead,
                 "questionsCreated", prevQuestionsCreated,
-                "scrapsCount", prevScrapsCount
+                "jobPostingsViewed", prevJobPostingsViewed
         ));
 
         List<Object[]> tagRows = historyRepository.findTopTagsByUserAndPeriod(user.getId(), from, to);
         String topTagsJson = serializeTopTags(tagRows, 3);
         String tagActivitiesJson = serializeTagActivities(tagRows);
         String dailyActivitiesJson = buildDailyActivitiesJson(user.getId(), from, to);
+        String jobTechStacksJson = buildJobTechStacksJson(user.getId(), from, to);
+        String contentKeywordsJson = buildContentKeywordsJson(user, from, to, tagRows);
+        String questionAnalysisJson = buildQuestionAnalysisJson(user.getId(), from, to);
+
+        String highlightsJson = highlightEngine.generate(new HighlightEngine.HighlightInput(
+                (int) contentsRead,
+                (int) questionsCreated,
+                (int) jobPostingsViewed,
+                topTagsJson,
+                dailyActivitiesJson,
+                prevWeekComparisonJson,
+                jobTechStacksJson,
+                contentKeywordsJson,
+                questionAnalysisJson
+        ));
 
         WeeklyReport report = WeeklyReport.builder()
                 .user(user)
@@ -248,64 +274,168 @@ public class WeeklyReportService {
                 .report(report)
                 .contentsRead((int) contentsRead)
                 .questionsCreated((int) questionsCreated)
-                .scrapsCount((int) scrapsCount)
+                .jobPostingsViewed((int) jobPostingsViewed)
                 .topTags(topTagsJson)
                 .prevWeekComparison(prevWeekComparisonJson)
                 .dailyActivities(dailyActivitiesJson)
                 .tagActivities(tagActivitiesJson)
+                .jobTechStacks(jobTechStacksJson)
+                .contentKeywords(contentKeywordsJson)
+                .questionAnalysis(questionAnalysisJson)
+                .highlights(highlightsJson)
                 .build();
 
         report.getActivities().add(activity);
-        WeeklyReport saved = weeklyReportRepository.save(report);
-
-        // AI 인사이트 생성 요청 (비동기 — 실패해도 리포트 생성에 영향 없음)
-        requestAiInsightAsync(user, saved, weekStart, weekEnd, activity);
-
-        return saved;
+        return weeklyReportRepository.save(report);
     }
 
-    private void requestAiInsightAsync(User user, WeeklyReport report, LocalDate weekStart, LocalDate weekEnd, ReportActivity activity) {
+    private String buildJobTechStacksJson(UUID userId, LocalDateTime from, LocalDateTime to) {
         try {
-            List<ChartDataResponse.TagActivity> tagActivities = parseJson(
-                    activity.getTagActivities(),
-                    new TypeReference<List<ChartDataResponse.TagActivity>>() {});
-            List<ChartDataResponse.DailyActivity> dailyActivities = parseJson(
-                    activity.getDailyActivities(),
-                    new TypeReference<List<ChartDataResponse.DailyActivity>>() {});
-
-            List<Map<String, Object>> topTagsMaps = parseJson(
-                    activity.getTopTags(),
-                    new TypeReference<List<Map<String, Object>>>() {});
-            List<Map<String, Object>> dailyMaps = dailyActivities.stream()
-                    .map(d -> Map.<String, Object>of("day_of_week", d.dayOfWeek(), "count", d.count()))
+            List<Object[]> rows = historyRepository.findJobTechStackFrequencyByUserAndPeriod(userId, from, to);
+            List<Map<String, Object>> result = rows.stream()
+                    .map(row -> {
+                        Map<String, Object> entry = new LinkedHashMap<>();
+                        entry.put("tech", row[0]);
+                        entry.put("count", row[1]);
+                        return entry;
+                    })
                     .toList();
-            List<Map<String, Object>> tagMaps = tagActivities.stream()
-                    .map(t -> Map.<String, Object>of("tag_name", t.tagName(), "count", t.count()))
-                    .toList();
-
-            AiReportClient.ActivityData activityData = new AiReportClient.ActivityData(
-                    activity.getContentsRead(),
-                    activity.getQuestionsCreated(),
-                    activity.getScrapsCount(),
-                    topTagsMaps,
-                    dailyMaps,
-                    tagMaps,
-                    List.of(),
-                    List.of(),
-                    List.of()
-            );
-
-            AiReportClient.InsightRequest insightRequest = new AiReportClient.InsightRequest(
-                    report.getId().toString(),
-                    user.getId().toString(),
-                    weekStart.toString(),
-                    weekEnd.toString(),
-                    activityData
-            );
-
-            aiReportClient.requestInsight(insightRequest);
+            return toJson(result);
         } catch (Exception e) {
-            log.warn("[WeeklyReport] AI 인사이트 요청 실패 reportId={}: {}", report.getId(), e.getMessage());
+            log.warn("[WeeklyReport] 공고 기술 스택 집계 실패 userId={}: {}", userId, e.getMessage());
+            return "[]";
+        }
+    }
+
+    private String buildContentKeywordsJson(User user, LocalDateTime from, LocalDateTime to, List<Object[]> tagRows) {
+        try {
+            List<UUID> contentIds = historyRepository.findReadContentIdsByUserAndPeriod(user.getId(), from, to);
+            int interestTagMatchRate = computeInterestTagMatchRate(user, tagRows);
+
+            if (contentIds.isEmpty()) {
+                return toJson(Map.of("keywords", List.of(), "interestTagMatchRate", interestTagMatchRate));
+            }
+
+            List<Content> contents = contentRepository.findAllById(contentIds);
+            List<AiReportClient.ContentItem> items = contents.stream()
+                    .map(c -> new AiReportClient.ContentItem(
+                            c.getId().toString(),
+                            c.getTitle() != null ? c.getTitle() : "",
+                            c.getPreview() != null ? c.getPreview() : "",
+                            parseTags(c.getTags())
+                    ))
+                    .toList();
+
+            AiReportClient.ContentKeywordsResponse response =
+                    aiReportClient.requestContentKeywords(new AiReportClient.ContentKeywordsRequest(items));
+
+            List<Map<String, Object>> keywords = response != null && response.keywords() != null
+                    ? response.keywords().stream()
+                            .map(k -> {
+                                Map<String, Object> m = new LinkedHashMap<>();
+                                m.put("keyword", k.keyword());
+                                m.put("count", k.count());
+                                return m;
+                            })
+                            .toList()
+                    : List.of();
+
+            return toJson(Map.of("keywords", keywords, "interestTagMatchRate", interestTagMatchRate));
+        } catch (Exception e) {
+            log.warn("[WeeklyReport] 읽은 글 키워드 분석 실패 userId={}: {}", user.getId(), e.getMessage());
+            return null;
+        }
+    }
+
+    private String buildQuestionAnalysisJson(UUID userId, LocalDateTime from, LocalDateTime to) {
+        try {
+            List<UUID> postIds = historyRepository.findCreatedPostIdsByUserAndPeriod(userId, from, to);
+            if (postIds.isEmpty()) {
+                return toJson(Map.of(
+                        "tech", Map.of("total", 0, "resolved", 0, "keywords", List.of()),
+                        "career", Map.of("total", 0, "resolved", 0, "keywords", List.of())
+                ));
+            }
+
+            List<Post> posts = postRepository.findAllById(postIds);
+            List<Answer> allAnswers = answerRepository.findByPostIdsOrderByCreatedAtAsc(postIds);
+            Set<UUID> resolvedPostIds = allAnswers.stream()
+                    .filter(Answer::getIsAdopted)
+                    .map(a -> a.getPost().getId())
+                    .collect(Collectors.toSet());
+
+            List<Post> techPosts = posts.stream().filter(p -> PostType.TECH == p.getPostType()).toList();
+            List<Post> careerPosts = posts.stream().filter(p -> PostType.CAREER == p.getPostType()).toList();
+
+            long techResolved = techPosts.stream().filter(p -> resolvedPostIds.contains(p.getId())).count();
+            long careerResolved = careerPosts.stream().filter(p -> resolvedPostIds.contains(p.getId())).count();
+
+            Map<String, Answer> adoptedAnswerByPostId = allAnswers.stream()
+                    .filter(Answer::getIsAdopted)
+                    .collect(Collectors.toMap(a -> a.getPost().getId().toString(), a -> a, (a, b) -> a));
+
+            List<AiReportClient.QuestionItem> techItems = techPosts.stream()
+                    .map(p -> new AiReportClient.QuestionItem(
+                            p.getTitle(),
+                            p.getContent(),
+                            adoptedAnswerByPostId.containsKey(p.getId().toString())
+                                    ? adoptedAnswerByPostId.get(p.getId().toString()).getContent() : null
+                    ))
+                    .toList();
+
+            List<AiReportClient.QuestionItem> careerItems = careerPosts.stream()
+                    .map(p -> new AiReportClient.QuestionItem(
+                            p.getTitle(),
+                            p.getContent(),
+                            adoptedAnswerByPostId.containsKey(p.getId().toString())
+                                    ? adoptedAnswerByPostId.get(p.getId().toString()).getContent() : null
+                    ))
+                    .toList();
+
+            AiReportClient.QuestionKeywordsResponse kwResponse = null;
+            if (!techItems.isEmpty() || !careerItems.isEmpty()) {
+                kwResponse = aiReportClient.requestQuestionKeywords(
+                        new AiReportClient.QuestionKeywordsRequest(techItems, careerItems));
+            }
+
+            List<String> techKeywords = kwResponse != null && kwResponse.techKeywords() != null
+                    ? kwResponse.techKeywords() : List.of();
+            List<String> careerKeywords = kwResponse != null && kwResponse.careerKeywords() != null
+                    ? kwResponse.careerKeywords() : List.of();
+
+            return toJson(Map.of(
+                    "tech", Map.of("total", techPosts.size(), "resolved", techResolved, "keywords", techKeywords),
+                    "career", Map.of("total", careerPosts.size(), "resolved", careerResolved, "keywords", careerKeywords)
+            ));
+        } catch (Exception e) {
+            log.warn("[WeeklyReport] 질문 분석 실패 userId={}: {}", userId, e.getMessage());
+            return null;
+        }
+    }
+
+    private int computeInterestTagMatchRate(User user, List<Object[]> tagRows) {
+        List<String> userTagNames = user.getUserTags().stream()
+                .map(ut -> ut.getTag().getName().toLowerCase())
+                .toList();
+        if (userTagNames.isEmpty()) {
+            return 0;
+        }
+        Set<String> readTagNames = tagRows.stream()
+                .map(row -> row[0].toString().toLowerCase())
+                .collect(Collectors.toSet());
+        long matchCount = userTagNames.stream().filter(readTagNames::contains).count();
+        return (int) Math.round(100.0 * matchCount / userTagNames.size());
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> parseTags(String tagsJson) {
+        if (tagsJson == null || tagsJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(tagsJson, List.class);
+        } catch (Exception e) {
+            return List.of();
         }
     }
 
@@ -363,9 +493,7 @@ public class WeeklyReportService {
     }
 
     private WeeklyReportResponse toResponse(WeeklyReport report) {
-        ChartDataResponse chartData = buildChartDataResponse(report);
-        ReportInsightResponse aiInsight = loadInsight(report.getId());
-        return WeeklyReportResponse.of(report, chartData, aiInsight);
+        return WeeklyReportResponse.of(report, buildChartDataResponse(report));
     }
 
     private ChartDataResponse buildChartDataResponse(WeeklyReport report) {
@@ -391,12 +519,6 @@ public class WeeklyReportService {
         } catch (JsonProcessingException e) {
             return List.of();
         }
-    }
-
-    private ReportInsightResponse loadInsight(UUID reportId) {
-        return reportInsightRepository.findByReportId(reportId.toString())
-                .map(doc -> new ReportInsightResponse(doc.getWellDone(), doc.getLacking(), doc.getNextWeek()))
-                .orElse(null);
     }
 
     private LocalDate getWeekStart(LocalDate date) {

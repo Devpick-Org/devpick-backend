@@ -23,6 +23,8 @@ import com.devpick.domain.job.entity.PostingExperienceLevel;
 import com.devpick.domain.job.repository.JobBookmarkRepository;
 import com.devpick.domain.job.repository.JobPostingRepository;
 import com.devpick.domain.job.repository.JobPostingSpecifications;
+import com.devpick.domain.report.entity.History;
+import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.resume.entity.MasterResume;
 import com.devpick.domain.resume.repository.MasterResumeRepository;
 import com.devpick.domain.resume.service.ResumeCryptoService;
@@ -44,6 +46,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -74,6 +78,7 @@ public class JobService {
     private final ContentRepository contentRepository;
     private final JobAiClient jobAiClient;
     private final ObjectMapper objectMapper;
+    private final HistoryRepository historyRepository;
 
     @Transactional(readOnly = true)
     public List<TechTagFacetResponse> listTechTagFacets(Integer limit) {
@@ -250,11 +255,12 @@ public class JobService {
     private static final UUID INTERNAL_OPS_USER_ID =
             UUID.fromString("00000000-0000-0000-0000-000000000000");
 
-    @Transactional(readOnly = true)
+    @Transactional
     public JobDetailResponse getJobDetail(UUID userId, UUID jobId) {
         JobPosting p = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
         ensureListableJob(p);
+        recordJobPostingViewed(userId, p);
         boolean bookmarked = jobBookmarkRepository.existsByUserIdAndJobPosting_Id(userId, jobId);
         Map<String, Integer> userSkills = loadUserSkillProfile(userId);
         JsonNode resumeRoot = loadResumeJson(userId);
@@ -508,6 +514,27 @@ public class JobService {
         out.addAll(p.getRequiredSkills());
         out.addAll(p.getPreferredSkills());
         return out.stream().distinct().toList();
+    }
+
+    private void recordJobPostingViewed(UUID userId, JobPosting jobPosting) {
+        if (INTERNAL_OPS_USER_ID.equals(userId)) {
+            return;
+        }
+        LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
+        LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
+        boolean alreadyRecorded = historyRepository
+                .existsByUser_IdAndJobPosting_IdAndActionTypeAndCreatedAtBetween(
+                        userId, jobPosting.getId(), "job_posting_viewed", startOfDay, endOfDay);
+        if (alreadyRecorded) {
+            return;
+        }
+        userRepository.findByIdAndIsActiveTrue(userId).ifPresent(user ->
+                historyRepository.save(History.builder()
+                        .user(user)
+                        .actionType("job_posting_viewed")
+                        .jobPosting(jobPosting)
+                        .build())
+        );
     }
 
     private Map<String, Integer> loadUserSkillProfile(UUID userId) {
