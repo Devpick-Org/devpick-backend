@@ -32,6 +32,22 @@ public class ReportActivity extends BaseCreatedEntity {
     @Builder.Default
     private Integer scrapsCount = 0;
 
+    @Column(name = "job_postings_viewed", nullable = false)
+    @Builder.Default
+    private Integer jobPostingsViewed = 0;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "job_tech_stacks")
+    private String jobTechStacks;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "content_keywords")
+    private String contentKeywords;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "question_analysis")
+    private String questionAnalysis;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "top_tags")
     private String topTags;
@@ -47,4 +63,7 @@ public class ReportActivity extends BaseCreatedEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "tag_activities")
     private String tagActivities;
+
+    @Column(name = "highlights", columnDefinition = "TEXT")
+    private String highlights;
 }

@@ -1,7 +1,6 @@
 package com.devpick.domain.report.service;
 
 import com.devpick.domain.report.client.AiReportClient;
-import com.devpick.domain.report.document.ReportInsightDocument;
 import com.devpick.domain.report.dto.ChartDataResponse;
 import com.devpick.domain.report.dto.ReportSummaryResponse;
 import com.devpick.domain.report.dto.ShareLinkResponse;
@@ -9,7 +8,6 @@ import com.devpick.domain.report.dto.WeeklyReportResponse;
 import com.devpick.domain.report.entity.ReportActivity;
 import com.devpick.domain.report.entity.WeeklyReport;
 import com.devpick.domain.report.repository.HistoryRepository;
-import com.devpick.domain.report.repository.ReportInsightRepository;
 import com.devpick.domain.report.repository.WeeklyReportRepository;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
@@ -42,7 +40,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
@@ -65,13 +62,13 @@ class WeeklyReportServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
-    private ReportInsightRepository reportInsightRepository;
-    @Mock
     private AiReportClient aiReportClient;
     @Mock
     private ObjectMapper objectMapper;
     @Mock
     private WeeklyReportBatchRunner weeklyReportBatchRunner;
+    @Mock
+    private HighlightEngine highlightEngine;
 
     private UUID userId;
     private UUID reportId;
@@ -98,6 +95,7 @@ class WeeklyReportServiceTest {
                 .level(Level.JUNIOR)
                 .build();
         ReflectionTestUtils.setField(user, "id", userId);
+        lenient().when(highlightEngine.generate(any())).thenReturn("[]");
 
         ReportActivity activity = ReportActivity.builder()
                 .contentsRead(5)
@@ -126,9 +124,6 @@ class WeeklyReportServiceTest {
         ReflectionTestUtils.setField(reportPrevWeek, "id", reportId);
         ReflectionTestUtils.setField(reportPrevWeek, "activities", new ArrayList<>(activities));
 
-        // AI 인사이트는 아직 FastAPI 미구현 — 모든 조회 테스트에 기본 null 반환
-        lenient().when(reportInsightRepository.findByReportId(anyString())).thenReturn(Optional.empty());
-
         lenient().doAnswer(invocation -> {
             try {
                 Object arg = invocation.getArgument(0);
@@ -150,7 +145,6 @@ class WeeklyReportServiceTest {
 
         assertThat(response.reportId()).isEqualTo(reportId);
         assertThat(response.chartData()).isNotNull();
-        assertThat(response.aiInsight()).isNull();
         verify(historyRepository).save(any());
     }
 
@@ -253,30 +247,6 @@ class WeeklyReportServiceTest {
     }
 
     @Test
-    @DisplayName("getCurrentWeekReport — AI 인사이트 존재 시 응답에 포함")
-    void getCurrentWeekReport_withInsight_returnsAiInsight() {
-        ReportInsightDocument insight = ReportInsightDocument.builder()
-                .reportId(reportId.toString())
-                .userId(userId.toString())
-                .wellDone("React 글을 집중적으로 읽었어요")
-                .lacking("백엔드 학습이 부족했어요")
-                .nextWeek("Spring Boot 기초부터 시작해보세요")
-                .build();
-
-        given(weeklyReportRepository.findWithActivitiesByUser_IdAndWeekStart(userId, prevWeekStart))
-                .willReturn(Optional.of(reportPrevWeek));
-        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
-        given(reportInsightRepository.findByReportId(reportId.toString())).willReturn(Optional.of(insight));
-
-        WeeklyReportResponse response = weeklyReportService.getCurrentWeekReport(userId);
-
-        assertThat(response.aiInsight()).isNotNull();
-        assertThat(response.aiInsight().wellDone()).isEqualTo("React 글을 집중적으로 읽었어요");
-        assertThat(response.aiInsight().lacking()).isEqualTo("백엔드 학습이 부족했어요");
-        assertThat(response.aiInsight().nextWeek()).isEqualTo("Spring Boot 기초부터 시작해보세요");
-    }
-
-    @Test
     @DisplayName("getReportById — 성공 시 리포트 반환 및 weekly_report_viewed 기록")
     void getReportById_success_returnsReport() {
         given(weeklyReportRepository.findWithActivitiesById(reportId)).willReturn(Optional.of(report));
@@ -356,7 +326,6 @@ class WeeklyReportServiceTest {
 
         assertThat(response.reportId()).isEqualTo(reportId);
         assertThat(response.chartData()).isNotNull();
-        assertThat(response.aiInsight()).isNull();
     }
 
     @Test
