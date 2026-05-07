@@ -430,7 +430,7 @@ class RecommendServiceTest {
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 
         List<UUID> resultIds = result.videos().stream().map(YoutubeRecommendItem::contentId).toList();
-        assertThat(resultIds).doesNotContain(viewedIds.get(0), viewedIds.get(1));
+        assertThat(resultIds).isNotEmpty().doesNotContain(viewedIds.get(0), viewedIds.get(1));
     }
 
     @Test
@@ -492,7 +492,7 @@ class RecommendServiceTest {
         Map<UUID, Double> scores = recommendService.buildWeightedTagScores(userId);
 
         // 퀴즈완료(5.0×2) + 스크랩(4.0×1) = 14.0
-        assertThat(scores.get(tagId)).isEqualTo(14.0);
+        assertThat(scores).containsEntry(tagId, 14.0);
     }
 
     @Test

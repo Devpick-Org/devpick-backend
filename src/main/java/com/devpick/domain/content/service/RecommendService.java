@@ -212,7 +212,7 @@ public class RecommendService {
                     contentRepository.findLatestYoutubeExcludingScrapped(userId, PageRequest.of(0, RESULT_SIZE))
                             .stream()
                             .filter(c -> !finalResultIds.contains(c.getId()))
-                            .limit(RESULT_SIZE - result.size())
+                            .limit((long) RESULT_SIZE - result.size())
                             .forEach(result::add);
                 }
 
