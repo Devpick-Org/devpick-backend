@@ -1,53 +1,36 @@
 -- DP-467: post_type NULL 백필 — 컬럼 추가 전 생성된 게시글 보정 및 NOT NULL 제약 적용
-DO $$
-BEGIN
-  UPDATE posts SET post_type = 'TECH' WHERE post_type IS NULL;
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'posts'
-      AND column_name = 'post_type'
-      AND is_nullable = 'YES'
-  ) THEN
-    ALTER TABLE posts ALTER COLUMN post_type SET NOT NULL;
-  END IF;
-END $$;
+UPDATE posts SET post_type = 'TECH' WHERE post_type IS NULL;
+ALTER TABLE posts ALTER COLUMN post_type SET NOT NULL;
 
--- DP-462: 중복 태그 제거 — css→CSS, Github→GitHub 병합 (case 버그로 생성된 중복 row 정리)
-DO $$
-DECLARE
-  v_dup_id  UUID;
-  v_keep_id UUID;
-BEGIN
-  -- css → CSS 병합
-  SELECT id INTO v_dup_id  FROM tags WHERE name = 'css';
-  SELECT id INTO v_keep_id FROM tags WHERE name = 'CSS';
-  IF v_dup_id IS NOT NULL AND v_keep_id IS NOT NULL THEN
-    UPDATE content_tags SET tag_id = v_keep_id
-      WHERE tag_id = v_dup_id
-        AND NOT EXISTS (SELECT 1 FROM content_tags x WHERE x.content_id = content_tags.content_id AND x.tag_id = v_keep_id);
-    DELETE FROM content_tags WHERE tag_id = v_dup_id;
-    UPDATE user_tags SET tag_id = v_keep_id
-      WHERE tag_id = v_dup_id
-        AND NOT EXISTS (SELECT 1 FROM user_tags x WHERE x.user_id = user_tags.user_id AND x.tag_id = v_keep_id);
-    DELETE FROM user_tags WHERE tag_id = v_dup_id;
-    DELETE FROM tags WHERE id = v_dup_id;
-  END IF;
+-- DP-462: 중복 태그 제거 — css→CSS 병합 (case 버그로 생성된 중복 row 정리)
+UPDATE content_tags ct SET tag_id = k.id
+FROM tags d, tags k
+WHERE d.name = 'css' AND k.name = 'CSS' AND ct.tag_id = d.id
+  AND NOT EXISTS (SELECT 1 FROM content_tags x WHERE x.content_id = ct.content_id AND x.tag_id = k.id);
+DELETE FROM content_tags ct USING tags d, tags k
+WHERE d.name = 'css' AND k.name = 'CSS' AND ct.tag_id = d.id;
+UPDATE user_tags ut SET tag_id = k.id
+FROM tags d, tags k
+WHERE d.name = 'css' AND k.name = 'CSS' AND ut.tag_id = d.id
+  AND NOT EXISTS (SELECT 1 FROM user_tags x WHERE x.user_id = ut.user_id AND x.tag_id = k.id);
+DELETE FROM user_tags ut USING tags d, tags k
+WHERE d.name = 'css' AND k.name = 'CSS' AND ut.tag_id = d.id;
+DELETE FROM tags WHERE name = 'css' AND EXISTS (SELECT 1 FROM tags WHERE name = 'CSS');
 
-  -- Github → GitHub 병합
-  SELECT id INTO v_dup_id  FROM tags WHERE name = 'Github';
-  SELECT id INTO v_keep_id FROM tags WHERE name = 'GitHub';
-  IF v_dup_id IS NOT NULL AND v_keep_id IS NOT NULL THEN
-    UPDATE content_tags SET tag_id = v_keep_id
-      WHERE tag_id = v_dup_id
-        AND NOT EXISTS (SELECT 1 FROM content_tags x WHERE x.content_id = content_tags.content_id AND x.tag_id = v_keep_id);
-    DELETE FROM content_tags WHERE tag_id = v_dup_id;
-    UPDATE user_tags SET tag_id = v_keep_id
-      WHERE tag_id = v_dup_id
-        AND NOT EXISTS (SELECT 1 FROM user_tags x WHERE x.user_id = user_tags.user_id AND x.tag_id = v_keep_id);
-    DELETE FROM user_tags WHERE tag_id = v_dup_id;
-    DELETE FROM tags WHERE id = v_dup_id;
-  END IF;
-END $$;
+-- DP-462: 중복 태그 제거 — Github→GitHub 병합
+UPDATE content_tags ct SET tag_id = k.id
+FROM tags d, tags k
+WHERE d.name = 'Github' AND k.name = 'GitHub' AND ct.tag_id = d.id
+  AND NOT EXISTS (SELECT 1 FROM content_tags x WHERE x.content_id = ct.content_id AND x.tag_id = k.id);
+DELETE FROM content_tags ct USING tags d, tags k
+WHERE d.name = 'Github' AND k.name = 'GitHub' AND ct.tag_id = d.id;
+UPDATE user_tags ut SET tag_id = k.id
+FROM tags d, tags k
+WHERE d.name = 'Github' AND k.name = 'GitHub' AND ut.tag_id = d.id
+  AND NOT EXISTS (SELECT 1 FROM user_tags x WHERE x.user_id = ut.user_id AND x.tag_id = k.id);
+DELETE FROM user_tags ut USING tags d, tags k
+WHERE d.name = 'Github' AND k.name = 'GitHub' AND ut.tag_id = d.id;
+DELETE FROM tags WHERE name = 'Github' AND EXISTS (SELECT 1 FROM tags WHERE name = 'GitHub');
 
 -- DP-462: 한국어 태그 → 영어 rename (AI 프롬프트 기준값 일치)
 UPDATE tags SET name = 'Algorithm'          WHERE name = '알고리즘';
