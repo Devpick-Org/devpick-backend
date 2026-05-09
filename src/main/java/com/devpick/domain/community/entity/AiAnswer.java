@@ -1,9 +1,10 @@
 package com.devpick.domain.community.entity;
 
-import com.devpick.global.config.StringListConverter;
 import com.devpick.global.entity.BaseCreatedEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.List;
 
@@ -28,11 +29,11 @@ public class AiAnswer extends BaseCreatedEntity {
     @Builder.Default
     private Boolean isAdopted = false;
 
-    @Convert(converter = StringListConverter.class)
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "key_points", columnDefinition = "jsonb")
     private List<String> keyPoints;
 
-    @Convert(converter = StringListConverter.class)
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "suggested_tags", columnDefinition = "jsonb")
     private List<String> suggestedTags;
 
