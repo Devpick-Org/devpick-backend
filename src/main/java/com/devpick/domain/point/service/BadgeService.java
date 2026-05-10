@@ -50,6 +50,7 @@ public class BadgeService {
         checkAnswerMaster(user);
         checkPointBadges(user);
         checkStreak7(user, justEarned);
+        checkInterviewMaster(user);
     }
 
     @Transactional(readOnly = true)
@@ -105,6 +106,11 @@ public class BadgeService {
 
     private void checkStreak7(User user, PointAction justEarned) {
         unlockIfConditionMet(user, "STREAK_7", calculateStreak(user.getId(), justEarned) >= 7);
+    }
+
+    private void checkInterviewMaster(User user) {
+        unlockIfConditionMet(user, "INTERVIEW_MASTER",
+                pointLogRepository.countByUser_IdAndAction(user.getId(), PointAction.MOCK_INTERVIEW_COMPLETE) >= 5);
     }
 
     private void unlockIfConditionMet(User user, String badgeId, boolean condition) {
