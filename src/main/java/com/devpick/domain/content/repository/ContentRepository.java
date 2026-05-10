@@ -21,6 +21,17 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     @Query("SELECT DISTINCT c FROM Content c JOIN c.contentTags ct WHERE ct.tag.id IN :tagIds AND c.isAvailable = true AND c.source.name <> 'YouTube' ORDER BY c.publishedAt DESC")
     Page<Content> findByTagIdsAndIsAvailableTrue(@Param("tagIds") List<UUID> tagIds, Pageable pageable);
 
+    @Query("""
+            SELECT c FROM Content c
+            WHERE c.isAvailable = true AND c.source.name <> 'YouTube'
+            ORDER BY
+              CASE WHEN EXISTS (
+                SELECT ct FROM ContentTag ct WHERE ct.content = c AND ct.tag.id IN :tagIds
+              ) THEN 0 ELSE 1 END,
+              c.publishedAt DESC
+            """)
+    Page<Content> findAllRankedByTagIds(@Param("tagIds") List<UUID> tagIds, Pageable pageable);
+
     @Query("SELECT DISTINCT c FROM Content c LEFT JOIN c.contentTags ct LEFT JOIN ct.tag t " +
            "WHERE c.isAvailable = true " +
            "AND c.source.name <> 'YouTube' " +
