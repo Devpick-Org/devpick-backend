@@ -17,12 +17,14 @@ public record HistoryItemResponse(
         PostInfo post,
         AnswerInfo answer,
         CommentInfo comment,
+        JobPostingInfo jobPosting,
         Instant createdAt
 ) {
     public record ContentInfo(UUID id, String title, String translatedTitle, String preview) {}
     public record PostInfo(UUID id, String title) {}
     public record AnswerInfo(UUID id, String preview) {}
     public record CommentInfo(UUID id, String preview) {}
+    public record JobPostingInfo(UUID id, String title, String companyName) {}
 
     public static HistoryItemResponse of(History history) {
         return of(history, Map.of());
@@ -54,15 +56,24 @@ public record HistoryItemResponse(
                         truncate(history.getComment().getContent(), 100))
                 : null;
 
+        JobPostingInfo jobPostingInfo = history.getJobPosting() != null
+                ? new JobPostingInfo(
+                        history.getJobPosting().getId(),
+                        history.getJobPosting().getTitle(),
+                        history.getJobPosting().getCompanyName())
+                : null;
+
         Integer points = switch (history.getActionType()) {
-            case "scrapped"          -> PointAction.CONTENT_SCRAP.getPoints();
-            case "content_liked"     -> PointAction.CONTENT_LIKE.getPoints();
-            case "question_created"  -> PointAction.QUESTION_WRITE.getPoints();
-            case "answer_written"    -> PointAction.ANSWER_WRITE.getPoints();
-            case "answer_adopted"    -> PointAction.ANSWER_ADOPTED.getPoints();
-            case "daily_login"       -> PointAction.DAILY_LOGIN.getPoints();
-            case "ai_quiz_completed" -> PointAction.AI_QUIZ_PASS.getPoints();
-            default                  -> null;
+            case "scrapped"                   -> PointAction.CONTENT_SCRAP.getPoints();
+            case "content_liked"              -> PointAction.CONTENT_LIKE.getPoints();
+            case "question_created"           -> PointAction.QUESTION_WRITE.getPoints();
+            case "answer_written"             -> PointAction.ANSWER_WRITE.getPoints();
+            case "answer_adopted"             -> PointAction.ANSWER_ADOPTED.getPoints();
+            case "daily_login"               -> PointAction.DAILY_LOGIN.getPoints();
+            case "ai_quiz_completed"          -> PointAction.AI_QUIZ_PASS.getPoints();
+            case "job_bookmarked"             -> PointAction.JOB_BOOKMARK.getPoints();
+            case "mock_interview_completed"   -> PointAction.MOCK_INTERVIEW_COMPLETE.getPoints();
+            default                           -> null;
         };
 
         return new HistoryItemResponse(
@@ -73,6 +84,7 @@ public record HistoryItemResponse(
                 postInfo,
                 answerInfo,
                 commentInfo,
+                jobPostingInfo,
                 history.getCreatedAt() != null ? history.getCreatedAt().toInstant(ZoneOffset.UTC) : null
         );
     }

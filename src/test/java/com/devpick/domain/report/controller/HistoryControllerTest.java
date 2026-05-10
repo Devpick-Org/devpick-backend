@@ -76,7 +76,7 @@ class HistoryControllerTest {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "content_opened", null,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React useEffect 완전 정복", null, "미리보기"),
-                null, null, null,
+                null, null, null, null,
                 Instant.now()
         );
         historyPageResponse = new HistoryPageResponse(List.of(item), 0, 20, 1L, 1);
@@ -149,7 +149,7 @@ class HistoryControllerTest {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "scrapped", 5,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "제목", null, "미리보기"),
-                null, null, null, Instant.now()
+                null, null, null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
                 .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
@@ -165,7 +165,7 @@ class HistoryControllerTest {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "ai_summary_viewed", null,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "제목", null, "미리보기"),
-                null, null, null, Instant.now()
+                null, null, null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
                 .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
@@ -182,7 +182,7 @@ class HistoryControllerTest {
                 UUID.randomUUID(), "question_created", 10,
                 null,
                 new HistoryItemResponse.PostInfo(UUID.randomUUID(), "질문 제목"),
-                null, null, Instant.now()
+                null, null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
                 .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));
@@ -198,7 +198,7 @@ class HistoryControllerTest {
         HistoryItemResponse item = new HistoryItemResponse(
                 UUID.randomUUID(), "ai_quiz_completed", 5,
                 new HistoryItemResponse.ContentInfo(UUID.randomUUID(), "React 퀴즈", null, "미리보기"),
-                null, null, null, Instant.now()
+                null, null, null, null, Instant.now()
         );
         given(historyService.getHistory(any(UUID.class), any(), any(), any(), any()))
                 .willReturn(new HistoryPageResponse(List.of(item), 0, 20, 1L, 1));

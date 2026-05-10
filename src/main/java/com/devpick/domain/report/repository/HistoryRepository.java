@@ -188,28 +188,28 @@ public interface HistoryRepository extends JpaRepository<History, UUID> {
             @Param("userId") UUID userId,
             Pageable pageable);
 
-    /** 학습 히스토리: content_liked 제외, 날짜 필터 없음 */
+    /** 학습 히스토리: 활동 전용 타입 제외, 날짜 필터 없음 */
     @Query(value = "SELECT h.id FROM History h " +
                    "WHERE h.user.id = :userId " +
-                   "AND h.actionType <> 'content_liked' " +
+                   "AND h.actionType NOT IN ('content_liked', 'job_bookmarked', 'mock_interview_completed') " +
                    "ORDER BY h.createdAt DESC",
            countQuery = "SELECT COUNT(h) FROM History h " +
                         "WHERE h.user.id = :userId " +
-                        "AND h.actionType <> 'content_liked'")
+                        "AND h.actionType NOT IN ('content_liked', 'job_bookmarked', 'mock_interview_completed')")
     Page<UUID> findHistoryIdsExcludingContentLiked(
             @Param("userId") UUID userId,
             Pageable pageable);
 
-    /** 학습 히스토리: content_liked 제외, 날짜 필터 있음 */
+    /** 학습 히스토리: 활동 전용 타입 제외, 날짜 필터 있음 */
     @Query(value = "SELECT h.id FROM History h " +
                    "WHERE h.user.id = :userId " +
-                   "AND h.actionType <> 'content_liked' " +
+                   "AND h.actionType NOT IN ('content_liked', 'job_bookmarked', 'mock_interview_completed') " +
                    "AND h.createdAt >= :startDate " +
                    "AND h.createdAt <= :endDate " +
                    "ORDER BY h.createdAt DESC",
            countQuery = "SELECT COUNT(h) FROM History h " +
                         "WHERE h.user.id = :userId " +
-                        "AND h.actionType <> 'content_liked' " +
+                        "AND h.actionType NOT IN ('content_liked', 'job_bookmarked', 'mock_interview_completed') " +
                         "AND h.createdAt >= :startDate " +
                         "AND h.createdAt <= :endDate")
     Page<UUID> findHistoryIdsByDateRangeExcludingContentLiked(

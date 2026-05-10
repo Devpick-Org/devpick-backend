@@ -23,6 +23,8 @@ import com.devpick.domain.job.entity.PostingExperienceLevel;
 import com.devpick.domain.job.repository.JobBookmarkRepository;
 import com.devpick.domain.job.repository.JobPostingRepository;
 import com.devpick.domain.job.repository.JobPostingSpecifications;
+import com.devpick.domain.point.entity.PointAction;
+import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.resume.entity.MasterResume;
@@ -79,6 +81,7 @@ public class JobService {
     private final JobAiClient jobAiClient;
     private final ObjectMapper objectMapper;
     private final HistoryRepository historyRepository;
+    private final PointService pointService;
 
     @Transactional(readOnly = true)
     public List<TechTagFacetResponse> listTechTagFacets(Integer limit) {
@@ -308,6 +311,14 @@ public class JobService {
                 .userId(userId)
                 .jobPosting(p)
                 .build());
+        var user = userRepository.findByIdAndIsActiveTrue(userId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
+        historyRepository.save(History.builder()
+                .user(user)
+                .actionType("job_bookmarked")
+                .jobPosting(p)
+                .build());
+        pointService.earn(user, PointAction.JOB_BOOKMARK, jobId);
     }
 
     @Transactional
