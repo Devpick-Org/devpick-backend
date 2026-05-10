@@ -72,10 +72,7 @@ public class ContentService {
         if (tagIds.isEmpty()) {
             page = contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(pageable);
         } else {
-            page = contentRepository.findByTagIdsAndIsAvailableTrue(tagIds, pageable);
-            if (page.getTotalElements() == 0) {
-                page = contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(pageable);
-            }
+            page = contentRepository.findAllRankedByTagIds(tagIds, pageable);
         }
 
         List<ContentSummaryResponse> contents = page.getContent().stream()

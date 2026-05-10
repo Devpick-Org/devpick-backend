@@ -135,14 +135,14 @@ class ContentServiceTest {
     }
 
     @Test
-    @DisplayName("getFeed — 태그 있으면 태그 필터링된 콘텐츠 반환")
-    void getFeed_withUserTags_returnsFilteredFeed() {
+    @DisplayName("getFeed — 태그 있으면 랭킹 방식으로 전체 콘텐츠 반환 (관심 태그 우선)")
+    void getFeed_withUserTags_returnsRankedFeed() {
         UserTag userTag = UserTag.builder()
                 .user(user)
                 .tag(Tag.builder().name("Spring").build())
                 .build();
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findByTagIdsAndIsAvailableTrue(any(), any()))
+        given(contentRepository.findAllRankedByTagIds(any(), any()))
                 .willReturn(new PageImpl<>(List.of(content)));
         given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
         given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
@@ -151,21 +151,19 @@ class ContentServiceTest {
         ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
 
         assertThat(response.contents()).hasSize(1);
-        verify(contentRepository).findByTagIdsAndIsAvailableTrue(any(), any());
+        verify(contentRepository).findAllRankedByTagIds(any(), any());
         verify(contentRepository, never()).findByIsAvailableTrueOrderByPublishedAtDesc(any());
     }
 
     @Test
-    @DisplayName("getFeed — 태그 필터 결과가 비면 전체 공개 글로 폴백")
-    void getFeed_tagFilterEmpty_fallsBackToAllAvailable() {
+    @DisplayName("getFeed — 관심 태그와 일치하는 글 없어도 전체 글 반환 (랭킹 방식)")
+    void getFeed_withUserTags_noTagMatch_stillReturnsAllContents() {
         UserTag userTag = UserTag.builder()
                 .user(user)
                 .tag(Tag.builder().name("Rust").build())
                 .build();
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findByTagIdsAndIsAvailableTrue(any(), any()))
-                .willReturn(new PageImpl<>(List.of()));
-        given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
+        given(contentRepository.findAllRankedByTagIds(any(), any()))
                 .willReturn(new PageImpl<>(List.of(content)));
         given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
         given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
@@ -174,8 +172,8 @@ class ContentServiceTest {
         ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
 
         assertThat(response.contents()).hasSize(1);
-        verify(contentRepository).findByTagIdsAndIsAvailableTrue(any(), any());
-        verify(contentRepository).findByIsAvailableTrueOrderByPublishedAtDesc(any());
+        verify(contentRepository).findAllRankedByTagIds(any(), any());
+        verify(contentRepository, never()).findByIsAvailableTrueOrderByPublishedAtDesc(any());
     }
 
     @Test
