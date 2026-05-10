@@ -319,7 +319,10 @@ public class JobService {
     }
 
     @Transactional(readOnly = true)
-    public JobBookmarkListResponse getBookmarkedJobs(UUID userId, String q, Pageable pageable) {
+    public JobBookmarkListResponse getBookmarkedJobs(UUID userId, String q, Pageable pageable, String sortType) {
+        if ("match".equalsIgnoreCase(sortType)) {
+            return getBookmarkedJobsSortedByMatch(userId, q, pageable);
+        }
         String normalizedQ = (q != null && !q.isBlank()) ? q.trim() : null;
         Page<JobBookmark> page = normalizedQ == null
                 ? jobBookmarkRepository.findByUserIdWithPosting(userId, pageable)
@@ -329,6 +332,25 @@ public class JobService {
                 .map(b -> toBookmarkItem(b, userSkills))
                 .toList();
         return new JobBookmarkListResponse(items, page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
+    }
+
+    private JobBookmarkListResponse getBookmarkedJobsSortedByMatch(UUID userId, String q, Pageable pageable) {
+        String normalizedQ = (q != null && !q.isBlank()) ? q.trim() : null;
+        Page<JobBookmark> all = normalizedQ == null
+                ? jobBookmarkRepository.findByUserIdWithPosting(userId, Pageable.unpaged())
+                : jobBookmarkRepository.findByUserIdWithPostingAndSearch(userId, normalizedQ, Pageable.unpaged());
+        Map<String, Integer> userSkills = loadUserSkillProfile(userId);
+        List<JobBookmarkItemResponse> sorted = all.getContent().stream()
+                .map(b -> toBookmarkItem(b, userSkills))
+                .sorted(Comparator.comparingInt(JobBookmarkItemResponse::matchScore).reversed())
+                .toList();
+        long total = sorted.size();
+        int pageNum = pageable.getPageNumber();
+        int pageSize = pageable.getPageSize();
+        int totalPages = pageSize > 0 ? (int) Math.ceil((double) total / pageSize) : 1;
+        int from = Math.min(pageNum * pageSize, (int) total);
+        int to = Math.min(from + pageSize, (int) total);
+        return new JobBookmarkListResponse(sorted.subList(from, to), pageNum, pageSize, total, totalPages);
     }
 
     private JobBookmarkItemResponse toBookmarkItem(JobBookmark b, Map<String, Integer> userSkills) {

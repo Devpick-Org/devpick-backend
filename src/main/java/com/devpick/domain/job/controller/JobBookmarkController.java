@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,9 +33,15 @@ public class JobBookmarkController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "newest") String sort) {
-        Sort jpaSort = "oldest".equalsIgnoreCase(sort)
-                ? Sort.by(Sort.Direction.ASC, "createdAt")
-                : Sort.by(Sort.Direction.DESC, "createdAt");
-        return ApiResponse.ok(jobService.getBookmarkedJobs(userId, q, PageRequest.of(page, size, jpaSort)));
+        Pageable pageable;
+        if ("match".equalsIgnoreCase(sort)) {
+            pageable = PageRequest.of(page, size);
+        } else {
+            Sort jpaSort = "oldest".equalsIgnoreCase(sort)
+                    ? Sort.by(Sort.Direction.ASC, "createdAt")
+                    : Sort.by(Sort.Direction.DESC, "createdAt");
+            pageable = PageRequest.of(page, size, jpaSort);
+        }
+        return ApiResponse.ok(jobService.getBookmarkedJobs(userId, q, pageable, sort));
     }
 }
