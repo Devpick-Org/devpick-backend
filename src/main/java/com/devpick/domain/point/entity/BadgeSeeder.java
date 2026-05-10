@@ -29,7 +29,8 @@ public class BadgeSeeder implements ApplicationRunner {
                 Badge.builder().id("POINT_100").name("새싹 개발자").description("누적 포인트 100p 달성").sortOrder(4).build(),
                 Badge.builder().id("POINT_500").name("성장 중").description("누적 포인트 500p 달성").sortOrder(5).build(),
                 Badge.builder().id("POINT_1000").name("시니어 픽커").description("누적 포인트 1000p 달성").sortOrder(6).build(),
-                Badge.builder().id("STREAK_7").name("7일 연속").description("연속 로그인 7일 달성").sortOrder(7).build()
+                Badge.builder().id("STREAK_7").name("7일 연속").description("연속 로그인 7일 달성").sortOrder(7).build(),
+                Badge.builder().id("INTERVIEW_MASTER").name("면접 마스터").description("모의면접 5회 완료").sortOrder(8).build()
         );
 
         for (Badge seed : seeds) {

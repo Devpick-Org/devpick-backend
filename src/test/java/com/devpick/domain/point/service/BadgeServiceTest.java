@@ -284,4 +284,52 @@ class BadgeServiceTest {
 
         assertThat(result).isEmpty();
     }
+
+    // ── checkAndUnlock — INTERVIEW_MASTER ──────────────────────────
+
+    @Test
+    @DisplayName("checkAndUnlock — 모의면접 5회 완료 시 INTERVIEW_MASTER 배지 잠금 해제")
+    void checkAndUnlock_interviewMaster_5Completions_unlocks() {
+        Badge badge = Badge.builder().id("INTERVIEW_MASTER").name("면접 마스터").sortOrder(8).build();
+        given(pointLogRepository.existsByUser_IdAndAction(userId, PointAction.CONTENT_SCRAP)).willReturn(false);
+        given(pointLogRepository.existsByUser_IdAndAction(userId, PointAction.QUESTION_WRITE)).willReturn(false);
+        given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.ANSWER_ADOPTED)).willReturn(0L);
+        given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of());
+        given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.MOCK_INTERVIEW_COMPLETE)).willReturn(5L);
+        given(userBadgeRepository.existsByUser_IdAndBadge_Id(userId, "INTERVIEW_MASTER")).willReturn(false);
+        given(badgeRepository.findById("INTERVIEW_MASTER")).willReturn(Optional.of(badge));
+
+        badgeService.checkAndUnlock(user, PointAction.MOCK_INTERVIEW_COMPLETE);
+
+        verify(userBadgeRepository).save(any(UserBadge.class));
+    }
+
+    @Test
+    @DisplayName("checkAndUnlock — 모의면접 4회 완료 시 INTERVIEW_MASTER 배지 잠금 해제 안 함")
+    void checkAndUnlock_interviewMaster_4Completions_doesNotUnlock() {
+        given(pointLogRepository.existsByUser_IdAndAction(userId, PointAction.CONTENT_SCRAP)).willReturn(false);
+        given(pointLogRepository.existsByUser_IdAndAction(userId, PointAction.QUESTION_WRITE)).willReturn(false);
+        given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.ANSWER_ADOPTED)).willReturn(0L);
+        given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of());
+        given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.MOCK_INTERVIEW_COMPLETE)).willReturn(4L);
+
+        badgeService.checkAndUnlock(user, PointAction.MOCK_INTERVIEW_COMPLETE);
+
+        verify(userBadgeRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("checkAndUnlock — INTERVIEW_MASTER 이미 획득한 경우 중복 발급 안 함")
+    void checkAndUnlock_interviewMaster_alreadyAcquired_skips() {
+        given(pointLogRepository.existsByUser_IdAndAction(userId, PointAction.CONTENT_SCRAP)).willReturn(false);
+        given(pointLogRepository.existsByUser_IdAndAction(userId, PointAction.QUESTION_WRITE)).willReturn(false);
+        given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.ANSWER_ADOPTED)).willReturn(0L);
+        given(pointLogRepository.findDailyLoginsByUserIdOrderByEarnedAtDesc(userId)).willReturn(List.of());
+        given(pointLogRepository.countByUser_IdAndAction(userId, PointAction.MOCK_INTERVIEW_COMPLETE)).willReturn(5L);
+        given(userBadgeRepository.existsByUser_IdAndBadge_Id(userId, "INTERVIEW_MASTER")).willReturn(true);
+
+        badgeService.checkAndUnlock(user, PointAction.MOCK_INTERVIEW_COMPLETE);
+
+        verify(userBadgeRepository, never()).save(any());
+    }
 }

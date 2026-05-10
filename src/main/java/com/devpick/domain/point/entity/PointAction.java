@@ -16,7 +16,9 @@ public enum PointAction {
     QUESTION_WRITE(10),
     ANSWER_WRITE(15),
     ANSWER_ADOPTED(30),
-    DAILY_LOGIN(1);
+    DAILY_LOGIN(1),
+    JOB_BOOKMARK(5),
+    MOCK_INTERVIEW_COMPLETE(20);
 
     private final int points;
 }

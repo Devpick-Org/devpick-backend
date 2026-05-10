@@ -22,8 +22,13 @@ import com.devpick.domain.job.entity.MockInterviewTurn;
 import com.devpick.domain.job.entity.MockInterviewTurnType;
 import com.devpick.domain.job.repository.JobPostingRepository;
 import com.devpick.domain.job.repository.MockInterviewSessionRepository;
+import com.devpick.domain.point.entity.PointAction;
+import com.devpick.domain.point.service.PointService;
+import com.devpick.domain.report.entity.History;
+import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.resume.repository.MasterResumeRepository;
 import com.devpick.domain.resume.service.ResumeCryptoService;
+import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -58,6 +63,9 @@ public class MockInterviewService {
     private final MockInterviewModelRegistry modelRegistry;
     private final JobAiClient jobAiClient;
     private final ObjectMapper objectMapper;
+    private final HistoryRepository historyRepository;
+    private final UserRepository userRepository;
+    private final PointService pointService;
 
     @Transactional(readOnly = true)
     public HistoryListResponse listForUser(UUID userId) {
@@ -383,6 +391,15 @@ public class MockInterviewService {
         finalResult.put("totalQuestions", MockInterviewPlanner.TOTAL_QUESTIONS);
         finalResult.put("coverageFactor", coverageFactor(session.getAnsweredCount(), early));
         session.setResultJson(writeJson(finalResult));
+
+        userRepository.findByIdAndIsActiveTrue(session.getUserId()).ifPresent(user -> {
+            historyRepository.save(History.builder()
+                    .user(user)
+                    .actionType("mock_interview_completed")
+                    .jobPosting(session.getJobPosting())
+                    .build());
+            pointService.earn(user, PointAction.MOCK_INTERVIEW_COMPLETE, session.getId());
+        });
     }
 
     private double coverageFactor(int answered, boolean early) {
