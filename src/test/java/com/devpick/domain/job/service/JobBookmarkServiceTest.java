@@ -65,7 +65,7 @@ class JobBookmarkServiceTest {
         given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
                 .willReturn(new PageImpl<>(List.of(bookmark)));
 
-        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20));
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20), "newest");
 
         assertThat(result.bookmarks()).hasSize(1);
         assertThat(result.bookmarks().get(0).companyName()).isEqualTo("카카오");
@@ -80,7 +80,7 @@ class JobBookmarkServiceTest {
         given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
                 .willReturn(new PageImpl<>(List.of()));
 
-        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20));
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20), "newest");
 
         assertThat(result.bookmarks()).isEmpty();
         assertThat(result.totalElements()).isZero();
@@ -93,7 +93,7 @@ class JobBookmarkServiceTest {
         given(jobBookmarkRepository.findByUserIdWithPostingAndSearch(eq(userId), eq("카카오"), any()))
                 .willReturn(new PageImpl<>(List.of()));
 
-        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, "카카오", PageRequest.of(0, 20));
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, "카카오", PageRequest.of(0, 20), "newest");
 
         assertThat(result.bookmarks()).isEmpty();
     }
@@ -119,7 +119,7 @@ class JobBookmarkServiceTest {
         given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
                 .willReturn(new PageImpl<>(List.of(bookmark)));
 
-        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20));
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20), "newest");
 
         assertThat(result.bookmarks().get(0).companyLogo()).isEqualTo("https://logo.naver.com/logo.png");
         assertThat(result.bookmarks().get(0).location()).isEqualTo("경기 성남시");
@@ -144,7 +144,7 @@ class JobBookmarkServiceTest {
         given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
                 .willReturn(new PageImpl<>(List.of(bookmark)));
 
-        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20));
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20), "newest");
 
         assertThat(result.bookmarks().get(0).matchScore()).isGreaterThanOrEqualTo(0);
     }
@@ -169,8 +169,98 @@ class JobBookmarkServiceTest {
         given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
                 .willReturn(new PageImpl<>(List.of(bookmark)));
 
-        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20));
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20), "newest");
 
         assertThat(result.bookmarks().get(0).deadline()).isEqualTo("채용 시 마감");
+    }
+
+    @Test
+    @DisplayName("북마크 목록 조회 - sort=match 전달 시 matchScore 내림차순 정렬 후 반환")
+    void getBookmarkedJobs_matchSort_returnsSortedByMatchScoreDesc() throws Exception {
+        UUID userId = UUID.randomUUID();
+        JobPosting posting1 = JobPosting.builder()
+                .companyName("카카오")
+                .title("백엔드 개발자")
+                .employmentType(EmploymentType.FULL_TIME)
+                .experienceLevel(PostingExperienceLevel.JUNIOR)
+                .build();
+        JobPosting posting2 = JobPosting.builder()
+                .companyName("네이버")
+                .title("프론트엔드 개발자")
+                .employmentType(EmploymentType.FULL_TIME)
+                .experienceLevel(PostingExperienceLevel.MIDDLE)
+                .build();
+        JobBookmark bookmark1 = JobBookmark.builder().userId(userId).jobPosting(posting1).build();
+        JobBookmark bookmark2 = JobBookmark.builder().userId(userId).jobPosting(posting2).build();
+        setCreatedAt(bookmark1, LocalDateTime.now());
+        setCreatedAt(bookmark2, LocalDateTime.now());
+
+        given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
+                .willReturn(new PageImpl<>(List.of(bookmark1, bookmark2)));
+
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20), "match");
+
+        assertThat(result.bookmarks()).hasSize(2);
+        assertThat(result.totalElements()).isEqualTo(2);
+        // matchScore 내림차순 정렬 확인
+        assertThat(result.bookmarks().get(0).matchScore())
+                .isGreaterThanOrEqualTo(result.bookmarks().get(1).matchScore());
+    }
+
+    @Test
+    @DisplayName("북마크 목록 조회 - sort=match이고 북마크 없을 때 빈 배열 반환")
+    void getBookmarkedJobs_matchSort_emptyBookmarks_returnsEmpty() {
+        UUID userId = UUID.randomUUID();
+        given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
+                .willReturn(new PageImpl<>(List.of()));
+
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 20), "match");
+
+        assertThat(result.bookmarks()).isEmpty();
+        assertThat(result.totalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("북마크 목록 조회 - sort=match + 검색어 전달 시 검색 쿼리 호출됨")
+    void getBookmarkedJobs_matchSort_withQuery_callsSearchRepository() {
+        UUID userId = UUID.randomUUID();
+        given(jobBookmarkRepository.findByUserIdWithPostingAndSearch(eq(userId), eq("카카오"), any()))
+                .willReturn(new PageImpl<>(List.of()));
+
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, "카카오", PageRequest.of(0, 20), "match");
+
+        assertThat(result.bookmarks()).isEmpty();
+        assertThat(result.totalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("북마크 목록 조회 - sort=match 페이징: 2개 아이템에서 size=1 첫 페이지 요청 시 1개 반환")
+    void getBookmarkedJobs_matchSort_pagination_returnsCorrectPage() throws Exception {
+        UUID userId = UUID.randomUUID();
+        JobPosting posting1 = JobPosting.builder()
+                .companyName("카카오")
+                .title("백엔드 개발자")
+                .employmentType(EmploymentType.FULL_TIME)
+                .experienceLevel(PostingExperienceLevel.JUNIOR)
+                .build();
+        JobPosting posting2 = JobPosting.builder()
+                .companyName("네이버")
+                .title("프론트엔드 개발자")
+                .employmentType(EmploymentType.FULL_TIME)
+                .experienceLevel(PostingExperienceLevel.MIDDLE)
+                .build();
+        JobBookmark bookmark1 = JobBookmark.builder().userId(userId).jobPosting(posting1).build();
+        JobBookmark bookmark2 = JobBookmark.builder().userId(userId).jobPosting(posting2).build();
+        setCreatedAt(bookmark1, LocalDateTime.now());
+        setCreatedAt(bookmark2, LocalDateTime.now());
+
+        given(jobBookmarkRepository.findByUserIdWithPosting(eq(userId), any()))
+                .willReturn(new PageImpl<>(List.of(bookmark1, bookmark2)));
+
+        JobBookmarkListResponse result = jobService.getBookmarkedJobs(userId, null, PageRequest.of(0, 1), "match");
+
+        assertThat(result.bookmarks()).hasSize(1);
+        assertThat(result.totalElements()).isEqualTo(2);
+        assertThat(result.totalPages()).isEqualTo(2);
     }
 }
