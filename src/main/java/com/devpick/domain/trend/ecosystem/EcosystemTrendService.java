@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -105,9 +106,11 @@ public class EcosystemTrendService {
             stream = stream.filter(i -> matchesQuery(i, needle));
         }
         List<EcosystemTrendItem> filtered = stream.toList();
-        long total = filtered.size();
-        int to = Math.min(off + lim, filtered.size());
-        List<EcosystemTrendItem> page = off >= filtered.size() ? List.of() : filtered.subList(off, to);
+        LocalDate today = LocalDate.now(EcosystemTrendSort.FEED_ZONE);
+        List<EcosystemTrendItem> sorted = EcosystemTrendSort.sortedCopy(filtered, today);
+        long total = sorted.size();
+        int to = Math.min(off + lim, sorted.size());
+        List<EcosystemTrendItem> page = off >= sorted.size() ? List.of() : sorted.subList(off, to);
 
         return new EcosystemTrendPageResponse(page, total, snapshot.fetchedAt(), snapshot.sourceCounts());
     }
