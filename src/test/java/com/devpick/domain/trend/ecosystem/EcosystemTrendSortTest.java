@@ -13,7 +13,19 @@ class EcosystemTrendSortTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 5, 11);
 
     @Test
-    @DisplayName("진행 중·미래(종료일 오늘 이상 또는 미기재)를 지난 행사보다 위에 둔다")
+    @DisplayName("종료일이 오늘인 행사는 지난 묶음으로 내려간다")
+    void ends_today_counts_as_past() {
+        var endsToday = sample("ends-today", "2026-01-05", "2026-05-11");
+        var stillOpen = sample("future", "2026-05-12", "2026-06-01");
+        assertThat(EcosystemTrendSort.isPast(endsToday, TODAY)).isTrue();
+        assertThat(EcosystemTrendSort.isPast(stillOpen, TODAY)).isFalse();
+        List<EcosystemTrendItem> sorted =
+                EcosystemTrendSort.sortedCopy(List.of(endsToday, stillOpen), TODAY);
+        assertThat(sorted).extracting(EcosystemTrendItem::id).containsExactly("future", "ends-today");
+    }
+
+    @Test
+    @DisplayName("종료일이 오늘 이후이거나 날짜 미기재인 항목을 지난 행사보다 위에 둔다")
     void notPast_before_past() {
         var pastEndedMay3 =
                 sample("past-may3", "2026-04-01", "2026-05-03"); // TODAY 이전 종료 → past

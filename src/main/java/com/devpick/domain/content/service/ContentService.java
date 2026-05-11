@@ -8,7 +8,9 @@ import com.devpick.domain.content.entity.Content;
 import com.devpick.domain.content.entity.Like;
 import com.devpick.domain.content.entity.Scrap;
 import com.devpick.domain.content.repository.ContentRepository;
+import com.devpick.domain.content.repository.ContentSpecifications;
 import com.devpick.domain.content.repository.ContentTagRepository;
+import com.devpick.domain.content.search.ContentSearchQueryExpander;
 import com.devpick.domain.content.repository.LikeRepository;
 import com.devpick.domain.content.repository.ScrapRepository;
 import com.devpick.domain.report.entity.History;
@@ -26,6 +28,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -223,7 +227,20 @@ public class ContentService {
         List<String> normalizedTags = (tags == null || tags.isEmpty())
                 ? tags
                 : tags.stream().map(String::toLowerCase).toList();
-        Page<Content> page = contentRepository.searchContents(query, normalizedTags, pageable);
+
+        Specification<Content> spec = Specification.allOf(
+                ContentSpecifications.available(),
+                ContentSpecifications.notYoutubeFeed(),
+                ContentSpecifications.keywordMatchesAny(ContentSearchQueryExpander.expand(query)),
+                ContentSpecifications.taggedWithAny(normalizedTags)
+        );
+
+        Pageable sorted =
+                PageRequest.of(
+                        pageable.getPageNumber(),
+                        pageable.getPageSize(),
+                        Sort.by(Sort.Direction.DESC, "publishedAt"));
+        Page<Content> page = contentRepository.findAll(spec, sorted);
 
         boolean loggedIn = userId != null;
         List<ContentSummaryResponse> contents = page.getContent().stream()

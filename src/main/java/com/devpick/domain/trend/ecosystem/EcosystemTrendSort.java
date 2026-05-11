@@ -14,10 +14,9 @@ import java.util.Optional;
 /**
  * 생태계 트렌드 피드 정렬 — {@link EcosystemTrendService#getPage}에서 카테고리·검색 필터 후 일괄 적용.
  *
- * <p>규칙: (1) 종료일({@code endAt})이 오늘(ASIA/SEOUL 자정 기준) 이전인 항목은 "지남"으로 묶어 아래로, {@code endAt}
- * 공백·미파싱은 미래로 간주해 위로 유지 — (2) 미래 구간에서는 마감/종료일 최신 순({@code endAt} 내림차순), 같은
- * 줄은 시작일 최신 순({@code startAt} 내림차순)으로 최근 시작·먼 마감이 상단에 — (3) 지남 구간은 가장 최근에
- * 끝난 항목부터({@code endAt} 내림차순) — (4) 동률 시 {@code id}, {@code title} 안정 정렬.
+ * <p>규칙: (1) 종료일({@code endAt})이 내일(ASIA/SEOUL) 이후가 아니면(오늘·과거 포함) “지남” 묶음으로 아래에 둠.
+ * 파싱 실패·공백은 미래처럼 유지해 위쪽 — (2) 미래(종료가 내일 이후) 구간에서는 {@code endAt} 내림차순 후 {@code startAt}
+ * 내림차순 — (3) 지남 묶음은 가장 최근에 끝난 순({@code endAt} 내림차순) — (4) 동률 시 {@code id}, {@code title}.
  */
 final class EcosystemTrendSort {
 
@@ -59,10 +58,14 @@ final class EcosystemTrendSort {
         };
     }
 
-    /** {@code endAt} 기준 서울 로컬일이 오늘보다 이전이면 지난 항목. */
+    /** {@code endAt} 기준 서울 로컬일이 내일(ASIA/SEOUL) 이후가 아니면 "지남"(오늘 종료 포함). 미파싱은 지난 아님. */
     static boolean isPast(EcosystemTrendItem item, LocalDate today) {
         Optional<LocalDate> end = parseFlexibleDate(item.endAt());
-        return end.filter(d -> d.isBefore(today)).isPresent();
+        if (end.isEmpty()) {
+            return false;
+        }
+        LocalDate e = end.get();
+        return !e.isAfter(today);
     }
 
     /**

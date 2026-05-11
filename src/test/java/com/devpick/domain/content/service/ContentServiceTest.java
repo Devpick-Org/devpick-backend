@@ -29,6 +29,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
@@ -412,7 +414,7 @@ class ContentServiceTest {
     @Test
     @DisplayName("search — 결과 없으면 빈 리스트 반환")
     void search_noResult_returnsEmpty() {
-        given(contentRepository.searchContents(any(), any(), any()))
+        given(contentRepository.findAll(any(Specification.class), any(PageRequest.class)))
                 .willReturn(new PageImpl<>(List.of()));
 
         ContentListResponse response = contentService.search(userId, "없는키워드", null, PageRequest.of(0, 20));
@@ -424,7 +426,7 @@ class ContentServiceTest {
     @Test
     @DisplayName("search — 쿼리와 태그로 검색 결과 반환")
     void search_returnsMatchingContents() {
-        given(contentRepository.searchContents(any(), any(), any()))
+        given(contentRepository.findAll(any(Specification.class), any(PageRequest.class)))
                 .willReturn(new PageImpl<>(List.of(content)));
         given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
         given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
@@ -433,13 +435,15 @@ class ContentServiceTest {
         ContentListResponse response = contentService.search(userId, "Spring", List.of("Spring"), PageRequest.of(0, 20));
 
         assertThat(response.contents()).hasSize(1);
-        verify(contentRepository).searchContents(eq("Spring"), eq(List.of("spring")), any());
+        verify(contentRepository).findAll(
+                any(Specification.class),
+                eq(PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "publishedAt"))));
     }
 
     @Test
     @DisplayName("search — 비로그인(userId null)이면 스크랩·좋아요 조회 없이 false")
     void search_nullUserId_noScrapLikeLookup() {
-        given(contentRepository.searchContents(any(), any(), any()))
+        given(contentRepository.findAll(any(Specification.class), any(PageRequest.class)))
                 .willReturn(new PageImpl<>(List.of(content)));
         given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
 
@@ -455,7 +459,7 @@ class ContentServiceTest {
     @Test
     @DisplayName("search — coreSummary 있으면 preview 대신 사용")
     void search_withCoreSummary_usesCoreSummaryAsPreview() {
-        given(contentRepository.searchContents(any(), any(), any()))
+        given(contentRepository.findAll(any(Specification.class), any(PageRequest.class)))
                 .willReturn(new PageImpl<>(List.of(content)));
         given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
         given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
