@@ -15,7 +15,9 @@ import com.devpick.domain.user.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
@@ -27,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 
 @Slf4j
 @Service
@@ -41,11 +44,23 @@ public class MockInterviewFinalizeService {
     private final ObjectMapper objectMapper;
     private final MockInterviewPlanner planner;
 
-    @Async("mockInterviewFinalizeExecutor")
+    @Autowired
+    @Qualifier("mockInterviewFinalizeExecutor")
+    private Executor finalizeExecutor;
+
+    @Autowired
+    @Lazy
+    private MockInterviewFinalizeService self;
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional
     public void onFinalizeEvent(MockInterviewFinalizeEvent event) {
         UUID sessionId = event.sessionId();
+        boolean early = event.early();
+        finalizeExecutor.execute(() -> self.doFinalize(sessionId, early));
+    }
+
+    @Transactional
+    public void doFinalize(UUID sessionId, boolean early) {
         MockInterviewSession session = sessionRepository.findById(sessionId).orElse(null);
         if (session == null) {
             log.warn("[mock-finalize] session not found sessionId={}", sessionId);
@@ -57,7 +72,6 @@ public class MockInterviewFinalizeService {
             return;
         }
 
-        boolean early = event.early();
         QuestionPlanResponse plan = readPlan(session);
         Map<String, Object> finalRequest = buildFinalizePayload(session, plan, early);
         Map<String, Object> finalResult;

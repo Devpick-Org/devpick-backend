@@ -8,7 +8,6 @@ import com.devpick.domain.job.entity.MockInterviewSession;
 import com.devpick.domain.job.entity.MockInterviewStatus;
 import com.devpick.domain.job.entity.MockInterviewTurn;
 import com.devpick.domain.job.entity.MockInterviewTurnType;
-import com.devpick.domain.job.event.MockInterviewFinalizeEvent;
 import com.devpick.domain.job.repository.MockInterviewSessionRepository;
 import com.devpick.domain.point.entity.PointAction;
 import com.devpick.domain.point.service.PointService;
@@ -107,7 +106,7 @@ class MockInterviewFinalizeServiceTest {
         given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResult());
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
-        finalizeService.onFinalizeEvent(new MockInterviewFinalizeEvent(sessionId, false));
+        finalizeService.doFinalize(sessionId, false);
 
         then(session).should().setStatus(MockInterviewStatus.COMPLETED);
         then(session).should().setResultJson(any());
@@ -129,7 +128,7 @@ class MockInterviewFinalizeServiceTest {
         given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResult());
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
-        finalizeService.onFinalizeEvent(new MockInterviewFinalizeEvent(sessionId, true));
+        finalizeService.doFinalize(sessionId, true);
 
         then(session).should().setStatus(MockInterviewStatus.EARLY_FINISHED);
         then(sessionRepository).should().save(session);
@@ -147,7 +146,7 @@ class MockInterviewFinalizeServiceTest {
         given(jobAiClient.finalizeMockInterview(any())).willThrow(new RuntimeException("timeout"));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
-        finalizeService.onFinalizeEvent(new MockInterviewFinalizeEvent(sessionId, false));
+        finalizeService.doFinalize(sessionId, false);
 
         then(session).should().setStatus(MockInterviewStatus.COMPLETED);
         then(session).should().setResultJson(argThat(json -> json != null && json.contains("fallback")));
@@ -162,7 +161,7 @@ class MockInterviewFinalizeServiceTest {
         UUID sessionId = UUID.randomUUID();
         given(sessionRepository.findById(sessionId)).willReturn(Optional.empty());
 
-        finalizeService.onFinalizeEvent(new MockInterviewFinalizeEvent(sessionId, false));
+        finalizeService.doFinalize(sessionId, false);
 
         then(sessionRepository).should(never()).save(any());
         then(historyRepository).should(never()).save(any());
@@ -177,7 +176,7 @@ class MockInterviewFinalizeServiceTest {
         given(session.getStatus()).willReturn(MockInterviewStatus.COMPLETED);
         given(sessionRepository.findById(sessionId)).willReturn(Optional.of(session));
 
-        finalizeService.onFinalizeEvent(new MockInterviewFinalizeEvent(sessionId, false));
+        finalizeService.doFinalize(sessionId, false);
 
         then(jobAiClient).should(never()).finalizeMockInterview(any());
         then(sessionRepository).should(never()).save(any());
@@ -214,7 +213,7 @@ class MockInterviewFinalizeServiceTest {
         given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResult());
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
-        finalizeService.onFinalizeEvent(new MockInterviewFinalizeEvent(sessionId, false));
+        finalizeService.doFinalize(sessionId, false);
 
         then(session).should().setStatus(MockInterviewStatus.COMPLETED);
         then(sessionRepository).should().save(session);
@@ -239,7 +238,7 @@ class MockInterviewFinalizeServiceTest {
         given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResult());
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
-        finalizeService.onFinalizeEvent(new MockInterviewFinalizeEvent(sessionId, false));
+        finalizeService.doFinalize(sessionId, false);
 
         then(planner).should().plan(any(), any(), any(), any(), any(), any());
         then(session).should().setStatus(MockInterviewStatus.COMPLETED);
@@ -259,7 +258,7 @@ class MockInterviewFinalizeServiceTest {
         given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResult());
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
-        finalizeService.onFinalizeEvent(new MockInterviewFinalizeEvent(sessionId, true));
+        finalizeService.doFinalize(sessionId, true);
 
         then(session).should().setResultJson(argThat(json ->
                 json != null && json.contains("\"coverageFactor\":0.0")));
@@ -278,7 +277,7 @@ class MockInterviewFinalizeServiceTest {
         given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResult());
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
 
-        finalizeService.onFinalizeEvent(new MockInterviewFinalizeEvent(sessionId, false));
+        finalizeService.doFinalize(sessionId, false);
 
         then(session).should().setStatus(MockInterviewStatus.COMPLETED);
         then(sessionRepository).should().save(session);
