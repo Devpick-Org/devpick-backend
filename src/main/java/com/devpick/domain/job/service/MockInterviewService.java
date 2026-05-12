@@ -20,15 +20,11 @@ import com.devpick.domain.job.entity.MockInterviewSession;
 import com.devpick.domain.job.entity.MockInterviewStatus;
 import com.devpick.domain.job.entity.MockInterviewTurn;
 import com.devpick.domain.job.entity.MockInterviewTurnType;
+import com.devpick.domain.job.event.MockInterviewFinalizeEvent;
 import com.devpick.domain.job.repository.JobPostingRepository;
 import com.devpick.domain.job.repository.MockInterviewSessionRepository;
-import com.devpick.domain.point.entity.PointAction;
-import com.devpick.domain.point.service.PointService;
-import com.devpick.domain.report.entity.History;
-import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.resume.repository.MasterResumeRepository;
 import com.devpick.domain.resume.service.ResumeCryptoService;
-import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -36,6 +32,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +49,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class MockInterviewService {
 
-    /** 완료/진행 중 합산 저장 한도 */
     public static final int HISTORY_LIMIT = 20;
 
     private final MockInterviewSessionRepository sessionRepository;
@@ -63,13 +59,12 @@ public class MockInterviewService {
     private final MockInterviewModelRegistry modelRegistry;
     private final JobAiClient jobAiClient;
     private final ObjectMapper objectMapper;
-    private final HistoryRepository historyRepository;
-    private final UserRepository userRepository;
-    private final PointService pointService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public HistoryListResponse listForUser(UUID userId) {
-        List<MockInterviewSession> sessions = sessionRepository.findAllByUserIdWithJobOrderByUpdatedAtDesc(userId);
+        List<MockInterviewSession> sessions =
+                sessionRepository.findAllByUserIdWithJobOrderByUpdatedAtDesc(userId);
         List<SessionListItem> items = sessions.stream().map(this::toListItem).toList();
         return new HistoryListResponse(items, HISTORY_LIMIT);
     }
@@ -116,8 +111,7 @@ public class MockInterviewService {
 
     @Transactional
     public SessionDetailResponse startFromJd(UUID userId, StartFromJdRequest request) {
-        if (request == null
-                || request.jobTitle() == null || request.jobTitle().isBlank()) {
+        if (request == null || request.jobTitle() == null || request.jobTitle().isBlank()) {
             throw new DevpickException(ErrorCode.INVALID_INPUT);
         }
         String resumeJson = loadResumeJson(userId);
@@ -161,7 +155,8 @@ public class MockInterviewService {
             throw new DevpickException(ErrorCode.INVALID_INPUT);
         }
         QuestionPlanResponse plan = readPlan(session);
-        QuestionPlanItem question = findQuestion(plan, request.questionNo() > 0 ? request.questionNo() : session.getCurrentQuestionIndex());
+        QuestionPlanItem question = findQuestion(
+                plan, request.questionNo() > 0 ? request.questionNo() : session.getCurrentQuestionIndex());
         boolean isFollowUpAnswer = lastTurnIsFollowUpQuestion(session, question.questionNo());
         boolean isRetryAnswer = lastTurnIsRetryRequest(session, question.questionNo());
         MockInterviewTurnType answerType = isFollowUpAnswer
@@ -224,7 +219,8 @@ public class MockInterviewService {
             int nextNo = question.questionNo() + 1;
             if (nextNo > MockInterviewPlanner.TOTAL_QUESTIONS) {
                 sessionCompleted = true;
-                finalizeSession(session, plan, false);
+                session.setStatus(MockInterviewStatus.PROCESSING);
+                eventPublisher.publishEvent(new MockInterviewFinalizeEvent(session.getId(), false));
             } else {
                 QuestionPlanItem nextQuestion = findQuestion(plan, nextNo);
                 String prompt = nextQuestionPrompt != null && !nextQuestionPrompt.isBlank()
@@ -265,7 +261,8 @@ public class MockInterviewService {
 
         int nextNo = question.questionNo() + 1;
         if (nextNo > MockInterviewPlanner.TOTAL_QUESTIONS) {
-            finalizeSession(session, plan, false);
+            session.setStatus(MockInterviewStatus.PROCESSING);
+            eventPublisher.publishEvent(new MockInterviewFinalizeEvent(session.getId(), false));
         } else {
             QuestionPlanItem nextQuestion = findQuestion(plan, nextNo);
             session.setCurrentQuestionIndex(nextNo);
@@ -289,8 +286,8 @@ public class MockInterviewService {
         if (session.getStatus() != MockInterviewStatus.IN_PROGRESS) {
             return toDetail(session);
         }
-        QuestionPlanResponse plan = readPlan(session);
-        finalizeSession(session, plan, true);
+        session.setStatus(MockInterviewStatus.PROCESSING);
+        eventPublisher.publishEvent(new MockInterviewFinalizeEvent(session.getId(), true));
         return toDetail(sessionRepository.save(session));
     }
 
@@ -311,7 +308,7 @@ public class MockInterviewService {
                 UUID sid = UUID.fromString(raw);
                 sessionRepository.findByIdAndUserId(sid, userId).ifPresent(sessionRepository::delete);
             } catch (IllegalArgumentException ignored) {
-                // skip
+                // skip invalid UUID
             }
         }
     }
@@ -362,9 +359,12 @@ public class MockInterviewService {
         long total = sessionRepository.countByUserId(userId);
         long over = total - (HISTORY_LIMIT - 1);
         if (over <= 0) return;
-        List<MockInterviewSession> oldestCompleted = sessionRepository.findOldestByUserIdAndStatus(userId, MockInterviewStatus.COMPLETED);
-        List<MockInterviewSession> oldestEarly = sessionRepository.findOldestByUserIdAndStatus(userId, MockInterviewStatus.EARLY_FINISHED);
-        List<MockInterviewSession> oldestInProgress = sessionRepository.findOldestByUserIdAndStatus(userId, MockInterviewStatus.IN_PROGRESS);
+        List<MockInterviewSession> oldestCompleted =
+                sessionRepository.findOldestByUserIdAndStatus(userId, MockInterviewStatus.COMPLETED);
+        List<MockInterviewSession> oldestEarly =
+                sessionRepository.findOldestByUserIdAndStatus(userId, MockInterviewStatus.EARLY_FINISHED);
+        List<MockInterviewSession> oldestInProgress =
+                sessionRepository.findOldestByUserIdAndStatus(userId, MockInterviewStatus.IN_PROGRESS);
         List<MockInterviewSession> queue = new ArrayList<>();
         queue.addAll(oldestCompleted);
         queue.addAll(oldestEarly);
@@ -374,40 +374,6 @@ public class MockInterviewService {
         for (int i = 0; i < toDelete && i < queue.size(); i++) {
             sessionRepository.delete(queue.get(i));
         }
-    }
-
-    private void finalizeSession(MockInterviewSession session, QuestionPlanResponse plan, boolean early) {
-        session.setStatus(early ? MockInterviewStatus.EARLY_FINISHED : MockInterviewStatus.COMPLETED);
-        Map<String, Object> finalRequest = buildFinalizePayload(session, plan, early);
-        Map<String, Object> finalResult;
-        try {
-            finalResult = jobAiClient.finalizeMockInterview(finalRequest);
-        } catch (Exception e) {
-            log.warn("[mock-interview] finalize failed sessionId={} err={}", session.getId(), e.toString());
-            finalResult = fallbackFinalResult(plan, session, early);
-        }
-        finalResult.put("earlyFinished", early);
-        finalResult.put("answeredCount", session.getAnsweredCount());
-        finalResult.put("totalQuestions", MockInterviewPlanner.TOTAL_QUESTIONS);
-        finalResult.put("coverageFactor", coverageFactor(session.getAnsweredCount(), early));
-        session.setResultJson(writeJson(finalResult));
-
-        userRepository.findByIdAndIsActiveTrue(session.getUserId()).ifPresent(user -> {
-            historyRepository.save(History.builder()
-                    .user(user)
-                    .actionType("mock_interview_completed")
-                    .jobPosting(session.getJobPosting())
-                    .build());
-            pointService.earn(user, PointAction.MOCK_INTERVIEW_COMPLETE, session.getId());
-        });
-    }
-
-    private double coverageFactor(int answered, boolean early) {
-        if (!early) return 1.0;
-        double ratio = (double) answered / MockInterviewPlanner.TOTAL_QUESTIONS;
-        if (ratio <= 0) return 0.0;
-        if (ratio >= 1.0) return 1.0;
-        return Math.round(ratio * 100.0) / 100.0;
     }
 
     private Map<String, Object> buildTurnPayload(
@@ -451,57 +417,11 @@ public class MockInterviewService {
         return m;
     }
 
-    private Map<String, Object> buildFinalizePayload(MockInterviewSession session, QuestionPlanResponse plan, boolean early) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("session_id", session.getId() != null ? session.getId().toString() : null);
-        body.put("model_key", session.getModelKey());
-        body.put("job_title", session.getJobTitle());
-        body.put("company_name", session.getCompanyName());
-        body.put("job_category", session.getJobCategory());
-        body.put("answered_count", session.getAnsweredCount());
-        body.put("total_questions", MockInterviewPlanner.TOTAL_QUESTIONS);
-        body.put("early_finished", early);
-        body.put("plan", plan);
-        body.put("turns", session.getTurns().stream().map(turn -> {
-            Map<String, Object> m = new HashMap<>();
-            m.put("orderNo", turn.getOrderNo());
-            m.put("questionNo", turn.getQuestionNo());
-            m.put("phase", turn.getPhase().name());
-            m.put("type", turn.getType().name());
-            m.put("content", turn.getContent());
-            if (turn.getRating() != null) {
-                m.put("rating", turn.getRating().name());
-            }
-            return m;
-        }).toList());
-        return body;
-    }
-
     private Map<String, Object> fallbackEvalResult() {
         Map<String, Object> m = new HashMap<>();
         m.put("rating", MockInterviewRating.OK.name());
         m.put("evaluator_comment", "AI 평가가 일시적으로 실패했습니다. 다음 질문으로 진행합니다.");
         m.put("decision", "next");
-        return m;
-    }
-
-    private Map<String, Object> fallbackFinalResult(QuestionPlanResponse plan, MockInterviewSession session, boolean early) {
-        Map<String, Object> m = new HashMap<>();
-        Map<String, Object> scores = new HashMap<>();
-        scores.put("framework", null);
-        scores.put("design", null);
-        scores.put("problemSolving", null);
-        scores.put("csInfra", null);
-        scores.put("communication", null);
-        m.put("scores", scores);
-        m.put("overallScore", null);
-        m.put("summary", "AI 결과 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-        m.put("strengths", List.of());
-        m.put("improvements", List.of());
-        m.put("actionItems", List.of());
-        m.put("uncoveredKeywords", plan.jdGapKeywords());
-        m.put("perQuestion", List.of());
-        m.put("notice", "fallback");
         return m;
     }
 
@@ -514,7 +434,8 @@ public class MockInterviewService {
             String resumeJson
     ) {
         List<String> resumeSkills = extractResumeSkills(resumeJson);
-        QuestionPlanResponse base = planner.plan(category, jobTitle, companyName, required, preferred, resumeSkills);
+        QuestionPlanResponse base = planner.plan(category, jobTitle, companyName,
+                required, preferred, resumeSkills);
 
         Map<String, Object> aiBody = new HashMap<>();
         aiBody.put("job_title", nullSafe(jobTitle));
@@ -664,7 +585,8 @@ public class MockInterviewService {
             JobPostingCategory category = session.getJobCategory() != null
                     ? parseCategory(session.getJobCategory())
                     : JobPostingCategory.FRONTEND;
-            return planner.plan(category, session.getJobTitle(), session.getCompanyName(), List.of(), List.of(), List.of());
+            return planner.plan(category, session.getJobTitle(), session.getCompanyName(),
+                    List.of(), List.of(), List.of());
         }
     }
 
@@ -731,7 +653,8 @@ public class MockInterviewService {
         Map<String, Object> meta = Map.of();
         if (turn.getMetadataJson() != null && !turn.getMetadataJson().isBlank()) {
             try {
-                meta = objectMapper.readValue(turn.getMetadataJson(), new TypeReference<Map<String, Object>>() {});
+                meta = objectMapper.readValue(turn.getMetadataJson(),
+                        new TypeReference<Map<String, Object>>() {});
             } catch (Exception e) {
                 meta = Map.of();
             }
