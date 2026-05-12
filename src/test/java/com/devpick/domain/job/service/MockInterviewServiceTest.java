@@ -3,6 +3,9 @@ package com.devpick.domain.job.service;
 import com.devpick.domain.job.client.JobAiClient;
 import com.devpick.domain.job.dto.MockInterviewModels.AnswerOutcome;
 import com.devpick.domain.job.dto.MockInterviewModels.AnswerRequest;
+import com.devpick.domain.job.dto.MockInterviewModels.HistoryListResponse;
+import com.devpick.domain.job.dto.MockInterviewModels.StartFromJdRequest;
+import com.devpick.global.common.exception.DevpickException;
 import com.devpick.domain.job.entity.MockInterviewMode;
 import com.devpick.domain.job.entity.MockInterviewPhase;
 import com.devpick.domain.job.entity.MockInterviewSession;
@@ -25,11 +28,13 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -207,6 +212,44 @@ class MockInterviewServiceTest {
                 ArgumentCaptor.forClass(MockInterviewFinalizeEvent.class);
         then(eventPublisher).should().publishEvent(captor.capture());
         assertThat(captor.getValue().early()).isFalse();
+    }
+
+    // ── listForUser ──────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("listForUser — 세션 없음 시 빈 목록을 반환한다")
+    void listForUser_noSessions_returnsEmptyList() {
+        UUID userId = UUID.randomUUID();
+        given(sessionRepository.findAllByUserIdWithJobOrderByUpdatedAtDesc(userId)).willReturn(List.of());
+
+        HistoryListResponse result = mockInterviewService.listForUser(userId);
+
+        assertThat(result.sessions()).isEmpty();
+    }
+
+    // ── startFromJd validation ────────────────────────────────────────────
+
+    @Test
+    @DisplayName("startFromJd — null request 시 DevpickException을 던진다")
+    void startFromJd_nullRequest_throwsException() {
+        assertThatThrownBy(() -> mockInterviewService.startFromJd(UUID.randomUUID(), null))
+                .isInstanceOf(DevpickException.class);
+    }
+
+    @Test
+    @DisplayName("startFromJd — jobTitle null 시 DevpickException을 던진다")
+    void startFromJd_nullTitle_throwsException() {
+        StartFromJdRequest req = new StartFromJdRequest("카카오", null, "BACKEND", "", null, null, null);
+        assertThatThrownBy(() -> mockInterviewService.startFromJd(UUID.randomUUID(), req))
+                .isInstanceOf(DevpickException.class);
+    }
+
+    @Test
+    @DisplayName("startFromJd — jobTitle 공백 시 DevpickException을 던진다")
+    void startFromJd_blankTitle_throwsException() {
+        StartFromJdRequest req = new StartFromJdRequest("카카오", "  ", "BACKEND", "", null, null, null);
+        assertThatThrownBy(() -> mockInterviewService.startFromJd(UUID.randomUUID(), req))
+                .isInstanceOf(DevpickException.class);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
