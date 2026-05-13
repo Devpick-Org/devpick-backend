@@ -149,7 +149,7 @@ class MockInterviewFinalizeServiceTest {
         finalizeService.doFinalize(sessionId, false);
 
         then(session).should().setStatus(MockInterviewStatus.COMPLETED);
-        then(session).should().setResultJson(argThat(json -> json != null && json.contains("fallback")));
+        then(session).should().setResultJson(argThat(json -> json != null && json.contains("\"notice\"")));
         then(sessionRepository).should().save(session);
         then(historyRepository).should().save(any());
         then(pointService).should().earn(eq(user), eq(PointAction.MOCK_INTERVIEW_COMPLETE), eq(sessionId));
