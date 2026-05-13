@@ -5,6 +5,7 @@ import com.devpick.domain.job.dto.MockInterviewModels.QuestionPlanResponse;
 import com.devpick.domain.job.entity.MockInterviewSession;
 import com.devpick.domain.job.entity.MockInterviewStatus;
 import com.devpick.domain.job.entity.MockInterviewTurn;
+import com.devpick.domain.job.entity.MockInterviewTurnType;
 import com.devpick.domain.job.event.MockInterviewFinalizeEvent;
 import com.devpick.domain.job.repository.MockInterviewSessionRepository;
 import com.devpick.domain.point.entity.PointAction;
@@ -28,6 +29,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 
@@ -77,10 +79,12 @@ public class MockInterviewFinalizeService {
         Map<String, Object> finalResult;
         try {
             finalResult = jobAiClient.finalizeMockInterview(finalRequest);
+            setNoticeIfScoresNull(finalResult);
         } catch (Exception e) {
             log.warn("[mock-finalize] AI call failed sessionId={} err={}", sessionId, e.toString());
             finalResult = fallbackFinalResult(plan, session, early);
         }
+        injectRawAnswers(finalResult, session);
 
         finalResult.put("earlyFinished", early);
         finalResult.put("answeredCount", session.getAnsweredCount());
@@ -149,8 +153,48 @@ public class MockInterviewFinalizeService {
         m.put("actionItems", List.of());
         m.put("uncoveredKeywords", plan.jdGapKeywords());
         m.put("perQuestion", List.of());
-        m.put("notice", "fallback");
+        m.put("notice", "AI 분석 중 오류가 발생했습니다. 잠시 후 결과를 다시 확인해 주세요.");
         return m;
+    }
+
+    private void setNoticeIfScoresNull(Map<String, Object> result) {
+        if (result.containsKey("notice")) return;
+        Object scoresObj = result.get("scores");
+        if (!(scoresObj instanceof Map<?, ?> scores)) return;
+        boolean allNull = scores.values().stream().allMatch(v -> v == null);
+        if (allNull) {
+            result.put("notice", "토큰 한도 초과로 점수/피드백 분석이 생략되었습니다. 답변 원문은 모범 답안 섹션에서 확인할 수 있어요.");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void injectRawAnswers(Map<String, Object> result, MockInterviewSession session) {
+        Object perQuestionObj = result.get("perQuestion");
+        if (!(perQuestionObj instanceof List<?> perQuestion) || perQuestion.isEmpty()) return;
+
+        Set<MockInterviewTurnType> answerTypes = Set.of(
+                MockInterviewTurnType.ANSWER,
+                MockInterviewTurnType.FOLLOW_UP_ANSWER,
+                MockInterviewTurnType.RETRY_ANSWER
+        );
+        Map<Integer, String> rawByQuestion = new HashMap<>();
+        for (MockInterviewTurn turn : session.getTurns()) {
+            if (answerTypes.contains(turn.getType()) && turn.getContent() != null) {
+                rawByQuestion.merge(turn.getQuestionNo(), turn.getContent(),
+                        (a, b) -> a + "\n\n" + b);
+            }
+        }
+
+        for (Object item : perQuestion) {
+            if (!(item instanceof Map<?, ?> entry)) continue;
+            Map<String, Object> q = (Map<String, Object>) entry;
+            Object qNo = q.get("questionNo");
+            if (!(qNo instanceof Integer questionNo)) continue;
+            String raw = rawByQuestion.get(questionNo);
+            if (raw != null) {
+                q.put("answerRaw", raw);
+            }
+        }
     }
 
     private double coverageFactor(int answered, boolean early) {
