@@ -47,7 +47,8 @@ public final class JobApiModels {
             List<String> matchedTags,
             List<String> missingTags,
             boolean bookmarked,
-            String status
+            String status,
+            boolean resumeAvailable
     ) {}
 
     public record MatchItemResponse(String label, String status) {}
@@ -81,6 +82,7 @@ public final class JobApiModels {
             List<String> missingTags,
             boolean bookmarked,
             String status,
+            boolean resumeAvailable,
             String salary,
             String applyUrl,
             List<String> responsibilities,

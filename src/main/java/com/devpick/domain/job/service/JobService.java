@@ -286,6 +286,7 @@ public class JobService {
                 base.missingTags(),
                 base.bookmarked(),
                 base.status(),
+                base.resumeAvailable(),
                 p.getSalaryDisplay() != null ? p.getSalaryDisplay() : "",
                 p.getApplyUrl() != null ? p.getApplyUrl() : p.getSourceUrl(),
                 new ArrayList<>(p.getResponsibilities()),
@@ -542,7 +543,8 @@ public class JobService {
                 m.matchedTags(),
                 m.missingTags(),
                 bookmarked,
-                p.getStatus().name()
+                p.getStatus().name(),
+                !userSkills.isEmpty()
         );
     }
 

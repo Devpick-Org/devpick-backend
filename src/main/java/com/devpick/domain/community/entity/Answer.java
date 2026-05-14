@@ -32,8 +32,13 @@ public class Answer extends BaseTimeEntity {
     @Builder.Default
     private Boolean isAdopted = false;
 
+    @Column(name = "is_edited", nullable = false, columnDefinition = "boolean default false")
+    @Builder.Default
+    private Boolean isEdited = false;
+
     public void update(String content) {
         this.content = content;
+        this.isEdited = true;
     }
 
     public void adopt() {

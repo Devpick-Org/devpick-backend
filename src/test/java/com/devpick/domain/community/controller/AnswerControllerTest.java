@@ -81,7 +81,7 @@ class AnswerControllerTest {
         );
 
         answerResponse = new AnswerResponse(
-                answerId, postId, "Test Answer", false,
+                answerId, postId, "Test Answer", false, false,
                 userId, "tester", null, null,
                 Instant.now(), Instant.now()
         );
@@ -125,7 +125,7 @@ class AnswerControllerTest {
     void updateAnswer_success_returns200() throws Exception {
         AnswerUpdateRequest request = new AnswerUpdateRequest("Updated Answer");
         AnswerResponse updated = new AnswerResponse(
-                answerId, postId, "Updated Answer", false,
+                answerId, postId, "Updated Answer", false, true,
                 userId, "tester", null, null, Instant.now(), Instant.now());
         given(answerService.updateAnswer(eq(userId), eq(postId), eq(answerId), any())).willReturn(updated);
 
@@ -164,7 +164,7 @@ class AnswerControllerTest {
     @DisplayName("POST /posts/{postId}/answers/{answerId}/adopt - 채택 성공 시 200 반환")
     void adoptAnswer_success_returns200() throws Exception {
         AnswerResponse adopted = new AnswerResponse(
-                answerId, postId, "Test Answer", true,
+                answerId, postId, "Test Answer", true, false,
                 userId, "tester", null, null, Instant.now(), Instant.now());
         given(answerService.adoptAnswer(userId, postId, answerId)).willReturn(adopted);
 
@@ -190,7 +190,7 @@ class AnswerControllerTest {
     void getAnswers_success_returns200() throws Exception {
         AnswerWithCommentsResponse answerWithComments = new AnswerWithCommentsResponse(
                 answerId, "Test Answer", userId, "tester", null, null, null,
-                false, Instant.now(), Instant.now(), List.of()
+                false, false, Instant.now(), Instant.now(), List.of()
         );
         AnswerListResponse listResponse = new AnswerListResponse(List.of(answerWithComments));
         given(answerService.getAnswers(postId)).willReturn(listResponse);

@@ -19,6 +19,7 @@ public record AnswerWithCommentsResponse(
         Level authorLevel,
         String authorProfileImage,
         Boolean isAdopted,
+        Boolean isEdited,
         Instant createdAt,
         Instant updatedAt,
         List<CommentResponse> comments
@@ -33,6 +34,7 @@ public record AnswerWithCommentsResponse(
                 answer.getUser().getLevel(),
                 answer.getUser().getProfileImage(),
                 answer.getIsAdopted(),
+                answer.getIsEdited(),
                 answer.getCreatedAt() != null ? answer.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
                 answer.getUpdatedAt() != null ? answer.getUpdatedAt().toInstant(ZoneOffset.UTC) : null,
                 comments.stream().map(CommentResponse::of).toList()
