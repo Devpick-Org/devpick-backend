@@ -157,7 +157,7 @@ class AnswerServiceTest {
     }
 
     @Test
-    @DisplayName("updateAnswer — 성공 시 수정된 답변 반환")
+    @DisplayName("updateAnswer — 성공 시 수정된 답변 반환, isEdited=true")
     void updateAnswer_success_returnsUpdatedAnswer() {
         AnswerUpdateRequest request = new AnswerUpdateRequest("Updated Answer");
         given(answerRepository.findById(answerId)).willReturn(Optional.of(answer));
@@ -165,6 +165,16 @@ class AnswerServiceTest {
         AnswerResponse response = answerService.updateAnswer(userId, postId, answerId, request);
 
         assertThat(response.content()).isEqualTo("Updated Answer");
+        assertThat(response.isEdited()).isTrue();
+    }
+
+    @Test
+    @DisplayName("updateAnswer — 수정 전 isEdited=false, 수정 후 isEdited=true")
+    void updateAnswer_isEdited_toggledByUpdate() {
+        given(answerRepository.findById(answerId)).willReturn(Optional.of(answer));
+
+        AnswerResponse before = answerService.updateAnswer(userId, postId, answerId, new AnswerUpdateRequest("내용1"));
+        assertThat(before.isEdited()).isTrue();
     }
 
     @Test
@@ -219,7 +229,7 @@ class AnswerServiceTest {
     }
 
     @Test
-    @DisplayName("adoptAnswer — 성공 시 채택된 답변 반환")
+    @DisplayName("adoptAnswer — 성공 시 isAdopted=true, isEdited는 변경되지 않는다")
     void adoptAnswer_success_adoptsAnswer() {
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
         given(answerRepository.findAdoptedByPostIdForUpdate(postId)).willReturn(List.of());
@@ -228,6 +238,7 @@ class AnswerServiceTest {
         AnswerResponse response = answerService.adoptAnswer(userId, postId, answerId);
 
         assertThat(response.isAdopted()).isTrue();
+        assertThat(response.isEdited()).isFalse();
     }
 
     @Test

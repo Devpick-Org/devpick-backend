@@ -1,12 +1,20 @@
 package com.devpick.domain.job.service;
 
+import com.devpick.domain.job.dto.JobApiModels.JobDetailResponse;
+import com.devpick.domain.job.entity.EmploymentType;
+import com.devpick.domain.job.entity.JobParseStatus;
 import com.devpick.domain.job.entity.JobPosting;
+import com.devpick.domain.job.entity.JobPostingCategory;
+import com.devpick.domain.job.entity.JobPostingStatus;
+import com.devpick.domain.job.entity.PostingExperienceLevel;
 import com.devpick.domain.job.repository.JobBookmarkRepository;
 import com.devpick.domain.job.repository.JobPostingRepository;
 import com.devpick.domain.point.entity.PointAction;
 import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.repository.HistoryRepository;
+import com.devpick.domain.user.entity.Tag;
 import com.devpick.domain.user.entity.User;
+import com.devpick.domain.user.entity.UserTag;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
@@ -18,9 +26,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -100,7 +110,76 @@ class JobServiceTest {
 
         assertThatThrownBy(() -> jobService.bookmark(userId, jobId))
                 .isInstanceOf(DevpickException.class)
-                .satisfies(e -> org.assertj.core.api.Assertions.assertThat(
+                .satisfies(e -> assertThat(
                         ((DevpickException) e).getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private static final UUID INTERNAL_OPS_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+
+    private JobPosting mockListableJob(UUID jobId) {
+        JobPosting job = mock(JobPosting.class);
+        given(job.getId()).willReturn(jobId);
+        given(job.getTitle()).willReturn("백엔드 개발자");
+        given(job.getCompanyName()).willReturn("카카오");
+        given(job.getTechStack()).willReturn(List.of());
+        given(job.getRequiredSkills()).willReturn(List.of());
+        given(job.getPreferredSkills()).willReturn(List.of());
+        given(job.getCompanyLogoUrl()).willReturn(null);
+        given(job.getLocation()).willReturn("서울");
+        given(job.getRollingDeadline()).willReturn(false);
+        given(job.getDeadline()).willReturn(null);
+        given(job.getEmploymentType()).willReturn(EmploymentType.FULL_TIME);
+        given(job.getJobCategory()).willReturn(JobPostingCategory.BACKEND);
+        given(job.getExperienceLevel()).willReturn(PostingExperienceLevel.JUNIOR);
+        given(job.getStatus()).willReturn(JobPostingStatus.ACTIVE);
+        given(job.getParseStatus()).willReturn(JobParseStatus.OK);
+        given(job.getSalaryDisplay()).willReturn("");
+        given(job.getApplyUrl()).willReturn("https://example.com");
+        given(job.getResponsibilities()).willReturn(List.of());
+        given(job.getRequirementBullets()).willReturn(List.of());
+        given(job.getPreferredQualificationBullets()).willReturn(List.of());
+        given(job.getBenefits()).willReturn(List.of());
+        given(job.getHiringProcess()).willReturn(List.of());
+        given(job.getJdImageUrls()).willReturn(List.of());
+        return job;
+    }
+
+    @Test
+    @DisplayName("getJobDetail — 이력서·태그 없는 유저는 resumeAvailable=false")
+    void getJobDetail_noSkills_resumeAvailableFalse() {
+        UUID jobId = UUID.randomUUID();
+        JobPosting job = mockListableJob(jobId);
+
+        given(jobPostingRepository.findById(jobId)).willReturn(Optional.of(job));
+        given(masterResumeRepository.findByUserId(INTERNAL_OPS_USER_ID)).willReturn(Optional.empty());
+        given(userRepository.findById(INTERNAL_OPS_USER_ID)).willReturn(Optional.empty());
+        given(jobBookmarkRepository.existsByUserIdAndJobPosting_Id(INTERNAL_OPS_USER_ID, jobId)).willReturn(false);
+
+        JobDetailResponse response = jobService.getJobDetail(INTERNAL_OPS_USER_ID, jobId);
+
+        assertThat(response.resumeAvailable()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getJobDetail — 기술 태그가 등록된 유저는 resumeAvailable=true")
+    void getJobDetail_hasTagSkills_resumeAvailableTrue() {
+        UUID jobId = UUID.randomUUID();
+        JobPosting job = mockListableJob(jobId);
+
+        Tag tag = mock(Tag.class);
+        given(tag.getName()).willReturn("Java");
+        UserTag userTag = mock(UserTag.class);
+        given(userTag.getTag()).willReturn(tag);
+        User userWithTags = mock(User.class);
+        given(userWithTags.getUserTags()).willReturn(List.of(userTag));
+
+        given(jobPostingRepository.findById(jobId)).willReturn(Optional.of(job));
+        given(masterResumeRepository.findByUserId(INTERNAL_OPS_USER_ID)).willReturn(Optional.empty());
+        given(userRepository.findById(INTERNAL_OPS_USER_ID)).willReturn(Optional.of(userWithTags));
+        given(jobBookmarkRepository.existsByUserIdAndJobPosting_Id(INTERNAL_OPS_USER_ID, jobId)).willReturn(false);
+
+        JobDetailResponse response = jobService.getJobDetail(INTERNAL_OPS_USER_ID, jobId);
+
+        assertThat(response.resumeAvailable()).isTrue();
     }
 }
