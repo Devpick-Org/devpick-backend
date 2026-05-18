@@ -108,11 +108,12 @@ class AnswerServiceTest {
         given(answerRepository.findByPost_IdOrderByCreatedAtAsc(postId)).willReturn(List.of(answer));
         given(commentRepository.findByAnswer_IdOrderByCreatedAtAsc(answerId)).willReturn(List.of());
 
-        AnswerListResponse response = answerService.getAnswers(postId);
+        AnswerListResponse response = answerService.getAnswers(postId, userId);
 
         assertThat(response.answers()).hasSize(1);
         assertThat(response.answers().get(0).id()).isEqualTo(answerId);
         assertThat(response.answers().get(0).comments()).isEmpty();
+        assertThat(response.answers().get(0).canAdopt()).isFalse();
     }
 
     @Test
@@ -120,10 +121,74 @@ class AnswerServiceTest {
     void getAnswers_postNotFound_throwsException() {
         given(postRepository.findById(postId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> answerService.getAnswers(postId))
+        assertThatThrownBy(() -> answerService.getAnswers(postId, userId))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.COMMUNITY_POST_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("getAnswers — 게시글 작성자가 타인의 미채택 답변 조회 시 canAdopt=true")
+    void getAnswers_postAuthor_othersAnswer_canAdoptTrue() {
+        UUID otherUserId = UUID.randomUUID();
+        User otherUser = User.builder().email("other@devpick.kr").nickname("other").job(Job.FRONTEND).level(Level.JUNIOR).build();
+        ReflectionTestUtils.setField(otherUser, "id", otherUserId);
+
+        Answer otherAnswer = Answer.builder().post(post).user(otherUser).content("Other Answer").build();
+        ReflectionTestUtils.setField(otherAnswer, "id", UUID.randomUUID());
+
+        given(postRepository.findById(postId)).willReturn(Optional.of(post));
+        given(answerRepository.findByPost_IdOrderByCreatedAtAsc(postId)).willReturn(List.of(otherAnswer));
+        given(commentRepository.findByAnswer_IdOrderByCreatedAtAsc(any())).willReturn(List.of());
+
+        AnswerListResponse response = answerService.getAnswers(postId, userId);
+
+        assertThat(response.answers().get(0).canAdopt()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getAnswers — 게시글 작성자가 본인 답변 조회 시 canAdopt=false (본인 답변 채택 불가)")
+    void getAnswers_postAuthor_ownAnswer_canAdoptFalse() {
+        given(postRepository.findById(postId)).willReturn(Optional.of(post));
+        given(answerRepository.findByPost_IdOrderByCreatedAtAsc(postId)).willReturn(List.of(answer));
+        given(commentRepository.findByAnswer_IdOrderByCreatedAtAsc(answerId)).willReturn(List.of());
+
+        AnswerListResponse response = answerService.getAnswers(postId, userId);
+
+        assertThat(response.answers().get(0).canAdopt()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getAnswers — 게시글 작성자가 아닌 유저는 canAdopt=false")
+    void getAnswers_notPostAuthor_canAdoptFalse() {
+        UUID otherUserId = UUID.randomUUID();
+        given(postRepository.findById(postId)).willReturn(Optional.of(post));
+        given(answerRepository.findByPost_IdOrderByCreatedAtAsc(postId)).willReturn(List.of(answer));
+        given(commentRepository.findByAnswer_IdOrderByCreatedAtAsc(answerId)).willReturn(List.of());
+
+        AnswerListResponse response = answerService.getAnswers(postId, otherUserId);
+
+        assertThat(response.answers().get(0).canAdopt()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getAnswers — 이미 채택된 답변이 있으면 모든 답변에 canAdopt=false")
+    void getAnswers_anyAnswerAlreadyAdopted_canAdoptFalse() {
+        UUID otherUserId = UUID.randomUUID();
+        User otherUser = User.builder().email("other@devpick.kr").nickname("other").job(Job.FRONTEND).level(Level.JUNIOR).build();
+        ReflectionTestUtils.setField(otherUser, "id", otherUserId);
+
+        Answer adoptedAnswer = Answer.builder().post(post).user(otherUser).content("Adopted Answer").build();
+        ReflectionTestUtils.setField(adoptedAnswer, "id", UUID.randomUUID());
+        adoptedAnswer.adopt();
+
+        given(postRepository.findById(postId)).willReturn(Optional.of(post));
+        given(answerRepository.findByPost_IdOrderByCreatedAtAsc(postId)).willReturn(List.of(adoptedAnswer));
+        given(commentRepository.findByAnswer_IdOrderByCreatedAtAsc(any())).willReturn(List.of());
+
+        AnswerListResponse response = answerService.getAnswers(postId, userId);
+
+        assertThat(response.answers().get(0).canAdopt()).isFalse();
     }
 
     @Test
@@ -231,9 +296,15 @@ class AnswerServiceTest {
     @Test
     @DisplayName("adoptAnswer — 성공 시 isAdopted=true, isEdited는 변경되지 않는다")
     void adoptAnswer_success_adoptsAnswer() {
+        UUID otherUserId = UUID.randomUUID();
+        User otherUser = User.builder().email("other@devpick.kr").nickname("other").job(Job.BACKEND).level(Level.JUNIOR).build();
+        ReflectionTestUtils.setField(otherUser, "id", otherUserId);
+        Answer otherAnswer = Answer.builder().post(post).user(otherUser).content("Other Answer").build();
+        ReflectionTestUtils.setField(otherAnswer, "id", answerId);
+
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
         given(answerRepository.findAdoptedByPostIdForUpdate(postId)).willReturn(List.of());
-        given(answerRepository.findById(answerId)).willReturn(Optional.of(answer));
+        given(answerRepository.findById(answerId)).willReturn(Optional.of(otherAnswer));
 
         AnswerResponse response = answerService.adoptAnswer(userId, postId, answerId);
 
@@ -278,5 +349,18 @@ class AnswerServiceTest {
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.COMMUNITY_ANSWER_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("adoptAnswer — 본인 답변 채택 시 COMMUNITY_CANNOT_ADOPT_OWN_ANSWER 예외")
+    void adoptAnswer_ownAnswer_throwsException() {
+        given(postRepository.findById(postId)).willReturn(Optional.of(post));
+        given(answerRepository.findAdoptedByPostIdForUpdate(postId)).willReturn(List.of());
+        given(answerRepository.findById(answerId)).willReturn(Optional.of(answer)); // answer.user == post.user == userId
+
+        assertThatThrownBy(() -> answerService.adoptAnswer(userId, postId, answerId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.COMMUNITY_CANNOT_ADOPT_OWN_ANSWER));
     }
 }

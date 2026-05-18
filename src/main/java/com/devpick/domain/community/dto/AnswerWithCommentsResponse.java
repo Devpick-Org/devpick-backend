@@ -20,11 +20,17 @@ public record AnswerWithCommentsResponse(
         String authorProfileImage,
         Boolean isAdopted,
         Boolean isEdited,
+        Boolean canAdopt,
         Instant createdAt,
         Instant updatedAt,
         List<CommentResponse> comments
 ) {
-    public static AnswerWithCommentsResponse of(Answer answer, List<Comment> comments) {
+    public static AnswerWithCommentsResponse of(Answer answer, List<Comment> comments,
+                                                UUID currentUserId, UUID postAuthorId, boolean anyAdopted) {
+        boolean canAdopt = postAuthorId.equals(currentUserId)
+                && !anyAdopted
+                && !Boolean.TRUE.equals(answer.getIsAdopted())
+                && !answer.getUser().getId().equals(currentUserId);
         return new AnswerWithCommentsResponse(
                 answer.getId(),
                 answer.getContent(),
@@ -35,6 +41,7 @@ public record AnswerWithCommentsResponse(
                 answer.getUser().getProfileImage(),
                 answer.getIsAdopted(),
                 answer.getIsEdited(),
+                canAdopt,
                 answer.getCreatedAt() != null ? answer.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
                 answer.getUpdatedAt() != null ? answer.getUpdatedAt().toInstant(ZoneOffset.UTC) : null,
                 comments.stream().map(CommentResponse::of).toList()

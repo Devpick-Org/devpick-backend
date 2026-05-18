@@ -40,15 +40,18 @@ public class AnswerService {
     private final AnswerLikeRepository answerLikeRepository;
 
     @Transactional(readOnly = true)
-    public AnswerListResponse getAnswers(UUID postId) {
-        postRepository.findById(postId)
+    public AnswerListResponse getAnswers(UUID postId, UUID currentUserId) {
+        Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.COMMUNITY_POST_NOT_FOUND));
 
         List<Answer> answers = answerRepository.findByPost_IdOrderByCreatedAtAsc(postId);
+        boolean anyAdopted = answers.stream().anyMatch(a -> Boolean.TRUE.equals(a.getIsAdopted()));
+        UUID postAuthorId = post.getUser().getId();
+
         List<AnswerWithCommentsResponse> result = answers.stream()
                 .map(answer -> {
                     List<Comment> comments = commentRepository.findByAnswer_IdOrderByCreatedAtAsc(answer.getId());
-                    return AnswerWithCommentsResponse.of(answer, comments);
+                    return AnswerWithCommentsResponse.of(answer, comments, currentUserId, postAuthorId, anyAdopted);
                 })
                 .toList();
         return new AnswerListResponse(result);
@@ -135,6 +138,10 @@ public class AnswerService {
 
         if (!answer.getPost().getId().equals(postId)) {
             throw new DevpickException(ErrorCode.COMMUNITY_ANSWER_NOT_FOUND);
+        }
+
+        if (answer.getUser().getId().equals(userId)) {
+            throw new DevpickException(ErrorCode.COMMUNITY_CANNOT_ADOPT_OWN_ANSWER);
         }
 
         answer.adopt();

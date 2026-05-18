@@ -43,8 +43,9 @@ public class AnswerController {
     })
     @GetMapping
     public ApiResponse<AnswerListResponse> getAnswers(
+            @AuthenticationPrincipal UUID userId,
             @Parameter(description = "게시글 ID (UUID)", required = true) @PathVariable UUID postId) {
-        return ApiResponse.ok(answerService.getAnswers(postId));
+        return ApiResponse.ok(answerService.getAnswers(postId, userId));
     }
 
     @Operation(summary = "답변 작성", description = "게시글에 답변을 작성합니다.")
