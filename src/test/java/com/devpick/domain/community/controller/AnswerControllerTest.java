@@ -190,23 +190,24 @@ class AnswerControllerTest {
     void getAnswers_success_returns200() throws Exception {
         AnswerWithCommentsResponse answerWithComments = new AnswerWithCommentsResponse(
                 answerId, "Test Answer", userId, "tester", null, null, null,
-                false, false, Instant.now(), Instant.now(), List.of()
+                false, false, false, Instant.now(), Instant.now(), List.of()
         );
         AnswerListResponse listResponse = new AnswerListResponse(List.of(answerWithComments));
-        given(answerService.getAnswers(postId)).willReturn(listResponse);
+        given(answerService.getAnswers(postId, userId)).willReturn(listResponse);
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .get("/posts/" + postId + "/answers"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.answers[0].content").value("Test Answer"))
-                .andExpect(jsonPath("$.data.answers[0].comments").isArray());
+                .andExpect(jsonPath("$.data.answers[0].comments").isArray())
+                .andExpect(jsonPath("$.data.answers[0].canAdopt").value(false));
     }
 
     @Test
     @DisplayName("GET /posts/{postId}/answers - 게시글 없으면 404 반환")
     void getAnswers_postNotFound_returns404() throws Exception {
-        given(answerService.getAnswers(postId))
+        given(answerService.getAnswers(postId, userId))
                 .willThrow(new DevpickException(ErrorCode.COMMUNITY_POST_NOT_FOUND));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
