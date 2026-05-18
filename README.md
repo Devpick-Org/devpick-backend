@@ -5,7 +5,7 @@
 
 ---
 
-## 기술 스택
+## 🛠️ 기술 스택
 
 ![Java](https://img.shields.io/badge/Java_21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot_3.5.11-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)
@@ -39,7 +39,7 @@
 
 ---
 
-## 시스템 구조
+## 🏗️ 시스템 구조
 
 ```
 브라우저
@@ -54,7 +54,7 @@
 
 ---
 
-## 프로젝트 구조
+## 📁 프로젝트 구조
 
 ```
 src/main/java/com/devpick
@@ -79,7 +79,7 @@ src/main/java/com/devpick
 
 ---
 
-## 주요 기능
+## ✨ 주요 기능
 
 | 도메인 | 기능 |
 |--------|------|
@@ -96,7 +96,7 @@ src/main/java/com/devpick
 
 ---
 
-## Getting Started
+## 🚀 Getting Started
 
 ### 사전 요구사항
 
@@ -130,13 +130,13 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres 
 
 ---
 
-## API 문서
+## 📖 API 문서
 
 로컬 실행 후: `http://localhost:8080/swagger-ui/index.html`
 
 ---
 
-## CI/CD
+## ⚙️ CI/CD
 
 | Job | 트리거 | 설명 |
 |-----|--------|------|
@@ -148,21 +148,21 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres 
 
 ---
 
-## 브랜치 전략
+## 🔀 브랜치 전략
 
-| 브랜치 | 용도                    |
-|--------|-----------------------|
-| `main` | 배포용                   |
-| `develop` | MVP                   |
-| `developV2` | MVP 이후 통합 브랜치         |
-| `feature/DP-{번호}-{기능명}` | 기능 개발                 |
-| `fix/DP-{번호}-{설명}` | 버그 수정                 |
+| 브랜치 | 용도 |
+|--------|------|
+| `main` | 배포용 |
+| `develop` | MVP |
+| `developV2` | MVP 이후 통합 브랜치 |
+| `feature/DP-{번호}-{기능명}` | 기능 개발 |
+| `fix/DP-{번호}-{설명}` | 버그 수정 |
 | `auto/feature/DP-{번호}-{기능명}` | 기능 개발 — CI 통과 시 자동 머지 |
 | `auto/fix/DP-{번호}-{설명}` | 버그 수정 — CI 통과 시 자동 머지 |
 
 ---
 
-## 팀
+## 👥 팀
 
 <table>
   <tr>
@@ -195,7 +195,7 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres 
       <br />
       <strong>조수헌</strong>
       <br />
-      <sub>AI / AX</sub>
+      <sub>AX</sub>
       <br />
       <a href="https://github.com/suheon98">@suheon98</a>
     </td>
@@ -212,4 +212,3 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres 
     </td>
   </tr>
 </table>
-
