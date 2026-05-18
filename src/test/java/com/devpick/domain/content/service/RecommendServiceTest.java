@@ -354,7 +354,12 @@ class RecommendServiceTest {
         given(contentRepository.findYoutubeByExcludeTagIdsExcludingScrapped(anyList(), eq(userId), any()))
                 .willReturn(makeYoutubeContents(4));
         given(objectMapper.readValue(anyString(), any(TypeReference.class)))
-                .willReturn(Map.of("channelName", "채널0", "videoId", "v0"));
+                .willAnswer(inv -> {
+                    String json = (String) inv.getArgument(0);
+                    if (json != null && json.contains("\"채널1\"")) return Map.of("channelName", "채널1", "videoId", "v1");
+                    if (json != null && json.contains("\"채널2\"")) return Map.of("channelName", "채널2", "videoId", "v2");
+                    return Map.of("channelName", "채널0", "videoId", "v0");
+                });
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 
@@ -596,8 +601,8 @@ class RecommendServiceTest {
 
         List<Content> ranked = recommendService.applyChannelDiversityPenalty(candidates, tagScores);
 
-        // 결과는 3개 모두 포함하되 첫 번째가 페널티 없이 선택됨
-        assertThat(ranked).hasSize(3);
+        // 채널당 최대 2개 하드캡 — 같은 채널 3개 중 2개만 선택됨
+        assertThat(ranked).hasSize(RecommendService.MAX_PER_CHANNEL);
         assertThat(ranked.get(0)).isEqualTo(candidates.get(0));
     }
 

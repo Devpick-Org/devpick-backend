@@ -270,6 +270,8 @@ public class RecommendService {
         return tagScore + recencyBonus;
     }
 
+    static final int MAX_PER_CHANNEL = 2;
+
     List<Content> applyChannelDiversityPenalty(List<Content> candidates, Map<UUID, Double> tagScores) {
         Map<String, Integer> channelCount = new HashMap<>();
         List<Content> pool = new ArrayList<>(candidates);
@@ -281,7 +283,8 @@ public class RecommendService {
             for (Content c : pool) {
                 String channel = extractChannel(c);
                 int count = channelCount.getOrDefault(channel, 0);
-                double penalty = count >= 1 ? 2.0 * count : 0;
+                if (count >= MAX_PER_CHANNEL) continue;
+                double penalty = count >= 1 ? 5.0 * count : 0;
                 double score = computeScore(c, tagScores) - penalty;
                 if (score > bestScore) {
                     bestScore = score;
