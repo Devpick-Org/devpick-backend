@@ -215,4 +215,15 @@ class AnswerControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
     }
+
+    @Test
+    @DisplayName("POST /posts/{postId}/answers/{answerId}/adopt - 본인 답변 채택 시 403 반환")
+    void adoptAnswer_ownAnswer_returns403() throws Exception {
+        given(answerService.adoptAnswer(userId, postId, answerId))
+                .willThrow(new DevpickException(ErrorCode.COMMUNITY_CANNOT_ADOPT_OWN_ANSWER));
+
+        mockMvc.perform(post("/posts/" + postId + "/answers/" + answerId + "/adopt"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false));
+    }
 }

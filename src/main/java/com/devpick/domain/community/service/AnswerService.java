@@ -140,6 +140,10 @@ public class AnswerService {
             throw new DevpickException(ErrorCode.COMMUNITY_ANSWER_NOT_FOUND);
         }
 
+        if (answer.getUser().getId().equals(userId)) {
+            throw new DevpickException(ErrorCode.COMMUNITY_CANNOT_ADOPT_OWN_ANSWER);
+        }
+
         answer.adopt();
         pointService.earn(answer.getUser(), PointAction.ANSWER_ADOPTED);
         return AnswerResponse.of(answer);

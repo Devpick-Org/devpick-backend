@@ -296,9 +296,15 @@ class AnswerServiceTest {
     @Test
     @DisplayName("adoptAnswer — 성공 시 isAdopted=true, isEdited는 변경되지 않는다")
     void adoptAnswer_success_adoptsAnswer() {
+        UUID otherUserId = UUID.randomUUID();
+        User otherUser = User.builder().email("other@devpick.kr").nickname("other").job(Job.BACKEND).level(Level.JUNIOR).build();
+        ReflectionTestUtils.setField(otherUser, "id", otherUserId);
+        Answer otherAnswer = Answer.builder().post(post).user(otherUser).content("Other Answer").build();
+        ReflectionTestUtils.setField(otherAnswer, "id", answerId);
+
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
         given(answerRepository.findAdoptedByPostIdForUpdate(postId)).willReturn(List.of());
-        given(answerRepository.findById(answerId)).willReturn(Optional.of(answer));
+        given(answerRepository.findById(answerId)).willReturn(Optional.of(otherAnswer));
 
         AnswerResponse response = answerService.adoptAnswer(userId, postId, answerId);
 
@@ -343,5 +349,18 @@ class AnswerServiceTest {
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.COMMUNITY_ANSWER_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("adoptAnswer — 본인 답변 채택 시 COMMUNITY_CANNOT_ADOPT_OWN_ANSWER 예외")
+    void adoptAnswer_ownAnswer_throwsException() {
+        given(postRepository.findById(postId)).willReturn(Optional.of(post));
+        given(answerRepository.findAdoptedByPostIdForUpdate(postId)).willReturn(List.of());
+        given(answerRepository.findById(answerId)).willReturn(Optional.of(answer)); // answer.user == post.user == userId
+
+        assertThatThrownBy(() -> answerService.adoptAnswer(userId, postId, answerId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.COMMUNITY_CANNOT_ADOPT_OWN_ANSWER));
     }
 }
