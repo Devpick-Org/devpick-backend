@@ -102,7 +102,7 @@ class MockInterviewFinalizeServiceTest {
         User user = mock(User.class);
         MockInterviewSession session = buildProcessingSession(sessionId, userId, false, true);
 
-        given(sessionRepository.findById(sessionId)).willReturn(Optional.of(session));
+        given(sessionRepository.findByIdForUpdate(sessionId)).willReturn(Optional.of(session));
         given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResult());
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
@@ -124,7 +124,7 @@ class MockInterviewFinalizeServiceTest {
         User user = mock(User.class);
         MockInterviewSession session = buildProcessingSession(sessionId, userId, true, true);
 
-        given(sessionRepository.findById(sessionId)).willReturn(Optional.of(session));
+        given(sessionRepository.findByIdForUpdate(sessionId)).willReturn(Optional.of(session));
         given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResult());
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
@@ -142,7 +142,7 @@ class MockInterviewFinalizeServiceTest {
         User user = mock(User.class);
         MockInterviewSession session = buildProcessingSession(sessionId, userId, false, true);
 
-        given(sessionRepository.findById(sessionId)).willReturn(Optional.of(session));
+        given(sessionRepository.findByIdForUpdate(sessionId)).willReturn(Optional.of(session));
         given(jobAiClient.finalizeMockInterview(any())).willThrow(new RuntimeException("timeout"));
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
@@ -159,7 +159,7 @@ class MockInterviewFinalizeServiceTest {
     @DisplayName("세션을 찾을 수 없으면 아무것도 저장하지 않는다")
     void onFinalizeEvent_sessionNotFound_skips() {
         UUID sessionId = UUID.randomUUID();
-        given(sessionRepository.findById(sessionId)).willReturn(Optional.empty());
+        given(sessionRepository.findByIdForUpdate(sessionId)).willReturn(Optional.empty());
 
         finalizeService.doFinalize(sessionId, false);
 
@@ -174,7 +174,7 @@ class MockInterviewFinalizeServiceTest {
         UUID sessionId = UUID.randomUUID();
         MockInterviewSession session = mock(MockInterviewSession.class);
         given(session.getStatus()).willReturn(MockInterviewStatus.COMPLETED);
-        given(sessionRepository.findById(sessionId)).willReturn(Optional.of(session));
+        given(sessionRepository.findByIdForUpdate(sessionId)).willReturn(Optional.of(session));
 
         finalizeService.doFinalize(sessionId, false);
 
@@ -209,7 +209,7 @@ class MockInterviewFinalizeServiceTest {
         MockInterviewSession session = buildProcessingSession(sessionId, userId, false, true);
         given(session.getTurns()).willReturn(new ArrayList<>(List.of(turnWithRating, turnNoRating)));
 
-        given(sessionRepository.findById(sessionId)).willReturn(Optional.of(session));
+        given(sessionRepository.findByIdForUpdate(sessionId)).willReturn(Optional.of(session));
         given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResult());
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
@@ -234,7 +234,7 @@ class MockInterviewFinalizeServiceTest {
                 new com.devpick.domain.job.dto.MockInterviewModels.QuestionPlanResponse(
                         List.of(), List.of(), List.of(), List.of(), "Backend");
         given(planner.plan(any(), any(), any(), any(), any(), any())).willReturn(fallbackPlan);
-        given(sessionRepository.findById(sessionId)).willReturn(Optional.of(session));
+        given(sessionRepository.findByIdForUpdate(sessionId)).willReturn(Optional.of(session));
         given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResult());
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
@@ -254,7 +254,7 @@ class MockInterviewFinalizeServiceTest {
         MockInterviewSession session = buildProcessingSession(sessionId, userId, true, true);
         given(session.getAnsweredCount()).willReturn(0);
 
-        given(sessionRepository.findById(sessionId)).willReturn(Optional.of(session));
+        given(sessionRepository.findByIdForUpdate(sessionId)).willReturn(Optional.of(session));
         given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResult());
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
 
@@ -273,7 +273,7 @@ class MockInterviewFinalizeServiceTest {
         // jobPosting은 user가 없으면 호출되지 않으므로 스텁 제외
         MockInterviewSession session = buildProcessingSession(sessionId, userId, false, false);
 
-        given(sessionRepository.findById(sessionId)).willReturn(Optional.of(session));
+        given(sessionRepository.findByIdForUpdate(sessionId)).willReturn(Optional.of(session));
         given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResult());
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
 
@@ -283,5 +283,78 @@ class MockInterviewFinalizeServiceTest {
         then(sessionRepository).should().save(session);
         then(historyRepository).should(never()).save(any());
         then(pointService).should(never()).earn(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("AI 결과 scores가 모두 null이면 토큰 초과 notice 메시지가 주입된다")
+    void doFinalize_allNullScores_injectsNoticeMessage() {
+        UUID sessionId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        User user = mock(User.class);
+        MockInterviewSession session = buildProcessingSession(sessionId, userId, false, true);
+
+        Map<String, Object> resultWithNullScores = new HashMap<>();
+        resultWithNullScores.put("overallScore", null);
+        resultWithNullScores.put("perQuestion", new ArrayList<>());
+        resultWithNullScores.put("strengths", new ArrayList<>());
+        resultWithNullScores.put("improvements", new ArrayList<>());
+        resultWithNullScores.put("actionItems", new ArrayList<>());
+        resultWithNullScores.put("uncoveredKeywords", new ArrayList<>());
+        Map<String, Object> nullScores = new HashMap<>();
+        nullScores.put("framework", null);
+        nullScores.put("design", null);
+        resultWithNullScores.put("scores", nullScores);
+
+        given(sessionRepository.findByIdForUpdate(sessionId)).willReturn(Optional.of(session));
+        given(jobAiClient.finalizeMockInterview(any())).willReturn(resultWithNullScores);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+
+        finalizeService.doFinalize(sessionId, false);
+
+        then(session).should().setResultJson(argThat(json -> json != null && json.contains("\"notice\"")));
+        then(session).should().setStatus(MockInterviewStatus.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("AI 결과 perQuestion에 항목이 있으면 세션 turns에서 answerRaw가 주입된다")
+    void doFinalize_perQuestionHasItems_injectsAnswerRaw() {
+        UUID sessionId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        User user = mock(User.class);
+
+        MockInterviewTurn answerTurn = mock(MockInterviewTurn.class);
+        given(answerTurn.getOrderNo()).willReturn(0);
+        given(answerTurn.getQuestionNo()).willReturn(1);
+        given(answerTurn.getPhase()).willReturn(MockInterviewPhase.WARM_UP);
+        given(answerTurn.getType()).willReturn(MockInterviewTurnType.ANSWER);
+        given(answerTurn.getContent()).willReturn("제 답변입니다.");
+        given(answerTurn.getRating()).willReturn(null);
+
+        MockInterviewSession session = buildProcessingSession(sessionId, userId, false, true);
+        given(session.getTurns()).willReturn(new ArrayList<>(List.of(answerTurn)));
+
+        Map<String, Object> perQuestionItem = new HashMap<>();
+        perQuestionItem.put("questionNo", 1);
+        perQuestionItem.put("feedback", "좋음");
+
+        Map<String, Object> aiResultWithPerQuestion = new HashMap<>();
+        aiResultWithPerQuestion.put("overallScore", 80);
+        Map<String, Object> scores = new HashMap<>();
+        scores.put("framework", 75);
+        aiResultWithPerQuestion.put("scores", scores);
+        aiResultWithPerQuestion.put("strengths", new ArrayList<>());
+        aiResultWithPerQuestion.put("improvements", new ArrayList<>());
+        aiResultWithPerQuestion.put("actionItems", new ArrayList<>());
+        aiResultWithPerQuestion.put("uncoveredKeywords", new ArrayList<>());
+        aiResultWithPerQuestion.put("perQuestion", new ArrayList<>(List.of(perQuestionItem)));
+
+        given(sessionRepository.findByIdForUpdate(sessionId)).willReturn(Optional.of(session));
+        given(jobAiClient.finalizeMockInterview(any())).willReturn(aiResultWithPerQuestion);
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+
+        finalizeService.doFinalize(sessionId, false);
+
+        then(session).should().setResultJson(argThat(json -> json != null && json.contains("answerRaw")));
+        then(session).should().setStatus(MockInterviewStatus.COMPLETED);
     }
 }
