@@ -63,7 +63,7 @@ public class MockInterviewFinalizeService {
 
     @Transactional
     public void doFinalize(UUID sessionId, boolean early) {
-        MockInterviewSession session = sessionRepository.findById(sessionId).orElse(null);
+        MockInterviewSession session = sessionRepository.findByIdForUpdate(sessionId).orElse(null);
         if (session == null) {
             log.warn("[mock-finalize] session not found sessionId={}", sessionId);
             return;
