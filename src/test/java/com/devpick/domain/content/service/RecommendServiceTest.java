@@ -326,6 +326,15 @@ class RecommendServiceTest {
 
     // ─── YouTube 추천 테스트 (DP-463) ─────────────────────────────────────────
 
+    private Map<String, Object> channelFromJson(String json) {
+        if (json != null && json.contains("\"channelName\":\"")) {
+            int start = json.indexOf("\"channelName\":\"") + 15;
+            int end = json.indexOf("\"", start);
+            if (end > start) return Map.of("channelName", json.substring(start, end), "videoId", "v0");
+        }
+        return Map.of("channelName", "채널0", "videoId", "v0");
+    }
+
     private List<Content> makeYoutubeContents(int count) {
         ContentSource source = ContentSource.builder()
                 .name("YouTube").url("https://youtube.com").collectMethod("api").build();
@@ -334,7 +343,7 @@ class RecommendServiceTest {
             Content c = Content.builder()
                     .source(source).title("유튜브 영상 " + i).author("채널")
                     .canonicalUrl("https://youtube.com/v" + i)
-                    .extra("{\"channelName\":\"채널" + (i % 3) + "\",\"videoId\":\"v" + i + "\"}")
+                    .extra("{\"channelName\":\"채널" + (i % 5) + "\",\"videoId\":\"v" + i + "\"}")
                     .publishedAt(LocalDateTime.now().minusDays(i)).build();
             ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
             list.add(c);
@@ -354,12 +363,7 @@ class RecommendServiceTest {
         given(contentRepository.findYoutubeByExcludeTagIdsExcludingScrapped(anyList(), eq(userId), any()))
                 .willReturn(makeYoutubeContents(4));
         given(objectMapper.readValue(anyString(), any(TypeReference.class)))
-                .willAnswer(inv -> {
-                    String json = (String) inv.getArgument(0);
-                    if (json != null && json.contains("\"채널1\"")) return Map.of("channelName", "채널1", "videoId", "v1");
-                    if (json != null && json.contains("\"채널2\"")) return Map.of("channelName", "채널2", "videoId", "v2");
-                    return Map.of("channelName", "채널0", "videoId", "v0");
-                });
+                .willAnswer(inv -> channelFromJson(inv.getArgument(0)));
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 
@@ -405,7 +409,7 @@ class RecommendServiceTest {
         given(contentRepository.findLatestYoutubeExcludingScrapped(eq(userId), any()))
                 .willReturn(makeYoutubeContents(10));
         given(objectMapper.readValue(anyString(), any(TypeReference.class)))
-                .willReturn(Map.of("channelName", "채널0", "videoId", "v0"));
+                .willAnswer(inv -> channelFromJson(inv.getArgument(0)));
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 
@@ -430,7 +434,7 @@ class RecommendServiceTest {
         given(contentRepository.findYoutubeByExcludeTagIdsExcludingScrapped(anyList(), eq(userId), any()))
                 .willReturn(List.of());
         given(objectMapper.readValue(anyString(), any(TypeReference.class)))
-                .willReturn(Map.of("channelName", "채널0", "videoId", "v0"));
+                .willAnswer(inv -> channelFromJson(inv.getArgument(0)));
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 
@@ -453,7 +457,7 @@ class RecommendServiceTest {
         given(contentRepository.findLatestYoutubeExcludingScrapped(eq(userId), any()))
                 .willReturn(makeYoutubeContents(10));
         given(objectMapper.readValue(anyString(), any(TypeReference.class)))
-                .willReturn(Map.of("channelName", "채널0", "videoId", "v0"));
+                .willAnswer(inv -> channelFromJson(inv.getArgument(0)));
 
         YoutubeRecommendResponse result = recommendService.getRecommendYoutube(userId);
 

@@ -195,23 +195,33 @@ public class RecommendService {
                     tagScores);
 
             if (!ranked.isEmpty()) {
-                List<Content> result = new ArrayList<>(
-                        ranked.subList(0, Math.min(PERSONALIZED_SIZE, ranked.size())));
+                Map<String, Integer> channelCounts = new HashMap<>();
+                List<Content> result = new ArrayList<>();
+                for (Content c : ranked.subList(0, Math.min(PERSONALIZED_SIZE, ranked.size()))) {
+                    result.add(c);
+                    channelCounts.merge(extractChannel(c), 1, Integer::sum);
+                }
 
-                // 6. 탐색 여지: 관심 태그 외 영역 영상 2개
+                // 6. 탐색 여지: 채널 캡 적용하며 추가
                 Set<UUID> resultIds = new HashSet<>(viewedIds);
                 result.stream().map(Content::getId).forEach(resultIds::add);
-                List<Content> explore = findExploreVideos(topTagIds, userId, resultIds, RESULT_SIZE - result.size());
-                result.addAll(explore);
+                findExploreVideos(topTagIds, userId, resultIds, RESULT_SIZE * 2)
+                        .stream()
+                        .filter(c -> channelCounts.getOrDefault(extractChannel(c), 0) < MAX_PER_CHANNEL)
+                        .limit(RESULT_SIZE - result.size())
+                        .forEach(c -> {
+                            result.add(c);
+                            channelCounts.merge(extractChannel(c), 1, Integer::sum);
+                            resultIds.add(c.getId());
+                        });
 
-                // 7. 여전히 부족하면 최신 YouTube로 채움
+                // 7. 여전히 부족하면 최신 YouTube로 채움 (채널 캡 적용)
                 if (result.size() < RESULT_SIZE) {
-                    resultIds = new HashSet<>(viewedIds);
-                    result.stream().map(Content::getId).forEach(resultIds::add);
-                    Set<UUID> finalResultIds = resultIds;
-                    contentRepository.findLatestYoutubeExcludingScrapped(userId, PageRequest.of(0, RESULT_SIZE))
+                    Set<UUID> finalResultIds = new HashSet<>(resultIds);
+                    contentRepository.findLatestYoutubeExcludingScrapped(userId, PageRequest.of(0, RESULT_SIZE * 2))
                             .stream()
                             .filter(c -> !finalResultIds.contains(c.getId()))
+                            .filter(c -> channelCounts.getOrDefault(extractChannel(c), 0) < MAX_PER_CHANNEL)
                             .limit((long) RESULT_SIZE - result.size())
                             .forEach(result::add);
                 }
@@ -222,10 +232,18 @@ public class RecommendService {
             }
         }
 
-        // 8. Cold start: 최신 YouTube
+        // 8. Cold start: 최신 YouTube (채널 캡 적용)
         List<Content> latest = contentRepository.findLatestYoutubeExcludingScrapped(
                 userId, PageRequest.of(0, CANDIDATE_LIMIT));
-        return buildYoutubeResponse(shuffleAndTake(latest, userId), userId, false, NOT_ENOUGH_MESSAGE);
+        Map<String, Integer> coldChannelCounts = new HashMap<>();
+        List<Content> coldResult = new ArrayList<>();
+        for (Content c : shuffleAndTake(latest, userId)) {
+            if (coldChannelCounts.getOrDefault(extractChannel(c), 0) < MAX_PER_CHANNEL) {
+                coldResult.add(c);
+                coldChannelCounts.merge(extractChannel(c), 1, Integer::sum);
+            }
+        }
+        return buildYoutubeResponse(coldResult, userId, false, NOT_ENOUGH_MESSAGE);
     }
 
     Map<UUID, Double> buildWeightedTagScores(UUID userId) {
