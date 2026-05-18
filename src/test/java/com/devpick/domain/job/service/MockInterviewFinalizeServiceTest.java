@@ -313,6 +313,7 @@ class MockInterviewFinalizeServiceTest {
 
         then(session).should().setResultJson(argThat(json -> json != null && json.contains("\"notice\"")));
         then(session).should().setStatus(MockInterviewStatus.COMPLETED);
+        then(sessionRepository).should().save(session);
     }
 
     @Test
@@ -356,5 +357,6 @@ class MockInterviewFinalizeServiceTest {
 
         then(session).should().setResultJson(argThat(json -> json != null && json.contains("answerRaw")));
         then(session).should().setStatus(MockInterviewStatus.COMPLETED);
+        then(sessionRepository).should().save(session);
     }
 }
