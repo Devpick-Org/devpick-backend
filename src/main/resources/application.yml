@@ -35,11 +35,16 @@ aladin:
   ttb-key: ${ALADIN_TTB_KEY:}
 
 # Actuator: EC2/로드밸런서에서 /actuator/health 사용 시 노출 필요
+# Prometheus: /actuator/prometheus — 운영에서는 방화벽/VPC 내 스크레이프만 허용할 것
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: never
+  prometheus:
+    metrics:
+      export:
+        enabled: true

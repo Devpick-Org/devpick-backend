@@ -48,7 +48,8 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.GET, "/health", "/api/health", "/actuator/health")
+                        .requestMatchers(HttpMethod.GET, "/health", "/api/health", "/actuator/health",
+                                        "/actuator/prometheus")
                                 .permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/reports/weekly/share/**").permitAll()
