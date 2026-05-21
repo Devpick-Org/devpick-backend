@@ -49,7 +49,7 @@ class PlanLimitServiceTest {
         UUID userId = UUID.randomUUID();
         given(valueOps.increment(anyString())).willReturn(3L);
 
-        planLimitService.checkAndIncrementAiDaily(userId, PlanType.FREE);
+        planLimitService.checkAndIncrementAiDaily(userId, PlanType.FREE, "ai_refine");
 
         verify(valueOps).increment(anyString());
     }
@@ -60,7 +60,7 @@ class PlanLimitServiceTest {
         UUID userId = UUID.randomUUID();
         given(valueOps.increment(anyString())).willReturn(6L);
 
-        assertThatThrownBy(() -> planLimitService.checkAndIncrementAiDaily(userId, PlanType.FREE))
+        assertThatThrownBy(() -> planLimitService.checkAndIncrementAiDaily(userId, PlanType.FREE, "ai_refine"))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.SUBSCRIPTION_LIMIT_EXCEEDED));
@@ -74,7 +74,7 @@ class PlanLimitServiceTest {
         UUID userId = UUID.randomUUID();
         given(valueOps.increment(anyString())).willReturn(10L);
 
-        planLimitService.checkAndIncrementAiDaily(userId, PlanType.PRO);
+        planLimitService.checkAndIncrementAiDaily(userId, PlanType.PRO, "ai_answer");
 
         verify(valueOps).increment(anyString());
         verify(valueOps, never()).decrement(anyString());
@@ -86,7 +86,7 @@ class PlanLimitServiceTest {
         UUID userId = UUID.randomUUID();
         given(valueOps.increment(anyString())).willReturn(11L);
 
-        assertThatThrownBy(() -> planLimitService.checkAndIncrementAiDaily(userId, PlanType.PRO))
+        assertThatThrownBy(() -> planLimitService.checkAndIncrementAiDaily(userId, PlanType.PRO, "ai_answer"))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> {
                     DevpickException de = (DevpickException) e;
@@ -100,7 +100,7 @@ class PlanLimitServiceTest {
     void checkAndIncrementAiDaily_max_skipsCheck() {
         UUID userId = UUID.randomUUID();
 
-        planLimitService.checkAndIncrementAiDaily(userId, PlanType.MAX);
+        planLimitService.checkAndIncrementAiDaily(userId, PlanType.MAX, "ai_refine");
 
         verify(valueOps, never()).increment(anyString());
     }
@@ -183,7 +183,7 @@ class PlanLimitServiceTest {
     @DisplayName("AI 일 사용량 초과 — true 반환")
     void exceedsFreeLimit_aiDailyExceeded_returnsTrue() {
         given(valueOps.get(anyString())).willReturn("0");
-        given(valueOps.get(contains(":ai:"))).willReturn("6");
+        given(valueOps.get(contains(":ai_refine:"))).willReturn("6");
 
         assertThat(planLimitService.exceedsFreeLimit(UUID.randomUUID())).isTrue();
     }
@@ -211,7 +211,7 @@ class PlanLimitServiceTest {
     void getAiDailyInfo_free_returnsCorrectInfo() {
         given(valueOps.get(anyString())).willReturn("3");
 
-        var info = planLimitService.getAiDailyInfo(UUID.randomUUID(), PlanType.FREE);
+        var info = planLimitService.getAiDailyInfo(UUID.randomUUID(), PlanType.FREE, "ai_refine");
 
         assertThat(info.used()).isEqualTo(3);
         assertThat(info.max()).isEqualTo(5);
@@ -221,7 +221,7 @@ class PlanLimitServiceTest {
     @Test
     @DisplayName("MAX 유저 AI 일 사용량 조회 — 무제한(-1) 반환")
     void getAiDailyInfo_max_returnsUnlimited() {
-        var info = planLimitService.getAiDailyInfo(UUID.randomUUID(), PlanType.MAX);
+        var info = planLimitService.getAiDailyInfo(UUID.randomUUID(), PlanType.MAX, "ai_answer");
 
         assertThat(info.max()).isEqualTo(-1);
         assertThat(info.remaining()).isEqualTo(-1);

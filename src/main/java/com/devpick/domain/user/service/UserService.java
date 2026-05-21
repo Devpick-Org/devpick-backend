@@ -79,7 +79,8 @@ public class UserService {
                 .orElse(null);
 
         Map<String, PlanLimitInfo> limits = new LinkedHashMap<>();
-        limits.put("aiDaily",                   planLimitService.getAiDailyInfo(userId, user.getPlanType()));
+        limits.put("aiRefineDaily",              planLimitService.getAiDailyInfo(userId, user.getPlanType(), "ai_refine"));
+        limits.put("aiAnswerDaily",              planLimitService.getAiDailyInfo(userId, user.getPlanType(), "ai_answer"));
         limits.put("skillBoostWeekly",           planLimitService.getWeeklyInfo(userId, user.getPlanType(), "skill_boost"));
         limits.put("interviewQaGenerateWeekly",  planLimitService.getWeeklyInfo(userId, user.getPlanType(), "interview_qa_gen"));
         limits.put("mockInterviewWeekly",        planLimitService.getWeeklyInfo(userId, user.getPlanType(), "mock_interview"));

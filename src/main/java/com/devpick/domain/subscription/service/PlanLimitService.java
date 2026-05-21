@@ -26,14 +26,15 @@ public class PlanLimitService {
     private static final Map<String, String> FEATURE_KEY_MAP = Map.of(
             "skill_boost",      "skillBoostWeekly",
             "interview_qa_gen", "interviewQaGenerateWeekly",
-            "mock_interview",   "mockInterviewWeekly"
+            "mock_interview",   "mockInterviewWeekly",
+            "ai_refine",        "aiRefineDaily",
+            "ai_answer",        "aiAnswerDaily"
     );
 
-    // 플랜별 일 한도 (AI 질문 개선 + AI 답변 합산)
-    private static final Map<PlanType, Integer> AI_DAILY_MAX = Map.of(
-            PlanType.FREE, 5,
-            PlanType.PRO, 10,
-            PlanType.MAX, UNLIMITED
+    // 플랜별 일 한도 (AI 기능별 독립)
+    private static final Map<String, Map<PlanType, Integer>> AI_DAILY_MAX = Map.of(
+            "ai_refine", Map.of(PlanType.FREE, 5, PlanType.PRO, 10, PlanType.MAX, UNLIMITED),
+            "ai_answer", Map.of(PlanType.FREE, 5, PlanType.PRO, 10, PlanType.MAX, UNLIMITED)
     );
 
     // 플랜별 주 한도 (채용 AI 기능)
@@ -46,18 +47,19 @@ public class PlanLimitService {
     /**
      * AI 일 사용량 체크 + 증가.
      * Max 유저는 체크 없이 통과. 초과 시 SUBSCRIPTION_LIMIT_EXCEEDED 예외.
+     * feature: "ai_refine" | "ai_answer"
      */
-    public void checkAndIncrementAiDaily(UUID userId, PlanType planType) {
+    public void checkAndIncrementAiDaily(UUID userId, PlanType planType, String feature) {
         if (planType == PlanType.MAX) return;
 
-        int max = AI_DAILY_MAX.get(planType);
-        String key = dailyKey("ai", userId);
+        int max = AI_DAILY_MAX.get(feature).get(planType);
+        String key = dailyKey(feature, userId);
         long used = increment(key, dailyTtlSeconds());
 
         if (used > max) {
             redisTemplate.opsForValue().decrement(key);
             throw new DevpickException(ErrorCode.SUBSCRIPTION_LIMIT_EXCEEDED,
-                    Map.of("feature", "aiDaily",
+                    Map.of("feature", FEATURE_KEY_MAP.getOrDefault(feature, feature),
                            "resetsAt", nextMidnightUtc().toString(),
                            "requiredPlan", planType == PlanType.FREE ? "PRO" : "MAX"));
         }
@@ -88,18 +90,20 @@ public class PlanLimitService {
      * 환불 자격 검증에 사용.
      */
     public boolean exceedsFreeLimit(UUID userId) {
-        if (getCount(dailyKey("ai", userId)) > AI_DAILY_MAX.get(PlanType.FREE)) return true;
+        for (String feature : AI_DAILY_MAX.keySet()) {
+            if (getCount(dailyKey(feature, userId)) > AI_DAILY_MAX.get(feature).get(PlanType.FREE)) return true;
+        }
         for (String feature : WEEKLY_MAX.keySet()) {
             if (getCount(weeklyKey(feature, userId)) > WEEKLY_MAX.get(feature).get(PlanType.FREE)) return true;
         }
         return false;
     }
 
-    /** /users/me 응답용 — AI 일 사용량 조회 (카운터 증가 없음). */
-    public PlanLimitInfo getAiDailyInfo(UUID userId, PlanType planType) {
+    /** /users/me 응답용 — AI 일 사용량 조회 (카운터 증가 없음). feature: "ai_refine" | "ai_answer" */
+    public PlanLimitInfo getAiDailyInfo(UUID userId, PlanType planType, String feature) {
         if (planType == PlanType.MAX) return PlanLimitInfo.unlimited();
-        int max = AI_DAILY_MAX.get(planType);
-        int used = getCount(dailyKey("ai", userId));
+        int max = AI_DAILY_MAX.get(feature).get(planType);
+        int used = getCount(dailyKey(feature, userId));
         return new PlanLimitInfo(used, max, Math.max(0, max - used), nextMidnightUtc());
     }
 

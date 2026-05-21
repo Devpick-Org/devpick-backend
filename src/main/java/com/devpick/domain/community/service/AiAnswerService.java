@@ -44,7 +44,7 @@ public class AiAnswerService {
                 .orElseGet(() -> {
                     if (userId != null) {
                         userRepository.findById(userId).ifPresent(user ->
-                                planLimitService.checkAndIncrementAiDaily(userId, user.getPlanType()));
+                                planLimitService.checkAndIncrementAiDaily(userId, user.getPlanType(), "ai_answer"));
                     }
                     AiQuestion aiQuestion = aiQuestionRepository.findByPost_Id(postId).orElse(null);
                     AiAnswerClient.AiAnswerFastApiResponse aiResponse =

@@ -223,6 +223,6 @@ class AiAnswerServiceTest {
 
         aiAnswerService.generateOrGetAnswer(userId, postId);
 
-        verify(planLimitService).checkAndIncrementAiDaily(userId, user.getPlanType());
+        verify(planLimitService).checkAndIncrementAiDaily(userId, user.getPlanType(), "ai_answer");
     }
 }

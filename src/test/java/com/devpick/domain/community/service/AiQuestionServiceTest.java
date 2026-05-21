@@ -192,6 +192,6 @@ class AiQuestionServiceTest {
 
         aiQuestionService.refine(userId, request);
 
-        verify(planLimitService).checkAndIncrementAiDaily(userId, user.getPlanType());
+        verify(planLimitService).checkAndIncrementAiDaily(userId, user.getPlanType(), "ai_refine");
     }
 }
