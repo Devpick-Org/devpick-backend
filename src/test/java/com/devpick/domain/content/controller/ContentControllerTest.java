@@ -79,7 +79,7 @@ class ContentControllerTest {
                 "입문 가이드", null, null, null, "https://velog.io/@test/spring",
                 List.of("Spring"), Instant.now(), false, false,
                 null, null, null, null);
-        ContentListResponse response = new ContentListResponse(List.of(summary), 0, 20, 1L, 1);
+        ContentListResponse response = new ContentListResponse(List.of(summary), 0, 20, 1L, 1, false);
         given(contentService.getFeed(eq(userId), any())).willReturn(response);
 
         mockMvc.perform(get("/contents"))
@@ -97,7 +97,7 @@ class ContentControllerTest {
                 "훅 설명", null, null, null, "https://velog.io/@test/react",
                 List.of("React"), Instant.now(), false, false,
                 null, null, null, null);
-        ContentListResponse response = new ContentListResponse(List.of(summary), 0, 20, 1L, 1);
+        ContentListResponse response = new ContentListResponse(List.of(summary), 0, 20, 1L, 1, false);
         given(contentService.search(eq(userId), any(), any(), any())).willReturn(response);
 
         mockMvc.perform(get("/contents/search").param("query", "React"))
@@ -215,7 +215,7 @@ class ContentControllerTest {
                 "설명", null, null, null, "https://velog.io/@test/rec",
                 List.of("Spring"), Instant.now(), false, false,
                 null, null, null, null);
-        ContentListResponse response = new ContentListResponse(List.of(summary), 0, 5, 1L, 1);
+        ContentListResponse response = new ContentListResponse(List.of(summary), 0, 5, 1L, 1, false);
         given(contentService.getRecommendations(eq(userId), eq(contentId), any())).willReturn(response);
 
         mockMvc.perform(get("/contents/" + contentId + "/recommendations"))

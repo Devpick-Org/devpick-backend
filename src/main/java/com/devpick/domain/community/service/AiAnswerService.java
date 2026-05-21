@@ -32,11 +32,6 @@ public class AiAnswerService {
 
     @Transactional
     public AiAnswerResponse generateOrGetAnswer(UUID userId, UUID postId) {
-        if (userId != null) {
-            userRepository.findById(userId).ifPresent(user ->
-                    planLimitService.checkAndIncrementAiDaily(userId, user.getPlanType()));
-        }
-
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.COMMUNITY_POST_NOT_FOUND));
 
@@ -47,6 +42,10 @@ public class AiAnswerService {
         return aiAnswerRepository.findByPost_Id(postId)
                 .map(AiAnswerResponse::of)
                 .orElseGet(() -> {
+                    if (userId != null) {
+                        userRepository.findById(userId).ifPresent(user ->
+                                planLimitService.checkAndIncrementAiDaily(userId, user.getPlanType()));
+                    }
                     AiQuestion aiQuestion = aiQuestionRepository.findByPost_Id(postId).orElse(null);
                     AiAnswerClient.AiAnswerFastApiResponse aiResponse =
                             aiAnswerClient.generateAnswer(post, aiQuestion);

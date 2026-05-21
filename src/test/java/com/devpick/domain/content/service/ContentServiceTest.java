@@ -633,4 +633,55 @@ class ContentServiceTest {
 
         assertThat(response.title()).isEqualTo("Spring Boot 가이드");
     }
+
+    // ── getFeed 플랜 제한 ────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getFeed — 비로그인 유저 offset≥50이면 planLimited:true + 빈 배열")
+    void getFeed_anonymous_offsetOver50_returnsPlanLimited() {
+        ContentListResponse response = contentService.getFeed(null, PageRequest.of(3, 20)); // offset=60
+
+        assertThat(response.contents()).isEmpty();
+        assertThat(response.planLimited()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getFeed — Free 유저 offset<50이지만 pageSize 초과분 자르기")
+    void getFeed_freeUser_offsetNear50_truncatesPageSize() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user)); // FREE 기본값
+        given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+
+        // offset=40, size=20 → available=10이므로 size가 10으로 잘림
+        ContentListResponse response = contentService.getFeed(userId, PageRequest.of(2, 20));
+
+        assertThat(response.planLimited()).isFalse();
+        verify(contentRepository).findByIsAvailableTrueOrderByPublishedAtDesc(any());
+    }
+
+    @Test
+    @DisplayName("getFeed — Pro 유저는 50개 제한 없이 전체 반환")
+    void getFeed_proUser_noLimit() {
+        User proUser = User.builder()
+                .email("pro@devpick.kr").nickname("프로")
+                .job(Job.BACKEND).level(Level.JUNIOR)
+                .planType(com.devpick.domain.subscription.entity.PlanType.PRO)
+                .build();
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(proUser));
+        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of());
+        given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+
+        // offset=60이어도 Pro는 통과
+        ContentListResponse response = contentService.getFeed(userId, PageRequest.of(3, 20));
+
+        assertThat(response.contents()).hasSize(1);
+        assertThat(response.planLimited()).isFalse();
+    }
 }

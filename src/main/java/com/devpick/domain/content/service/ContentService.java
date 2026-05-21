@@ -66,6 +66,26 @@ public class ContentService {
     @Transactional(readOnly = true)
     public ContentListResponse getFeed(UUID userId, Pageable pageable) {
         boolean loggedIn = userId != null;
+
+        boolean isFreeOrGuest = !loggedIn || userRepository.findByIdAndIsActiveTrue(userId)
+                .map(u -> u.getPlanType() == com.devpick.domain.subscription.entity.PlanType.FREE)
+                .orElse(true);
+
+        if (isFreeOrGuest) {
+            int freeLimit = 50;
+            long offset = pageable.getOffset();
+            if (offset >= freeLimit) {
+                return new ContentListResponse(List.of(), pageable.getPageNumber(),
+                        pageable.getPageSize(), 0, 0, true);
+            }
+            int available = (int) (freeLimit - offset);
+            if (pageable.getPageSize() > available) {
+                pageable = PageRequest.of(pageable.getPageNumber(), available,
+                        pageable.getSort().isSorted() ? pageable.getSort()
+                                : org.springframework.data.domain.Sort.unsorted());
+            }
+        }
+
         List<UUID> tagIds = loggedIn
                 ? userTagRepository.findByUser_Id(userId).stream()
                 .map(ut -> ut.getTag().getId())
@@ -86,12 +106,7 @@ public class ContentService {
                             .orElse(c.getPreview());
                     boolean scrapped = loggedIn && scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId());
                     boolean liked = loggedIn && likeRepository.existsByUser_IdAndContent_Id(userId, c.getId());
-                    return ContentSummaryResponse.of(
-                            c,
-                            scrapped,
-                            liked,
-                            preview
-                    );
+                    return ContentSummaryResponse.of(c, scrapped, liked, preview);
                 })
                 .toList();
 
@@ -100,7 +115,8 @@ public class ContentService {
                 page.getNumber(),
                 page.getSize(),
                 page.getTotalElements(),
-                page.getTotalPages()
+                page.getTotalPages(),
+                false
         );
     }
 
@@ -264,7 +280,8 @@ public class ContentService {
                 page.getNumber(),
                 page.getSize(),
                 page.getTotalElements(),
-                page.getTotalPages()
+                page.getTotalPages(),
+                false
         );
     }
 
@@ -294,7 +311,7 @@ public class ContentService {
                             return ContentSummaryResponse.of(c, scrapped, liked, preview);
                         })
                         .toList();
-                return new ContentListResponse(aiContents, 0, aiContents.size(), (long) aiContents.size(), 1);
+                return new ContentListResponse(aiContents, 0, aiContents.size(), (long) aiContents.size(), 1, false);
             }
         } catch (Exception e) {
             log.warn("AI 유사 콘텐츠 조회 실패, fallback 사용: contentId={}", contentId);
@@ -330,6 +347,6 @@ public class ContentService {
                 })
                 .toList();
 
-        return new ContentListResponse(contents, 0, contents.size(), page.getTotalElements(), page.getTotalPages());
+        return new ContentListResponse(contents, 0, contents.size(), page.getTotalElements(), page.getTotalPages(), false);
     }
 }

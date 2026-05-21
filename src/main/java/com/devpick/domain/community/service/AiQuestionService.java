@@ -32,11 +32,12 @@ public class AiQuestionService {
 
     @Transactional
     public QuestionRefineResponse refine(UUID userId, QuestionRefineRequest request) {
+        QuestionRefineResponse response = aiQuestionClient.refine(request);
+
         if (userId != null) {
             userRepository.findById(userId).ifPresent(user ->
                     planLimitService.checkAndIncrementAiDaily(userId, user.getPlanType()));
         }
-        QuestionRefineResponse response = aiQuestionClient.refine(request);
 
         // postId가 있으면 AiQuestion에 결과 저장 (AI 답변 생성 시 refined 데이터 활용)
         if (request.postId() != null) {

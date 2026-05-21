@@ -7,6 +7,7 @@ public record ContentListResponse(
         int page,
         int size,
         long totalElements,
-        int totalPages
+        int totalPages,
+        boolean planLimited
 ) {
 }
