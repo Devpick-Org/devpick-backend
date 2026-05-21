@@ -49,6 +49,8 @@ services:
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
       AWS_S3_PUBLIC_BASE_URL: ${AWS_S3_PUBLIC_BASE_URL:-}
       ALADIN_TTB_KEY: ${ALADIN_TTB_KEY:-}
+      TOSS_SECRET_KEY: ${TOSS_SECRET_KEY}
+      TOSS_CLIENT_KEY: ${TOSS_CLIENT_KEY:-}
     dns:
       - 172.31.0.2  # AWS VPC DNS — ElastiCache 등 내부 hostname 해석용
     depends_on:
