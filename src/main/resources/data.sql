@@ -1,4 +1,8 @@
--- DP-495: plan_type NULL 백필 — 컬럼 추가 전 생성된 사용자 FREE 처리
+-- DP-495: plan_type 컬럼 보장 + NULL 백필 — ddl-auto 실행 순서와 무관하게 안전하게 처리
+ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_type VARCHAR(20);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS toss_billing_key VARCHAR(200);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS toss_customer_key VARCHAR(100);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_expired_at TIMESTAMP;
 UPDATE users SET plan_type = 'FREE' WHERE plan_type IS NULL;
 
 -- DP-467: post_type NULL 백필 — 컬럼 추가 전 생성된 게시글 보정 및 NOT NULL 제약 적용
