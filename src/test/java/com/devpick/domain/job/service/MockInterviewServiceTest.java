@@ -236,23 +236,53 @@ class MockInterviewServiceTest {
     @Test
     @DisplayName("startFromJd — null request 시 DevpickException을 던진다")
     void startFromJd_nullRequest_throwsException() {
-        assertThatThrownBy(() -> mockInterviewService.startFromJd(UUID.randomUUID(), null))
+        UUID userId = UUID.randomUUID();
+        com.devpick.domain.user.entity.User user = com.devpick.domain.user.entity.User.builder()
+                .email("u@t.kr").nickname("u")
+                .job(com.devpick.domain.user.entity.Job.BACKEND)
+                .level(com.devpick.domain.user.entity.Level.JUNIOR).build();
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> mockInterviewService.startFromJd(userId, null))
                 .isInstanceOf(DevpickException.class);
     }
 
     @Test
     @DisplayName("startFromJd — jobTitle null 시 DevpickException을 던진다")
     void startFromJd_nullTitle_throwsException() {
+        UUID userId = UUID.randomUUID();
+        com.devpick.domain.user.entity.User user = com.devpick.domain.user.entity.User.builder()
+                .email("u@t.kr").nickname("u")
+                .job(com.devpick.domain.user.entity.Job.BACKEND)
+                .level(com.devpick.domain.user.entity.Level.JUNIOR).build();
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+
         StartFromJdRequest req = new StartFromJdRequest("카카오", null, "BACKEND", "", null, null, null);
-        assertThatThrownBy(() -> mockInterviewService.startFromJd(UUID.randomUUID(), req))
+        assertThatThrownBy(() -> mockInterviewService.startFromJd(userId, req))
                 .isInstanceOf(DevpickException.class);
     }
 
     @Test
     @DisplayName("startFromJd — jobTitle 공백 시 DevpickException을 던진다")
     void startFromJd_blankTitle_throwsException() {
+        UUID userId = UUID.randomUUID();
+        com.devpick.domain.user.entity.User user = com.devpick.domain.user.entity.User.builder()
+                .email("u@t.kr").nickname("u")
+                .job(com.devpick.domain.user.entity.Job.BACKEND)
+                .level(com.devpick.domain.user.entity.Level.JUNIOR).build();
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+
         StartFromJdRequest req = new StartFromJdRequest("카카오", "  ", "BACKEND", "", null, null, null);
-        assertThatThrownBy(() -> mockInterviewService.startFromJd(UUID.randomUUID(), req))
+        assertThatThrownBy(() -> mockInterviewService.startFromJd(userId, req))
+                .isInstanceOf(DevpickException.class);
+    }
+
+    @Test
+    @DisplayName("startFromJob — 유저 없으면 USER_NOT_FOUND 예외")
+    void startFromJob_userNotFound_throwsException() {
+        given(userRepository.findById(any())).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> mockInterviewService.startFromJob(UUID.randomUUID(), UUID.randomUUID(), null))
                 .isInstanceOf(DevpickException.class);
     }
 

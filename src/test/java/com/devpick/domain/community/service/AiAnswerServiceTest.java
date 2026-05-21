@@ -200,4 +200,29 @@ class AiAnswerServiceTest {
         assertThat(result.content()).isEqualTo("refined 기반 답변");
         verify(aiAnswerClient).generateAnswer(post, aiQuestion);
     }
+
+    @Test
+    @DisplayName("userId가 null이 아니면 플랜 제한 체크 후 AI 답변을 생성한다")
+    void generateOrGetAnswer_withUserId_callsPlanLimitCheck() {
+        UUID userId = UUID.randomUUID();
+        com.devpick.domain.user.entity.User user = com.devpick.domain.user.entity.User.builder()
+                .email("u@t.kr").nickname("u")
+                .job(com.devpick.domain.user.entity.Job.BACKEND)
+                .level(Level.JUNIOR).build();
+        AiAnswer saved = AiAnswer.builder()
+                .post(post).content("답변").keyPoints(java.util.List.of())
+                .suggestedTags(java.util.List.of()).confidence(0.9).build();
+        org.springframework.test.util.ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(postRepository.findById(postId)).willReturn(Optional.of(post));
+        given(aiAnswerRepository.findByPost_Id(postId)).willReturn(Optional.empty());
+        given(aiQuestionRepository.findByPost_Id(postId)).willReturn(Optional.empty());
+        given(aiAnswerClient.generateAnswer(any(), any())).willReturn(fakeAiResponse);
+        given(aiAnswerRepository.save(any())).willReturn(saved);
+
+        aiAnswerService.generateOrGetAnswer(userId, postId);
+
+        verify(planLimitService).checkAndIncrementAiDaily(userId, user.getPlanType());
+    }
 }

@@ -417,6 +417,25 @@ class WeeklyReportServiceTest {
     }
 
     @Test
+    @DisplayName("getReportList — FREE 유저 7일 이상 지난 리포트는 locked=true")
+    void getReportList_freeUser_oldReport_isLocked() {
+        LocalDate oldWeekStart = LocalDate.now(ZONE_SEOUL).minusDays(14);
+        WeeklyReport oldReport = WeeklyReport.builder()
+                .user(user)
+                .weekStart(oldWeekStart)
+                .weekEnd(oldWeekStart.plusDays(6))
+                .status("generated")
+                .build();
+        ReflectionTestUtils.setField(oldReport, "id", UUID.randomUUID());
+        given(weeklyReportRepository.findByUserIdOrderByWeekStartDesc(userId))
+                .willReturn(List.of(oldReport));
+
+        List<ReportSummaryResponse> result = weeklyReportService.getReportList(userId);
+
+        assertThat(result.get(0).locked()).isTrue();
+    }
+
+    @Test
     @DisplayName("generateOrGetReport — 이미 존재하는 리포트면 기존 리포트 반환")
     void generateOrGetReport_alreadyExists_returnsExisting() {
         given(weeklyReportRepository.existsByUser_IdAndWeekStart(userId, weekStart)).willReturn(true);

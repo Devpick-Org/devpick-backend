@@ -175,4 +175,23 @@ class AiQuestionServiceTest {
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.AI_SERVER_ERROR));
     }
+
+    @Test
+    @DisplayName("userId가 null이 아니면 플랜 제한 체크 후 질문을 개선한다")
+    void refine_withUserId_callsPlanLimitCheck() {
+        UUID userId = UUID.randomUUID();
+        com.devpick.domain.user.entity.User user = com.devpick.domain.user.entity.User.builder()
+                .email("u@t.kr").nickname("u")
+                .job(com.devpick.domain.user.entity.Job.BACKEND)
+                .level(Level.JUNIOR).build();
+        QuestionRefineRequest request = new QuestionRefineRequest("title", "content", Level.JUNIOR, null);
+        QuestionRefineResponse response = new QuestionRefineResponse("refined", "content", List.of());
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(aiQuestionClient.refine(request)).willReturn(response);
+
+        aiQuestionService.refine(userId, request);
+
+        verify(planLimitService).checkAndIncrementAiDaily(userId, user.getPlanType());
+    }
 }
