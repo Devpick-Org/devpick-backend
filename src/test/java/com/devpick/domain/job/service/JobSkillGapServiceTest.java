@@ -6,16 +6,25 @@ import com.devpick.domain.job.dto.JobApiModels.SkillGapResponse;
 import com.devpick.domain.job.entity.EmploymentType;
 import com.devpick.domain.job.entity.JobPosting;
 import com.devpick.domain.job.entity.JobPostingCategory;
+import com.devpick.domain.job.entity.JobSkillGap;
 import com.devpick.domain.job.entity.PostingExperienceLevel;
 import com.devpick.domain.job.repository.JobBookmarkRepository;
 import com.devpick.domain.job.repository.JobPostingRepository;
+import com.devpick.domain.job.repository.JobSkillGapRepository;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.resume.entity.MasterResume;
 import com.devpick.domain.resume.repository.MasterResumeRepository;
 import com.devpick.domain.resume.service.ResumeCryptoService;
+import com.devpick.domain.subscription.service.PlanLimitService;
+import com.devpick.domain.user.entity.Job;
+import com.devpick.domain.user.entity.Level;
+import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.domain.user.repository.UserRepository;
+import com.devpick.global.common.exception.DevpickException;
+import com.devpick.global.common.exception.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,8 +41,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,7 +61,15 @@ class JobSkillGapServiceTest {
     @Mock private ContentRepository contentRepository;
     @Mock private JobAiClient jobAiClient;
     @Mock private HistoryRepository historyRepository;
+    @Mock private PlanLimitService planLimitService;
+    @Mock private JobSkillGapRepository jobSkillGapRepository;
     @Spy  private ObjectMapper objectMapper = new ObjectMapper();
+
+    @BeforeEach
+    void setUp() {
+        User freeUser = User.builder().email("u@t.kr").nickname("u").job(Job.BACKEND).level(Level.JUNIOR).build();
+        lenient().when(userRepository.findByIdAndIsActiveTrue(any())).thenReturn(Optional.of(freeUser));
+    }
 
     private static JobPosting postingWith(List<String> requiredSkills, List<String> techStack) {
         JobPosting p = JobPosting.builder()
@@ -164,5 +183,40 @@ class JobSkillGapServiceTest {
 
         assertThat(result.contents()).isEmpty();
         assertThat(result.roadmap()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getSkillGap — 저장된 결과 반환")
+    void getSkillGap_existingResult_returnsResponse() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID jobId = UUID.randomUUID();
+        SkillGapResponse expected = new SkillGapResponse(List.of("Java 학습"), List.of());
+        String json = new ObjectMapper().writeValueAsString(expected);
+
+        JobSkillGap entity = JobSkillGap.builder()
+                .userId(userId)
+                .jobPosting(postingWith(List.of(), List.of()))
+                .resultJson(json)
+                .build();
+        given(jobSkillGapRepository.findByUserIdAndJobPosting_Id(userId, jobId))
+                .willReturn(Optional.of(entity));
+
+        SkillGapResponse result = jobService.getSkillGap(userId, jobId);
+
+        assertThat(result.roadmap()).containsExactly("Java 학습");
+    }
+
+    @Test
+    @DisplayName("getSkillGap — 저장된 결과 없으면 JOB_SKILL_GAP_NOT_FOUND 예외")
+    void getSkillGap_notFound_throwsException() {
+        UUID userId = UUID.randomUUID();
+        UUID jobId = UUID.randomUUID();
+        given(jobSkillGapRepository.findByUserIdAndJobPosting_Id(userId, jobId))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> jobService.getSkillGap(userId, jobId))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.JOB_SKILL_GAP_NOT_FOUND));
     }
 }

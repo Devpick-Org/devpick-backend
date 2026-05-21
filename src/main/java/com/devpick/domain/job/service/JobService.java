@@ -20,14 +20,17 @@ import com.devpick.domain.job.entity.JobParseStatus;
 import com.devpick.domain.job.entity.JobPosting;
 import com.devpick.domain.job.entity.JobPostingCategory;
 import com.devpick.domain.job.entity.PostingExperienceLevel;
+import com.devpick.domain.job.entity.JobSkillGap;
 import com.devpick.domain.job.repository.JobBookmarkRepository;
 import com.devpick.domain.job.repository.JobPostingRepository;
 import com.devpick.domain.job.repository.JobPostingSpecifications;
+import com.devpick.domain.job.repository.JobSkillGapRepository;
 import com.devpick.domain.point.entity.PointAction;
 import com.devpick.domain.point.service.PointService;
 import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.resume.entity.MasterResume;
+import com.devpick.domain.subscription.service.PlanLimitService;
 import com.devpick.domain.resume.repository.MasterResumeRepository;
 import com.devpick.domain.resume.service.ResumeCryptoService;
 import com.devpick.domain.user.entity.Tag;
@@ -82,6 +85,8 @@ public class JobService {
     private final ObjectMapper objectMapper;
     private final HistoryRepository historyRepository;
     private final PointService pointService;
+    private final PlanLimitService planLimitService;
+    private final JobSkillGapRepository jobSkillGapRepository;
 
     @Transactional(readOnly = true)
     public List<TechTagFacetResponse> listTechTagFacets(Integer limit) {
@@ -386,8 +391,11 @@ public class JobService {
         );
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public SkillGapResponse skillGap(UUID userId, UUID jobId) {
+        var user = userRepository.findByIdAndIsActiveTrue(userId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
+        planLimitService.checkAndIncrementWeekly(userId, user.getPlanType(), "skill_boost");
         JobPosting p = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
         ensureListableJob(p);
@@ -411,7 +419,30 @@ public class JobService {
         // missing이 비어있으면(스킬 모두 보유) techStack 기준으로 콘텐츠 추천
         List<String> contentSkills = missing.isEmpty() ? p.getTechStack() : missing;
         List<ContentPickResponse> picks = recommendContents(contentSkills);
-        return new SkillGapResponse(roadmap, picks);
+        SkillGapResponse result = new SkillGapResponse(roadmap, picks);
+
+        try {
+            String resultJson = objectMapper.writeValueAsString(result);
+            JobSkillGap entity = jobSkillGapRepository.findByUserIdAndJobPosting_Id(userId, jobId)
+                    .orElseGet(() -> JobSkillGap.builder().userId(userId).jobPosting(p).resultJson("").build());
+            entity.setResultJson(resultJson);
+            jobSkillGapRepository.save(entity);
+        } catch (Exception e) {
+            // 저장 실패해도 응답은 정상 반환
+        }
+
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public SkillGapResponse getSkillGap(UUID userId, UUID jobId) {
+        JobSkillGap entity = jobSkillGapRepository.findByUserIdAndJobPosting_Id(userId, jobId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.JOB_SKILL_GAP_NOT_FOUND));
+        try {
+            return objectMapper.readValue(entity.getResultJson(), SkillGapResponse.class);
+        } catch (Exception e) {
+            throw new DevpickException(ErrorCode.JOB_SKILL_GAP_NOT_FOUND);
+        }
     }
 
     private List<ContentPickResponse> recommendContents(List<String> skills) {

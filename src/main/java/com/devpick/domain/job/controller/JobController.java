@@ -106,7 +106,15 @@ public class JobController {
         return ApiResponse.ok();
     }
 
-    @Operation(summary = "부족 역량 보완 추천")
+    @Operation(summary = "부족 역량 보완 — 마지막 저장 결과 조회")
+    @GetMapping("/" + JOB_ID + "/skill-gap")
+    public ApiResponse<SkillGapResponse> getSkillGap(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID jobId) {
+        return ApiResponse.ok(jobService.getSkillGap(userId, jobId));
+    }
+
+    @Operation(summary = "부족 역량 보완 추천 — 새로 생성 + 저장")
     @PostMapping("/" + JOB_ID + "/skill-gap")
     public ApiResponse<SkillGapResponse> skillGap(
             @AuthenticationPrincipal UUID userId,

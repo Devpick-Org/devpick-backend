@@ -44,6 +44,7 @@ public class AiQuizController {
             @Parameter(description = "퀴즈 레벨. 생략 시 로그인 사용자는 프로필 경력 수준, 비로그인은 JUNIOR", example = "MIDDLE")
             @RequestParam(required = false) String level) {
         String resolved = userService.resolvePreferredAiLevel(userId, level);
+        userService.checkAiLevelAccess(userId, resolved);
         return ApiResponse.ok(aiQuizService.getQuiz(userId, contentId, resolved));
     }
 

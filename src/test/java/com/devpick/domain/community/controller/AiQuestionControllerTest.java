@@ -16,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -45,6 +46,7 @@ class AiQuestionControllerTest {
         mockMvc = MockMvcBuilders
                 .standaloneSetup(aiQuestionController)
                 .setControllerAdvice(new GlobalExceptionHandler())
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .build();
     }
 
@@ -57,7 +59,7 @@ class AiQuestionControllerTest {
                 "Spring Framework 핵심 개념이란?",
                 "Spring Framework의 IoC, DI, AOP에 대해 설명해주세요.",
                 List.of("IoC/DI 개념을 명시하세요"));
-        given(aiQuestionService.refine(any())).willReturn(response);
+        given(aiQuestionService.refine(any(), any())).willReturn(response);
 
         mockMvc.perform(post("/posts/refine")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -85,7 +87,7 @@ class AiQuestionControllerTest {
     void refine_aiServerError_returns500() throws Exception {
         QuestionRefineRequest request = new QuestionRefineRequest(
                 "title", "content", Level.JUNIOR, null);
-        given(aiQuestionService.refine(any()))
+        given(aiQuestionService.refine(any(), any()))
                 .willThrow(new DevpickException(ErrorCode.AI_SERVER_ERROR));
 
         mockMvc.perform(post("/posts/refine")

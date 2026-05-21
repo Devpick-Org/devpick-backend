@@ -1,3 +1,6 @@
+-- DP-495: plan_type NULL 백필 — 컬럼 추가 전 생성된 사용자 FREE 처리
+UPDATE users SET plan_type = 'FREE' WHERE plan_type IS NULL;
+
 -- DP-467: post_type NULL 백필 — 컬럼 추가 전 생성된 게시글 보정 및 NOT NULL 제약 적용
 UPDATE posts SET post_type = 'TECH' WHERE post_type IS NULL;
 ALTER TABLE posts ALTER COLUMN post_type SET NOT NULL;

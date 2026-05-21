@@ -8,6 +8,8 @@ import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.domain.point.entity.Badge;
 import com.devpick.domain.point.entity.UserBadge;
 import com.devpick.domain.point.repository.UserBadgeRepository;
+import com.devpick.domain.subscription.repository.SubscriptionRepository;
+import com.devpick.domain.subscription.service.PlanLimitService;
 import com.devpick.domain.user.dto.PublicUserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
@@ -67,6 +69,10 @@ class UserServiceTest {
     private AnswerRepository answerRepository;
     @Mock
     private FileStorageService fileStorageService;
+    @Mock
+    private PlanLimitService planLimitService;
+    @Mock
+    private SubscriptionRepository subscriptionRepository;
 
     private UUID userId;
     private User user;
@@ -356,5 +362,40 @@ class UserServiceTest {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
 
         assertThat(userService.resolvePreferredAiLevel(userId, null)).isEqualTo("JUNIOR");
+    }
+
+    // ── checkAiLevelAccess ───────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("checkAiLevelAccess — userId null이면 예외 없이 통과")
+    void checkAiLevelAccess_nullUserId_passes() {
+        userService.checkAiLevelAccess(null, "JUNIOR");
+    }
+
+    @Test
+    @DisplayName("checkAiLevelAccess — FREE 유저 본인 레벨 요청 시 통과")
+    void checkAiLevelAccess_freeUser_sameLevel_passes() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+
+        userService.checkAiLevelAccess(userId, "JUNIOR");
+    }
+
+    @Test
+    @DisplayName("checkAiLevelAccess — FREE 유저 다른 레벨 요청 시 SUBSCRIPTION_PLAN_REQUIRED 예외")
+    void checkAiLevelAccess_freeUser_differentLevel_throwsException() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> userService.checkAiLevelAccess(userId, "SENIOR"))
+                .isInstanceOf(DevpickException.class)
+                .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.SUBSCRIPTION_PLAN_REQUIRED));
+    }
+
+    @Test
+    @DisplayName("checkAiLevelAccess — 사용자 없으면 예외 없이 통과")
+    void checkAiLevelAccess_userNotFound_passes() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
+
+        userService.checkAiLevelAccess(userId, "SENIOR");
     }
 }

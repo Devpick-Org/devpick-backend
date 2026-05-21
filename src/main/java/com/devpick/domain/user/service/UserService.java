@@ -4,6 +4,11 @@ import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.domain.point.repository.UserBadgeRepository;
 import com.devpick.domain.point.service.BadgeService;
+import com.devpick.domain.subscription.dto.PlanLimitInfo;
+import com.devpick.domain.subscription.entity.Subscription;
+import com.devpick.domain.subscription.entity.SubscriptionStatus;
+import com.devpick.domain.subscription.repository.SubscriptionRepository;
+import com.devpick.domain.subscription.service.PlanLimitService;
 import com.devpick.domain.user.dto.PublicUserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
@@ -23,7 +28,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -39,6 +47,8 @@ public class UserService {
     private final PostRepository postRepository;
     private final AnswerRepository answerRepository;
     private final FileStorageService fileStorageService;
+    private final PlanLimitService planLimitService;
+    private final SubscriptionRepository subscriptionRepository;
 
     @Transactional(readOnly = true)
     public PublicUserProfileResponse getPublicProfile(UUID targetUserId) {
@@ -55,7 +65,31 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(UUID userId) {
         User user = findActiveUser(userId);
-        return UserProfileResponse.of(user, badgeService.getRepresentativeBadge(user.getId()).orElse(null));
+
+        var activeSubscription = subscriptionRepository
+                .findTopByUserIdAndStatusOrderByStartedAtDesc(userId, SubscriptionStatus.ACTIVE);
+
+        java.time.Instant lastBilledAt = activeSubscription
+                .map(Subscription::getStartedAt)
+                .map(ldt -> ldt.toInstant(ZoneOffset.UTC))
+                .orElse(null);
+
+        com.devpick.domain.subscription.entity.PlanType pendingPlanType = activeSubscription
+                .map(Subscription::getPendingPlanType)
+                .orElse(null);
+
+        Map<String, PlanLimitInfo> limits = new LinkedHashMap<>();
+        limits.put("aiDaily",                   planLimitService.getAiDailyInfo(userId, user.getPlanType()));
+        limits.put("skillBoostWeekly",           planLimitService.getWeeklyInfo(userId, user.getPlanType(), "skill_boost"));
+        limits.put("interviewQaGenerateWeekly",  planLimitService.getWeeklyInfo(userId, user.getPlanType(), "interview_qa_gen"));
+        limits.put("mockInterviewWeekly",        planLimitService.getWeeklyInfo(userId, user.getPlanType(), "mock_interview"));
+
+        return UserProfileResponse.of(
+                user,
+                badgeService.getRepresentativeBadge(user.getId()).orElse(null),
+                pendingPlanType,
+                lastBilledAt,
+                limits);
     }
 
     @Transactional
@@ -94,6 +128,20 @@ public class UserService {
         User user = findActiveUser(userId);
         user.softDelete();
         refreshTokenRepository.deleteByUser(user);
+    }
+
+    /**
+     * Free 유저가 본인 레벨 외 다른 레벨을 요청하면 SUBSCRIPTION_PLAN_REQUIRED 예외를 던진다.
+     */
+    @Transactional(readOnly = true)
+    public void checkAiLevelAccess(UUID userId, String requestedLevel) {
+        if (userId == null || requestedLevel == null || requestedLevel.isBlank()) return;
+        User user = userRepository.findByIdAndIsActiveTrue(userId).orElse(null);
+        if (user == null) return;
+        if (user.isFree() && !user.getLevel().name().equalsIgnoreCase(requestedLevel.trim())) {
+            throw new DevpickException(ErrorCode.SUBSCRIPTION_PLAN_REQUIRED,
+                    Map.of("requiredPlan", "PRO"));
+        }
     }
 
     /**

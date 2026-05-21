@@ -110,6 +110,7 @@ class WeeklyReportServiceTest {
                 .build();
         ReflectionTestUtils.setField(user, "id", userId);
         lenient().when(highlightEngine.generate(any())).thenReturn("[]");
+        lenient().when(userRepository.findByIdAndIsActiveTrue(userId)).thenReturn(Optional.of(user));
 
         ReportActivity activity = ReportActivity.builder()
                 .contentsRead(5)
@@ -413,6 +414,25 @@ class WeeklyReportServiceTest {
         List<ReportSummaryResponse> result = weeklyReportService.getReportList(userId);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getReportList — FREE 유저 7일 이상 지난 리포트는 locked=true")
+    void getReportList_freeUser_oldReport_isLocked() {
+        LocalDate oldWeekStart = LocalDate.now(ZONE_SEOUL).minusDays(14);
+        WeeklyReport oldReport = WeeklyReport.builder()
+                .user(user)
+                .weekStart(oldWeekStart)
+                .weekEnd(oldWeekStart.plusDays(6))
+                .status("generated")
+                .build();
+        ReflectionTestUtils.setField(oldReport, "id", UUID.randomUUID());
+        given(weeklyReportRepository.findByUserIdOrderByWeekStartDesc(userId))
+                .willReturn(List.of(oldReport));
+
+        List<ReportSummaryResponse> result = weeklyReportService.getReportList(userId);
+
+        assertThat(result.get(0).locked()).isTrue();
     }
 
     @Test
