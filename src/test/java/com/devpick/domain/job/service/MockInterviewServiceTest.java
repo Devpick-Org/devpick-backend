@@ -15,6 +15,8 @@ import com.devpick.domain.job.repository.JobPostingRepository;
 import com.devpick.domain.job.repository.MockInterviewSessionRepository;
 import com.devpick.domain.resume.repository.MasterResumeRepository;
 import com.devpick.domain.resume.service.ResumeCryptoService;
+import com.devpick.domain.subscription.service.PlanLimitService;
+import com.devpick.domain.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,6 +56,8 @@ class MockInterviewServiceTest {
     @Mock private JobAiClient jobAiClient;
     @Spy  private ObjectMapper objectMapper = new ObjectMapper();
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private UserRepository userRepository;
+    @Mock private PlanLimitService planLimitService;
 
     private static final String MINIMAL_PLAN_JSON = """
             {

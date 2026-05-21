@@ -25,6 +25,8 @@ import com.devpick.domain.job.repository.JobPostingRepository;
 import com.devpick.domain.job.repository.MockInterviewSessionRepository;
 import com.devpick.domain.resume.repository.MasterResumeRepository;
 import com.devpick.domain.resume.service.ResumeCryptoService;
+import com.devpick.domain.subscription.service.PlanLimitService;
+import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -60,6 +62,8 @@ public class MockInterviewService {
     private final JobAiClient jobAiClient;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserRepository userRepository;
+    private final PlanLimitService planLimitService;
 
     @Transactional(readOnly = true)
     public HistoryListResponse listForUser(UUID userId) {
@@ -78,6 +82,9 @@ public class MockInterviewService {
 
     @Transactional
     public SessionDetailResponse startFromJob(UUID userId, UUID jobId, StartFromJobRequest request) {
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
+        planLimitService.checkAndIncrementWeekly(userId, user.getPlanType(), "mock_interview");
         JobPosting job = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
         String resumeJson = loadResumeJson(userId);
@@ -111,6 +118,9 @@ public class MockInterviewService {
 
     @Transactional
     public SessionDetailResponse startFromJd(UUID userId, StartFromJdRequest request) {
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
+        planLimitService.checkAndIncrementWeekly(userId, user.getPlanType(), "mock_interview");
         if (request == null || request.jobTitle() == null || request.jobTitle().isBlank()) {
             throw new DevpickException(ErrorCode.INVALID_INPUT);
         }

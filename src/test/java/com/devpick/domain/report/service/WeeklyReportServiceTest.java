@@ -110,6 +110,7 @@ class WeeklyReportServiceTest {
                 .build();
         ReflectionTestUtils.setField(user, "id", userId);
         lenient().when(highlightEngine.generate(any())).thenReturn("[]");
+        lenient().when(userRepository.findByIdAndIsActiveTrue(userId)).thenReturn(Optional.of(user));
 
         ReportActivity activity = ReportActivity.builder()
                 .contentsRead(5)

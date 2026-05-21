@@ -7,7 +7,9 @@ import com.devpick.domain.community.entity.AiQuestion;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.subscription.service.PlanLimitService;
 import com.devpick.domain.user.entity.Level;
+import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -47,6 +49,10 @@ class AiQuestionServiceTest {
     private PostRepository postRepository;
     @Mock
     private ObjectMapper objectMapper;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private PlanLimitService planLimitService;
 
     private UUID postId;
     private Post post;
@@ -73,7 +79,7 @@ class AiQuestionServiceTest {
                 List.of("IoC/DI 개념을 명시하면 더 좋은 답변을 받을 수 있어요"));
         given(aiQuestionClient.refine(request)).willReturn(expected);
 
-        QuestionRefineResponse response = aiQuestionService.refine(request);
+        QuestionRefineResponse response = aiQuestionService.refine(null, request);
 
         assertThat(response.refinedTitle()).isEqualTo("Spring Framework 핵심 개념이란?");
         assertThat(response.suggestions()).hasSize(1);
@@ -95,7 +101,7 @@ class AiQuestionServiceTest {
         given(aiQuestionRepository.findByPost_Id(postId)).willReturn(Optional.empty());
         given(objectMapper.writeValueAsString(any())).willReturn("[\"IoC 태그 추가 권장\"]");
 
-        QuestionRefineResponse response = aiQuestionService.refine(request);
+        QuestionRefineResponse response = aiQuestionService.refine(null, request);
 
         assertThat(response.refinedTitle()).isEqualTo("Spring Framework 핵심 개념이란?");
         verify(aiQuestionRepository).save(any(AiQuestion.class));
@@ -111,7 +117,7 @@ class AiQuestionServiceTest {
         given(aiQuestionClient.refine(request)).willReturn(expected);
         given(postRepository.findById(postId)).willReturn(Optional.empty());
 
-        QuestionRefineResponse response = aiQuestionService.refine(request);
+        QuestionRefineResponse response = aiQuestionService.refine(null, request);
 
         assertThat(response.refinedTitle()).isEqualTo("refined");
         verify(aiQuestionRepository, never()).save(any());
@@ -135,7 +141,7 @@ class AiQuestionServiceTest {
         given(aiQuestionRepository.findByPost_Id(postId)).willReturn(Optional.of(existing));
         given(objectMapper.writeValueAsString(any())).willReturn("[]");
 
-        aiQuestionService.refine(request);
+        aiQuestionService.refine(null, request);
 
         verify(aiQuestionRepository, times(1)).findByPost_Id(postId);
         verify(aiQuestionRepository, never()).save(any());
@@ -152,7 +158,7 @@ class AiQuestionServiceTest {
         given(aiQuestionRepository.findByPost_Id(postId)).willReturn(Optional.empty());
         given(objectMapper.writeValueAsString(any())).willThrow(new JsonProcessingException("fail") {});
 
-        aiQuestionService.refine(request);
+        aiQuestionService.refine(null, request);
 
         verify(aiQuestionRepository).save(any(AiQuestion.class));
     }
@@ -164,7 +170,7 @@ class AiQuestionServiceTest {
         given(aiQuestionClient.refine(request))
                 .willThrow(new DevpickException(ErrorCode.AI_SERVER_ERROR));
 
-        assertThatThrownBy(() -> aiQuestionService.refine(request))
+        assertThatThrownBy(() -> aiQuestionService.refine(null, request))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.AI_SERVER_ERROR));

@@ -7,12 +7,16 @@ import com.devpick.domain.community.entity.AiQuestion;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.subscription.service.PlanLimitService;
+import com.devpick.domain.user.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -23,9 +27,15 @@ public class AiQuestionService {
     private final AiQuestionRepository aiQuestionRepository;
     private final PostRepository postRepository;
     private final ObjectMapper objectMapper;
+    private final UserRepository userRepository;
+    private final PlanLimitService planLimitService;
 
     @Transactional
-    public QuestionRefineResponse refine(QuestionRefineRequest request) {
+    public QuestionRefineResponse refine(UUID userId, QuestionRefineRequest request) {
+        if (userId != null) {
+            userRepository.findById(userId).ifPresent(user ->
+                    planLimitService.checkAndIncrementAiDaily(userId, user.getPlanType()));
+        }
         QuestionRefineResponse response = aiQuestionClient.refine(request);
 
         // postId가 있으면 AiQuestion에 결과 저장 (AI 답변 생성 시 refined 데이터 활용)

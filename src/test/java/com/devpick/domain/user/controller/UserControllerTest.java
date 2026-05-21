@@ -4,6 +4,7 @@ import com.devpick.domain.user.dto.PublicUserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
 import com.devpick.domain.user.dto.UserProfileUpdateResponse;
+import com.devpick.domain.subscription.entity.PlanType;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.domain.user.service.UserService;
@@ -110,7 +111,8 @@ class UserControllerTest {
     void getProfile_success() throws Exception {
         UserProfileResponse response = new UserProfileResponse(
                 userId, "test@devpick.kr", "테스트유저", null,
-                Job.BACKEND, Level.JUNIOR, List.of("React"), Instant.now(), 0, null);
+                Job.BACKEND, Level.JUNIOR, List.of("React"), Instant.now(), 0, null,
+                PlanType.FREE, null, null, null, null);
         given(userService.getProfile(userId)).willReturn(response);
 
         mockMvc.perform(get("/users/me"))

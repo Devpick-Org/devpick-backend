@@ -9,10 +9,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 @Tag(name = "AI Question", description = "AI 질문 개선")
 @RestController
@@ -29,7 +32,9 @@ public class AiQuestionController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "AI 서버 오류")
     })
     @PostMapping("/refine")
-    public ApiResponse<QuestionRefineResponse> refine(@Valid @RequestBody QuestionRefineRequest request) {
-        return ApiResponse.ok(aiQuestionService.refine(request));
+    public ApiResponse<QuestionRefineResponse> refine(
+            @AuthenticationPrincipal UUID userId,
+            @Valid @RequestBody QuestionRefineRequest request) {
+        return ApiResponse.ok(aiQuestionService.refine(userId, request));
     }
 }

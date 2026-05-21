@@ -17,6 +17,7 @@ import com.devpick.domain.report.entity.ReportActivity;
 import com.devpick.domain.report.entity.WeeklyReport;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.report.repository.WeeklyReportRepository;
+import com.devpick.domain.subscription.entity.PlanType;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.entity.UserTag;
 import com.devpick.domain.user.repository.UserRepository;
@@ -70,8 +71,17 @@ public class WeeklyReportService {
     // DP-256: 리포트 목록 조회 (드롭다운용 최소 필드)
     @Transactional(readOnly = true)
     public List<ReportSummaryResponse> getReportList(UUID userId) {
+        User user = userRepository.findByIdAndIsActiveTrue(userId)
+                .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
+        boolean isFree = user.getPlanType() == PlanType.FREE;
+        LocalDate cutoff = LocalDate.now(ZONE_SEOUL).minusDays(7);
+
         return weeklyReportRepository.findByUserIdOrderByWeekStartDesc(userId).stream()
-                .map(ReportSummaryResponse::of)
+                .map(report -> {
+                    boolean locked = isFree && report.getWeekStart() != null
+                            && report.getWeekStart().isBefore(cutoff);
+                    return ReportSummaryResponse.of(report, locked);
+                })
                 .toList();
     }
 

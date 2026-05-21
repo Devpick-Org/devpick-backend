@@ -9,7 +9,9 @@ import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.community.repository.AiAnswerRepository;
 import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.subscription.service.PlanLimitService;
 import com.devpick.domain.user.entity.Level;
+import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +48,10 @@ class AiAnswerServiceTest {
     private PostRepository postRepository;
     @Mock
     private AiAnswerClient aiAnswerClient;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private PlanLimitService planLimitService;
 
     private UUID postId;
     private Post post;
@@ -75,7 +81,7 @@ class AiAnswerServiceTest {
     void generateOrGetAnswer_postNotFound_throwsException() {
         given(postRepository.findById(postId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> aiAnswerService.generateOrGetAnswer(postId))
+        assertThatThrownBy(() -> aiAnswerService.generateOrGetAnswer(null, postId))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.COMMUNITY_POST_NOT_FOUND));
@@ -100,7 +106,7 @@ class AiAnswerServiceTest {
         given(postRepository.findById(postId)).willReturn(Optional.of(post));
         given(aiAnswerRepository.findByPost_Id(postId)).willReturn(Optional.of(existing));
 
-        AiAnswerResponse result = aiAnswerService.generateOrGetAnswer(postId);
+        AiAnswerResponse result = aiAnswerService.generateOrGetAnswer(null, postId);
 
         assertThat(result.id()).isEqualTo(answerId);
         assertThat(result.content()).isEqualTo("기존 AI 답변");
@@ -130,7 +136,7 @@ class AiAnswerServiceTest {
         given(aiAnswerClient.generateAnswer(post, null)).willReturn(fakeAiResponse);
         given(aiAnswerRepository.save(any(AiAnswer.class))).willReturn(saved);
 
-        AiAnswerResponse result = aiAnswerService.generateOrGetAnswer(postId);
+        AiAnswerResponse result = aiAnswerService.generateOrGetAnswer(null, postId);
 
         assertThat(result.id()).isEqualTo(answerId);
         assertThat(result.content()).isEqualTo("AI가 생성한 답변");
@@ -155,7 +161,7 @@ class AiAnswerServiceTest {
 
         given(postRepository.findById(postId)).willReturn(Optional.of(careerPost));
 
-        assertThatThrownBy(() -> aiAnswerService.generateOrGetAnswer(postId))
+        assertThatThrownBy(() -> aiAnswerService.generateOrGetAnswer(null, postId))
                 .isInstanceOf(DevpickException.class)
                 .satisfies(e -> assertThat(((DevpickException) e).getErrorCode())
                         .isEqualTo(ErrorCode.COMMUNITY_AI_NOT_SUPPORTED));
@@ -189,7 +195,7 @@ class AiAnswerServiceTest {
         given(aiAnswerClient.generateAnswer(post, aiQuestion)).willReturn(fakeAiResponse);
         given(aiAnswerRepository.save(any(AiAnswer.class))).willReturn(saved);
 
-        AiAnswerResponse result = aiAnswerService.generateOrGetAnswer(postId);
+        AiAnswerResponse result = aiAnswerService.generateOrGetAnswer(null, postId);
 
         assertThat(result.content()).isEqualTo("refined 기반 답변");
         verify(aiAnswerClient).generateAnswer(post, aiQuestion);

@@ -113,7 +113,8 @@ class ReportControllerTest {
                 reportId,
                 LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay().toInstant(ZoneOffset.UTC),
                 LocalDate.now().with(DayOfWeek.MONDAY).plusDays(6).atStartOfDay().toInstant(ZoneOffset.UTC),
-                "generated"
+                "generated",
+                false
         );
         given(weeklyReportService.getReportList(userId)).willReturn(List.of(summary));
 
@@ -207,7 +208,8 @@ class ReportControllerTest {
                 reportId,
                 weekStartInstant,
                 weekStartInstant.plusSeconds(6 * 24 * 60 * 60),
-                "generated"
+                "generated",
+                false
         );
         given(weeklyReportService.getReportList(userId)).willReturn(List.of(summary));
 

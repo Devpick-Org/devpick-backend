@@ -13,9 +13,14 @@ import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.resume.entity.MasterResume;
 import com.devpick.domain.resume.repository.MasterResumeRepository;
 import com.devpick.domain.resume.service.ResumeCryptoService;
+import com.devpick.domain.subscription.service.PlanLimitService;
+import com.devpick.domain.user.entity.Job;
+import com.devpick.domain.user.entity.Level;
+import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +39,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,7 +56,14 @@ class JobSkillGapServiceTest {
     @Mock private ContentRepository contentRepository;
     @Mock private JobAiClient jobAiClient;
     @Mock private HistoryRepository historyRepository;
+    @Mock private PlanLimitService planLimitService;
     @Spy  private ObjectMapper objectMapper = new ObjectMapper();
+
+    @BeforeEach
+    void setUp() {
+        User freeUser = User.builder().email("u@t.kr").nickname("u").job(Job.BACKEND).level(Level.JUNIOR).build();
+        lenient().when(userRepository.findByIdAndIsActiveTrue(any())).thenReturn(Optional.of(freeUser));
+    }
 
     private static JobPosting postingWith(List<String> requiredSkills, List<String> techStack) {
         JobPosting p = JobPosting.builder()

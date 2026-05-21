@@ -114,7 +114,17 @@ public enum ErrorCode {
     JOB_BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_002", "북마크한 공고가 아닙니다."),
     RESUME_NOT_FOUND(HttpStatus.NOT_FOUND, "RESUME_001", "마스터 이력서가 없습니다. 먼저 작성해 주세요."),
     RESUME_DOCUMENT_TEXT_EMPTY(HttpStatus.BAD_REQUEST, "RESUME_003", "이력서 파일에서 텍스트를 추출하지 못했습니다. 다른 형식으로 저장했는지 확인해 주세요."),
-    INTERVIEW_QA_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_003", "면접 Q&A가 없습니다.");
+    INTERVIEW_QA_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_003", "면접 Q&A가 없습니다."),
+    JOB_SKILL_GAP_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_004", "저장된 부족 역량 분석 결과가 없습니다."),
+
+    // Subscription / Payment (DP-495)
+    SUBSCRIPTION_ALREADY_ACTIVE(HttpStatus.CONFLICT, "PAYMENT_001", "이미 구독 중입니다."),
+    SUBSCRIPTION_PAYMENT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PAYMENT_002", "결제 처리 중 오류가 발생했습니다."),
+    SUBSCRIPTION_PLAN_REQUIRED(HttpStatus.FORBIDDEN, "PAYMENT_003", "상위 플랜이 필요한 기능입니다."),
+    SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "PAYMENT_004", "구독 정보를 찾을 수 없습니다."),
+    SUBSCRIPTION_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "PAYMENT_005", "플랜 사용 한도를 초과했습니다."),
+    SUBSCRIPTION_REFUND_PERIOD_EXPIRED(HttpStatus.CONFLICT, "PAYMENT_006", "결제 취소 가능 기간(7일)이 지났습니다."),
+    SUBSCRIPTION_REFUND_USAGE_EXCEEDED(HttpStatus.CONFLICT, "PAYMENT_007", "프리 플랜 기준을 초과하여 사용한 이력이 있어 결제 취소가 불가합니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

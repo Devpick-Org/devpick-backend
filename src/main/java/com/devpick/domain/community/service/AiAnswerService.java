@@ -9,6 +9,8 @@ import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.community.repository.AiAnswerRepository;
 import com.devpick.domain.community.repository.AiQuestionRepository;
 import com.devpick.domain.community.repository.PostRepository;
+import com.devpick.domain.subscription.service.PlanLimitService;
+import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -25,9 +27,16 @@ public class AiAnswerService {
     private final AiQuestionRepository aiQuestionRepository;
     private final PostRepository postRepository;
     private final AiAnswerClient aiAnswerClient;
+    private final UserRepository userRepository;
+    private final PlanLimitService planLimitService;
 
     @Transactional
-    public AiAnswerResponse generateOrGetAnswer(UUID postId) {
+    public AiAnswerResponse generateOrGetAnswer(UUID userId, UUID postId) {
+        if (userId != null) {
+            userRepository.findById(userId).ifPresent(user ->
+                    planLimitService.checkAndIncrementAiDaily(userId, user.getPlanType()));
+        }
+
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.COMMUNITY_POST_NOT_FOUND));
 

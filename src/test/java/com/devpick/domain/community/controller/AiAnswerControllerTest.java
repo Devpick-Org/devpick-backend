@@ -23,6 +23,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -71,7 +73,7 @@ class AiAnswerControllerTest {
     @Test
     @DisplayName("POST /posts/{postId}/ai-answer - AI 답변 생성 성공 시 200 반환")
     void generateAiAnswer_success_returns200() throws Exception {
-        given(aiAnswerService.generateOrGetAnswer(postId)).willReturn(aiAnswerResponse);
+        given(aiAnswerService.generateOrGetAnswer(any(), eq(postId))).willReturn(aiAnswerResponse);
 
         mockMvc.perform(post("/posts/" + postId + "/ai-answer"))
                 .andExpect(status().isOk())
@@ -86,7 +88,7 @@ class AiAnswerControllerTest {
     @Test
     @DisplayName("POST /posts/{postId}/ai-answer - 게시글 없으면 404 반환")
     void generateAiAnswer_postNotFound_returns404() throws Exception {
-        given(aiAnswerService.generateOrGetAnswer(postId))
+        given(aiAnswerService.generateOrGetAnswer(any(), eq(postId)))
                 .willThrow(new DevpickException(ErrorCode.COMMUNITY_POST_NOT_FOUND));
 
         mockMvc.perform(post("/posts/" + postId + "/ai-answer"))
@@ -97,7 +99,7 @@ class AiAnswerControllerTest {
     @Test
     @DisplayName("POST /posts/{postId}/ai-answer - AI 서버 오류 시 500 반환")
     void generateAiAnswer_aiServerError_returns500() throws Exception {
-        given(aiAnswerService.generateOrGetAnswer(postId))
+        given(aiAnswerService.generateOrGetAnswer(any(), eq(postId)))
                 .willThrow(new DevpickException(ErrorCode.AI_SERVER_ERROR));
 
         mockMvc.perform(post("/posts/" + postId + "/ai-answer"))

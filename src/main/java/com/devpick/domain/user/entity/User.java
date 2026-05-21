@@ -1,5 +1,6 @@
 package com.devpick.domain.user.entity;
 
+import com.devpick.domain.subscription.entity.PlanType;
 import com.devpick.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -53,6 +54,20 @@ public class User extends BaseTimeEntity {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plan_type", length = 20, nullable = false)
+    @Builder.Default
+    private PlanType planType = PlanType.FREE;
+
+    @Column(name = "toss_billing_key", length = 200)
+    private String tossBillingKey;
+
+    @Column(name = "toss_customer_key", length = 100)
+    private String tossCustomerKey;
+
+    @Column(name = "plan_expired_at")
+    private LocalDateTime planExpiredAt;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -153,5 +168,25 @@ public class User extends BaseTimeEntity {
         return Boolean.FALSE.equals(this.isActive)
                 && this.deletedAt != null
                 && this.deletedAt.plusDays(7).isAfter(LocalDateTime.now());
+    }
+
+    public boolean isFree() { return planType == PlanType.FREE; }
+    public boolean isProOrAbove() { return planType == PlanType.PRO || planType == PlanType.MAX; }
+    public boolean isMax() { return planType == PlanType.MAX; }
+
+    public void upgradePlan(PlanType type, String billingKey, String customerKey, LocalDateTime expiredAt) {
+        this.planType = type;
+        this.tossBillingKey = billingKey;
+        this.tossCustomerKey = customerKey;
+        this.planExpiredAt = expiredAt;
+    }
+
+    public void downgradeToFree() {
+        this.planType = PlanType.FREE;
+        this.planExpiredAt = null;
+    }
+
+    public void extendPlan(LocalDateTime newExpiredAt) {
+        this.planExpiredAt = newExpiredAt;
     }
 }

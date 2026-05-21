@@ -8,6 +8,8 @@ import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.domain.point.entity.Badge;
 import com.devpick.domain.point.entity.UserBadge;
 import com.devpick.domain.point.repository.UserBadgeRepository;
+import com.devpick.domain.subscription.repository.SubscriptionRepository;
+import com.devpick.domain.subscription.service.PlanLimitService;
 import com.devpick.domain.user.dto.PublicUserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileResponse;
 import com.devpick.domain.user.dto.UserProfileUpdateRequest;
@@ -67,6 +69,10 @@ class UserServiceTest {
     private AnswerRepository answerRepository;
     @Mock
     private FileStorageService fileStorageService;
+    @Mock
+    private PlanLimitService planLimitService;
+    @Mock
+    private SubscriptionRepository subscriptionRepository;
 
     private UUID userId;
     private User user;

@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,7 +32,8 @@ public class AiAnswerController {
     })
     @PostMapping
     public ApiResponse<AiAnswerResponse> generateAiAnswer(
+            @AuthenticationPrincipal UUID userId,
             @Parameter(description = "게시글 ID (UUID)", required = true) @PathVariable UUID postId) {
-        return ApiResponse.ok(aiAnswerService.generateOrGetAnswer(postId));
+        return ApiResponse.ok(aiAnswerService.generateOrGetAnswer(userId, postId));
     }
 }
