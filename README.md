@@ -66,6 +66,7 @@ src/main/java/com/devpick
 │   ├── point       # 포인트 적립 / 배지
 │   ├── job         # 채용 공고 / 북마크 / 모의면접
 │   ├── resume      # 이력서 관리
+│   ├── subscription # 구독 플랜 / 토스페이먼츠 결제
 │   └── trend       # 트렌드 분석
 └── global
     ├── common      # 예외 처리 / 공통 응답
