@@ -11,12 +11,17 @@ import com.devpick.domain.resume.service.ResumeCryptoService;
 import com.devpick.domain.subscription.service.PlanLimitService;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.domain.job.dto.JobApiModels.InterviewQaListItemResponse;
+import com.devpick.domain.job.dto.JobApiModels.SavedAnalysisItemResponse;
+import com.devpick.domain.job.entity.JobSkillGap;
+import com.devpick.domain.job.repository.JobSkillGapRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +33,7 @@ public class JobInterviewService {
 
     private final JobPostingRepository jobPostingRepository;
     private final JobInterviewQaRepository jobInterviewQaRepository;
+    private final JobSkillGapRepository jobSkillGapRepository;
     private final MasterResumeRepository masterResumeRepository;
     private final ResumeCryptoService resumeCryptoService;
     private final JobAiClient jobAiClient;
@@ -52,6 +58,48 @@ public class JobInterviewService {
                             q.getUpdatedAt().toString()
                     );
                 })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SavedAnalysisItemResponse> listSavedAnalysis(UUID userId) {
+        // jobId → [hasQa, hasGap, updatedAt(epoch ms), jobPosting]
+        Map<UUID, Object[]> merged = new java.util.LinkedHashMap<>();
+
+        jobInterviewQaRepository.findAllByUserIdWithPostingOrderByUpdatedAtDesc(userId).stream()
+                .filter(q -> JobPostingSpecifications.passesListableQuality(
+                        q.getJobPosting().getTitle(), q.getJobPosting().getCompanyName()))
+                .forEach(q -> merged.put(q.getJobPosting().getId(),
+                        new Object[]{q.getJobPosting(), true, false,
+                                q.getUpdatedAt().toInstant(ZoneOffset.UTC)}));
+
+        jobSkillGapRepository.findAllByUserIdWithPostingOrderByUpdatedAtDesc(userId).stream()
+                .filter(g -> JobPostingSpecifications.passesListableQuality(
+                        g.getJobPosting().getTitle(), g.getJobPosting().getCompanyName()))
+                .forEach(g -> {
+                    UUID id = g.getJobPosting().getId();
+                    if (merged.containsKey(id)) {
+                        Object[] row = merged.get(id);
+                        row[2] = true; // hasSkillGap = true
+                    } else {
+                        merged.put(id, new Object[]{g.getJobPosting(), false, true,
+                                g.getUpdatedAt().toInstant(ZoneOffset.UTC)});
+                    }
+                });
+
+        return merged.values().stream()
+                .map(row -> {
+                    JobPosting job = (JobPosting) row[0];
+                    return new SavedAnalysisItemResponse(
+                            job.getId().toString(),
+                            job.getCompanyName(),
+                            job.getTitle(),
+                            jobService.computeMatchScoreForJob(userId, job.getId()),
+                            (java.time.Instant) row[3],
+                            (boolean) row[1],
+                            (boolean) row[2]);
+                })
+                .sorted(java.util.Comparator.comparing(SavedAnalysisItemResponse::updatedAt).reversed())
                 .toList();
     }
 

@@ -5,6 +5,7 @@ import com.devpick.domain.job.dto.JobApiModels.CompanyFacetResponse;
 import com.devpick.domain.job.dto.JobApiModels.InterviewQaPayloadResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobDetailResponse;
 import com.devpick.domain.job.dto.JobApiModels.JobListPageResponse;
+import com.devpick.domain.job.dto.JobApiModels.SavedAnalysisItemResponse;
 import com.devpick.domain.job.dto.JobApiModels.SkillGapResponse;
 import com.devpick.domain.job.dto.JobApiModels.TechTagFacetResponse;
 import com.devpick.domain.job.service.JobInterviewService;
@@ -73,11 +74,11 @@ public class JobController {
         return ApiResponse.ok(jobService.listCompanyFacets(limit));
     }
 
-    @Operation(summary = "저장된 면접 Q&A 목록")
-    @GetMapping("/saved-interview-qa")
-    public ApiResponse<List<InterviewQaListItemResponse>> listInterviewQa(
+    @Operation(summary = "면접 Q&A + 역량 분석 통합 목록 (Q&A 또는 역량 분석이 하나라도 저장된 공고)")
+    @GetMapping("/saved-analysis")
+    public ApiResponse<List<SavedAnalysisItemResponse>> listSavedAnalysis(
             @AuthenticationPrincipal UUID userId) {
-        return ApiResponse.ok(jobInterviewService.listForUser(userId));
+        return ApiResponse.ok(jobInterviewService.listSavedAnalysis(userId));
     }
 
     @Operation(summary = "채용 공고 상세")

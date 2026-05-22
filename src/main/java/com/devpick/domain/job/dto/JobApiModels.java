@@ -158,6 +158,16 @@ public final class JobApiModels {
             Instant bookmarkedAt
     ) {}
 
+    public record SavedAnalysisItemResponse(
+            String jobId,
+            String companyName,
+            String jobTitle,
+            int matchScore,
+            Instant updatedAt,
+            boolean hasInterviewQa,
+            boolean hasSkillGap
+    ) {}
+
     public record JobBookmarkListResponse(
             List<JobBookmarkItemResponse> bookmarks,
             int page,
