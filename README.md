@@ -59,23 +59,23 @@
 ```
 src/main/java/com/devpick
 ├── domain
-│   ├── user        # 회원가입 / 로그인 / 소셜인증 / 프로필
-│   ├── content     # 콘텐츠 피드 / 스크랩 / AI 요약 / AI 퀴즈 / 맞춤 추천
-│   ├── community   # 게시글 / 답변 / AI 질문 개선 / AI 답변 / 첨부파일
-│   ├── report      # 주간 리포트 / 학습 히스토리
-│   ├── point       # 포인트 적립 / 배지
-│   ├── job         # 채용 공고 / 북마크 / 모의면접
-│   ├── resume      # 이력서 관리
+│   ├── user         # 회원가입 / 로그인 / 소셜인증 / 프로필
+│   ├── content      # 콘텐츠 피드 / 스크랩 / AI 요약 / AI 퀴즈 / 맞춤 추천
+│   ├── community    # 게시글 / 답변 / AI 질문 개선 / AI 답변 / 첨부파일
+│   ├── report       # 주간 리포트 / 학습 히스토리
+│   ├── point        # 포인트 적립 / 배지
+│   ├── job          # 채용 공고 / 북마크 / 모의면접
+│   ├── resume       # 이력서 관리
 │   ├── subscription # 구독 플랜 / 토스페이먼츠 결제
-│   └── trend       # 트렌드 분석
+│   └── trend        # 트렌드 분석
 └── global
-    ├── common      # 예외 처리 / 공통 응답
-    ├── config      # Security / CORS / Swagger / S3 / DynamoDB / Async / Jackson / WebClient
-    ├── controller  # 헬스 체크
-    ├── entity      # 공통 Base 엔티티
-    ├── security    # JWT 필터 / 토큰 프로바이더
-    ├── storage     # 파일 스토리지
-    └── util        # 유틸리티
+    ├── common       # 예외 처리 / 공통 응답
+    ├── config       # Security / CORS / Swagger / S3 / DynamoDB / Async / Jackson / WebClient
+    ├── controller   # 헬스 체크
+    ├── entity       # 공통 Base 엔티티
+    ├── security     # JWT 필터 / 토큰 프로바이더
+    ├── storage      # 파일 스토리지
+    └── util         # 유틸리티
 ```
 
 ---
