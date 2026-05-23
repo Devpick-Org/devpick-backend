@@ -144,21 +144,21 @@ devpick-backend
 <table>
   <tr>
     <td align="center" width="33%">
-      <img src="docs/features/auth.png" width="220" alt="인증과 프로필 placeholder" />
+      <img src="docs/features/auth.png" width="220" alt="인증과 프로필 화면" />
       <br />
       <strong>인증과 프로필</strong>
       <br />
       <sub>이메일 회원가입, GitHub Google OAuth2, JWT 갱신, 프로필 조회와 수정</sub>
     </td>
     <td align="center" width="33%">
-      <img src="docs/features/content-ai.png" width="220" alt="콘텐츠와 AI 학습 placeholder" />
+      <img src="docs/features/content-ai.png" width="220" alt="콘텐츠와 AI 학습 화면" />
       <br />
       <strong>콘텐츠와 AI 학습</strong>
       <br />
       <sub>개인화 피드, 스크랩, 레벨별 AI 요약, AI 퀴즈, 맞춤 추천</sub>
     </td>
     <td align="center" width="33%">
-      <img src="docs/features/community.png" width="220" alt="커뮤니티 placeholder" />
+      <img src="docs/features/community.png" width="220" alt="커뮤니티 질문 개선 화면" />
       <br />
       <strong>커뮤니티</strong>
       <br />
@@ -167,21 +167,21 @@ devpick-backend
   </tr>
   <tr>
     <td align="center" width="33%">
-      <img src="docs/features/report-point.png" width="220" alt="리포트와 포인트 placeholder" />
+      <img src="docs/features/report-point.png" width="220" alt="포인트와 배지 화면" />
       <br />
       <strong>리포트와 포인트</strong>
       <br />
       <sub>주간 학습 리포트, 학습 히스토리, 포인트 적립, 배지 시스템</sub>
     </td>
     <td align="center" width="33%">
-      <img src="docs/features/job.png" width="220" alt="채용 매칭과 모의면접 placeholder" />
+      <img src="docs/features/job.png" width="220" alt="모의면접 화면" />
       <br />
       <strong>채용 매칭과 모의면접</strong>
       <br />
       <sub>채용 공고 수집과 매칭, 북마크, 면접 Q&A, 모의면접, 부족 역량 추천</sub>
     </td>
     <td align="center" width="33%">
-      <img src="docs/features/resume.png" width="220" alt="이력서 관리 placeholder" />
+      <img src="docs/features/resume.png" width="220" alt="이력서 관리 화면" />
       <br />
       <strong>이력서 관리</strong>
       <br />
@@ -190,21 +190,21 @@ devpick-backend
   </tr>
   <tr>
     <td align="center" width="33%">
-      <img src="docs/features/trend.png" width="220" alt="트렌드 분석 placeholder" />
+      <img src="docs/features/trend.png" width="220" alt="트렌드 분석 화면" />
       <br />
       <strong>트렌드 분석</strong>
       <br />
       <sub>부트캠프, 개발행사, 개발동아리, 트렌딩 키워드, 주간 상위 콘텐츠</sub>
     </td>
     <td align="center" width="33%">
-      <img src="docs/features/subscription.png" width="220" alt="구독과 결제 placeholder" />
+      <img src="docs/features/subscription.png" width="220" alt="구독과 결제 화면" />
       <br />
       <strong>구독과 결제</strong>
       <br />
       <sub>Free, Pro, Max 플랜, 토스페이먼츠 빌링키, 해지와 환불, 기능 횟수 제한</sub>
     </td>
     <td align="center" width="33%">
-      <img src="docs/features/monitoring.png" width="220" alt="모니터링과 부하 테스트 placeholder" />
+      <img src="docs/features/monitoring.png" width="220" alt="모니터링과 부하 테스트 화면" />
       <br />
       <strong>모니터링과 부하 테스트</strong>
       <br />
