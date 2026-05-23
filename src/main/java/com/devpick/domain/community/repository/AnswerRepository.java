@@ -13,6 +13,12 @@ import java.util.UUID;
 
 public interface AnswerRepository extends JpaRepository<Answer, UUID> {
 
+    interface AnswerPreviewRow {
+        UUID getPostId();
+
+        String getContent();
+    }
+
     long countByPost_Id(UUID postId);
 
     @Query("SELECT a.post.id, COUNT(a) FROM Answer a WHERE a.post.id IN :postIds GROUP BY a.post.id")
@@ -29,6 +35,16 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
 
     @Query("SELECT a FROM Answer a JOIN FETCH a.post WHERE a.post.id IN :postIds ORDER BY a.post.id, a.createdAt ASC")
     List<Answer> findByPostIdsOrderByCreatedAtAsc(@Param("postIds") List<UUID> postIds);
+
+    @Query(value = """
+            SELECT DISTINCT ON (a.post_id)
+                   a.post_id AS postId,
+                   SUBSTRING(a.content FROM 1 FOR 151) AS content
+            FROM answers a
+            WHERE a.post_id IN (:postIds)
+            ORDER BY a.post_id, a.created_at ASC
+            """, nativeQuery = true)
+    List<AnswerPreviewRow> findFirstAnswerPreviewsByPostIds(@Param("postIds") List<UUID> postIds);
 
     @Modifying
     @Query("DELETE FROM Answer a WHERE a.post.id = :postId")

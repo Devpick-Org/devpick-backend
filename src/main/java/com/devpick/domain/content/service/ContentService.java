@@ -23,6 +23,8 @@ import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.domain.content.client.SimilarContentClient;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -30,14 +32,18 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -47,6 +53,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ContentService {
 
+    private static final Duration PUBLIC_FEED_CACHE_TTL = Duration.ofSeconds(30);
     private static final String FEED_SUMMARY_LEVEL = "JUNIOR";
     private static final int CONTENT_TAG_FACET_DEFAULT_LIMIT = 80;
     private static final String CONTENT_TAG_FACET_SOURCE = "CONTENT_CRAWL";
@@ -62,10 +69,18 @@ public class ContentService {
     private final AiSummaryService aiSummaryService;
     private final ContentViewLogService contentViewLogService;
     private final SimilarContentClient similarContentClient;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public ContentListResponse getFeed(UUID userId, Pageable pageable) {
         boolean loggedIn = userId != null;
+
+        String cacheKey = publicFeedCacheKey(userId, pageable);
+        ContentListResponse cached = readPublicFeedCache(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
 
         boolean isFreeOrGuest = !loggedIn || userRepository.findByIdAndIsActiveTrue(userId)
                 .map(u -> u.getPlanType() == com.devpick.domain.subscription.entity.PlanType.FREE)
@@ -82,7 +97,7 @@ public class ContentService {
             if (pageable.getPageSize() > available) {
                 pageable = PageRequest.of(pageable.getPageNumber(), available,
                         pageable.getSort().isSorted() ? pageable.getSort()
-                                : org.springframework.data.domain.Sort.unsorted());
+                                : Sort.unsorted());
             }
         }
 
@@ -99,18 +114,55 @@ public class ContentService {
             page = contentRepository.findAllRankedByTagIds(tagIds, pageable);
         }
 
-        List<ContentSummaryResponse> contents = page.getContent().stream()
+        List<Content> feedItems = page.getContent();
+        if (feedItems.isEmpty()) {
+            return new ContentListResponse(
+                    List.of(),
+                    page.getNumber(),
+                    page.getSize(),
+                    page.getTotalElements(),
+                    page.getTotalPages(),
+                    false
+            );
+        }
+
+        List<UUID> contentIds = feedItems.stream().map(Content::getId).toList();
+        Map<UUID, String> summaryMap = aiSummaryService.findCachedCoreSummaries(contentIds, FEED_SUMMARY_LEVEL);
+        if (summaryMap == null) {
+            summaryMap = feedItems.stream()
+                    .collect(Collectors.toMap(
+                            Content::getId,
+                            c -> aiSummaryService.findCachedCoreSummary(c.getId(), FEED_SUMMARY_LEVEL)
+                                    .filter(s -> !s.isBlank())
+                                    .orElse(c.getPreview())
+                    ));
+        }
+        Map<UUID, String> summariesByContentId = summaryMap;
+        Set<UUID> scrappedContentIds = loggedIn
+                ? new HashSet<>(nullToEmpty(scrapRepository.findScrappedContentIds(userId, contentIds)))
+                : new HashSet<>();
+        Set<UUID> likedContentIds = loggedIn
+                ? new HashSet<>(nullToEmpty(likeRepository.findLikedContentIds(userId, contentIds)))
+                : new HashSet<>();
+
+        List<ContentSummaryResponse> contents = feedItems.stream()
                 .map(c -> {
-                    String preview = aiSummaryService.findCachedCoreSummary(c.getId(), FEED_SUMMARY_LEVEL)
-                            .filter(s -> !s.isBlank())
-                            .orElse(c.getPreview());
-                    boolean scrapped = loggedIn && scrapRepository.existsByUser_IdAndContent_Id(userId, c.getId());
-                    boolean liked = loggedIn && likeRepository.existsByUser_IdAndContent_Id(userId, c.getId());
-                    return ContentSummaryResponse.of(c, scrapped, liked, preview);
+                    String preview = getNullableKey(summariesByContentId, c.getId());
+                    if (preview == null || preview.isBlank()) {
+                        preview = c.getPreview();
+                    }
+                    boolean scrapped = scrappedContentIds.contains(c.getId());
+                    boolean liked = likedContentIds.contains(c.getId());
+                    return ContentSummaryResponse.of(
+                            c,
+                            scrapped,
+                            liked,
+                            preview
+                    );
                 })
                 .toList();
 
-        return new ContentListResponse(
+        ContentListResponse response = new ContentListResponse(
                 contents,
                 page.getNumber(),
                 page.getSize(),
@@ -118,6 +170,62 @@ public class ContentService {
                 page.getTotalPages(),
                 false
         );
+        writePublicFeedCache(cacheKey, response);
+        return response;
+    }
+
+    private String publicFeedCacheKey(UUID userId, Pageable pageable) {
+        if (userId != null) {
+            return null;
+        }
+        return "contents:feed:v1:page:" + pageable.getPageNumber()
+                + ":size:" + pageable.getPageSize()
+                + ":sort:" + pageable.getSort();
+    }
+
+    private ContentListResponse readPublicFeedCache(String cacheKey) {
+        if (cacheKey == null || redisTemplate == null || objectMapper == null) {
+            return null;
+        }
+        try {
+            var ops = redisTemplate.opsForValue();
+            if (ops == null) {
+                return null;
+            }
+            String json = ops.get(cacheKey);
+            return json == null || json.isBlank() ? null : objectMapper.readValue(json, ContentListResponse.class);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void writePublicFeedCache(String cacheKey, ContentListResponse response) {
+        if (cacheKey == null || redisTemplate == null || objectMapper == null) {
+            return;
+        }
+        try {
+            var ops = redisTemplate.opsForValue();
+            if (ops != null) {
+                ops.set(cacheKey, objectMapper.writeValueAsString(response), PUBLIC_FEED_CACHE_TTL);
+            }
+        } catch (JsonProcessingException ignored) {
+            // 공개 피드 캐시는 성능 최적화용이므로 직렬화 실패 시 DB 응답을 그대로 사용합니다.
+        }
+    }
+
+    private static <T> List<T> nullToEmpty(List<T> values) {
+        return values != null ? values : List.of();
+    }
+
+    private static <K, V> V getNullableKey(Map<K, V> map, K key) {
+        if (key != null) {
+            return map.get(key);
+        }
+        return map.entrySet().stream()
+                .filter(entry -> entry.getKey() == null)
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(null);
     }
 
     @Transactional(readOnly = true)

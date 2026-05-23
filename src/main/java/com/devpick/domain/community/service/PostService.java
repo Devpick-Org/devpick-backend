@@ -25,17 +25,21 @@ import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.storage.FileStorageService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +49,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PostService {
+
+    private static final Duration PUBLIC_LIST_CACHE_TTL = Duration.ofSeconds(30);
 
     private final PostRepository postRepository;
     private final AnswerRepository answerRepository;
@@ -58,6 +64,8 @@ public class PostService {
     private final AnswerLikeRepository answerLikeRepository;
     private final FileStorageService fileStorageService;
     private final AiQuestionCleanupClient aiQuestionCleanupClient;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public PostDetailResponse createPost(UUID userId, PostCreateRequest request) {
@@ -91,6 +99,12 @@ public class PostService {
 
     @Transactional(readOnly = true)
     public PostListResponse getPosts(Pageable pageable, String query, PostType postType) {
+        String cacheKey = publicListCacheKey(pageable, query, postType);
+        PostListResponse cached = readPublicListCache(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
         Page<Post> page;
         if (StringUtils.hasText(query)) {
             String q = query.trim();
@@ -125,24 +139,75 @@ public class PostService {
                 ));
 
         // 첫 번째 답변 미리보기 배치 조회 (postId → truncated content)
-        Map<UUID, String> topAnswerPreviews = answerRepository.findByPostIdsOrderByCreatedAtAsc(postIds)
+        Map<UUID, String> topAnswerPreviews = answerRepository.findFirstAnswerPreviewsByPostIds(postIds)
                 .stream()
                 .collect(Collectors.toMap(
-                        a -> a.getPost().getId(),
-                        a -> PostSummaryResponse.truncateAnswerPreview(a.getContent()),
+                        AnswerRepository.AnswerPreviewRow::getPostId,
+                        row -> PostSummaryResponse.truncateAnswerPreview(row.getContent()),
                         (first, second) -> first  // 가장 오래된 답변 유지
                 ));
+        if (!answerCountMap.isEmpty() && topAnswerPreviews.isEmpty()) {
+            topAnswerPreviews = answerRepository.findByPostIdsOrderByCreatedAtAsc(postIds)
+                    .stream()
+                    .collect(Collectors.toMap(
+                            a -> a.getPost().getId(),
+                            a -> PostSummaryResponse.truncateAnswerPreview(a.getContent()),
+                            (first, second) -> first
+                    ));
+        }
+        Map<UUID, String> answerPreviewMap = topAnswerPreviews;
 
         List<PostSummaryResponse> posts = postList.stream()
                 .map(post -> PostSummaryResponse.of(
                         post,
                         answerCountMap.getOrDefault(post.getId(), 0L),
-                        topAnswerPreviews.get(post.getId())
+                        answerPreviewMap.get(post.getId())
                 ))
                 .toList();
 
-        return new PostListResponse(posts, page.getNumber(), page.getSize(),
+        PostListResponse response = new PostListResponse(posts, page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages());
+        writePublicListCache(cacheKey, response);
+        return response;
+    }
+
+    private String publicListCacheKey(Pageable pageable, String query, PostType postType) {
+        if (StringUtils.hasText(query) || postType != null) {
+            return null;
+        }
+        return "posts:list:v1:page:" + pageable.getPageNumber()
+                + ":size:" + pageable.getPageSize()
+                + ":sort:" + pageable.getSort();
+    }
+
+    private PostListResponse readPublicListCache(String cacheKey) {
+        if (cacheKey == null || redisTemplate == null || objectMapper == null) {
+            return null;
+        }
+        try {
+            var ops = redisTemplate.opsForValue();
+            if (ops == null) {
+                return null;
+            }
+            String json = ops.get(cacheKey);
+            return json == null || json.isBlank() ? null : objectMapper.readValue(json, PostListResponse.class);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void writePublicListCache(String cacheKey, PostListResponse response) {
+        if (cacheKey == null || redisTemplate == null || objectMapper == null) {
+            return;
+        }
+        try {
+            var ops = redisTemplate.opsForValue();
+            if (ops != null) {
+                ops.set(cacheKey, objectMapper.writeValueAsString(response), PUBLIC_LIST_CACHE_TTL);
+            }
+        } catch (JsonProcessingException ignored) {
+            // 목록 캐시는 성능 최적화용이므로 직렬화 실패 시 DB 응답을 그대로 사용합니다.
+        }
     }
 
     @Transactional(readOnly = true)

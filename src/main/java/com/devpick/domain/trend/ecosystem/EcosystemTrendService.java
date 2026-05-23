@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -38,6 +40,11 @@ public class EcosystemTrendService {
     private final ClubOgThumbnailEnricher clubOgThumbnailEnricher;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final AtomicBoolean refreshInProgress = new AtomicBoolean(false);
+    private volatile EcosystemTrendSnapshot memorySnapshot;
+    private volatile List<EcosystemTrendItem> memorySortedItems;
+    private volatile Instant memorySortedFetchedAt;
+    private volatile LocalDate memorySortedDate;
 
     /** 6시간마다 생태계 스냅샷을 갱신합니다. */
     @Scheduled(cron = "0 0 0/6 * * *")
@@ -73,6 +80,7 @@ public class EcosystemTrendService {
         try {
             String json = objectMapper.writeValueAsString(snapshot);
             redisTemplate.opsForValue().set(CACHE_KEY, json, TTL);
+            cacheSnapshot(snapshot);
             log.info("생태계 트렌드 캐시 갱신: {}건", items.size());
         } catch (JsonProcessingException e) {
             log.error("생태계 트렌드 Redis 직렬화 실패: {}", e.getMessage());
@@ -86,9 +94,8 @@ public class EcosystemTrendService {
             int offset) {
         EcosystemTrendSnapshot snapshot = readSnapshot();
         if (snapshot == null || snapshot.items().isEmpty()) {
-            log.info("생태계 트렌드 캐시 비어 있음 — 즉시 수집 시도");
-            refreshFromExternalSources();
-            snapshot = readSnapshot();
+            log.info("생태계 트렌드 캐시 비어 있음 — 백그라운드 수집 예약");
+            refreshFromExternalSourcesInBackground();
         }
         if (snapshot == null) {
             return new EcosystemTrendPageResponse(List.of(), 0, Instant.now(), Map.of());
@@ -97,7 +104,13 @@ public class EcosystemTrendService {
         int lim = limit > 0 ? Math.min(limit, MAX_LIMIT) : DEFAULT_LIMIT;
         int off = Math.max(0, offset);
 
-        Stream<EcosystemTrendItem> stream = snapshot.items().stream();
+        LocalDate today = LocalDate.now(EcosystemTrendSort.FEED_ZONE);
+        boolean alreadySorted = category == null && (q == null || q.isBlank());
+        List<EcosystemTrendItem> baseItems = alreadySorted
+                ? sortedItems(snapshot, today)
+                : snapshot.items();
+
+        Stream<EcosystemTrendItem> stream = baseItems.stream();
         if (category != null) {
             stream = stream.filter(i -> i.category() == category);
         }
@@ -106,13 +119,28 @@ public class EcosystemTrendService {
             stream = stream.filter(i -> matchesQuery(i, needle));
         }
         List<EcosystemTrendItem> filtered = stream.toList();
-        LocalDate today = LocalDate.now(EcosystemTrendSort.FEED_ZONE);
-        List<EcosystemTrendItem> sorted = EcosystemTrendSort.sortedCopy(filtered, today);
+        List<EcosystemTrendItem> sorted = alreadySorted ? filtered : EcosystemTrendSort.sortedCopy(filtered, today);
         long total = sorted.size();
         int to = Math.min(off + lim, sorted.size());
         List<EcosystemTrendItem> page = off >= sorted.size() ? List.of() : sorted.subList(off, to);
 
         return new EcosystemTrendPageResponse(page, total, snapshot.fetchedAt(), snapshot.sourceCounts());
+    }
+
+    private void refreshFromExternalSourcesInBackground() {
+        if (!refreshInProgress.compareAndSet(false, true)) {
+            log.debug("생태계 트렌드 갱신 이미 진행 중 — 중복 요청 무시");
+            return;
+        }
+        CompletableFuture.runAsync(() -> {
+            try {
+                refreshFromExternalSources();
+            } catch (Exception e) {
+                log.warn("생태계 트렌드 백그라운드 갱신 실패: {}", e.getMessage());
+            } finally {
+                refreshInProgress.set(false);
+            }
+        });
     }
 
     private static boolean matchesQuery(EcosystemTrendItem i, String needle) {
@@ -140,15 +168,43 @@ public class EcosystemTrendService {
     }
 
     private EcosystemTrendSnapshot readSnapshot() {
+        EcosystemTrendSnapshot cached = memorySnapshot;
+        if (cached != null) {
+            return cached;
+        }
+
         String json = redisTemplate.opsForValue().get(CACHE_KEY);
         if (json == null || json.isBlank()) {
             return null;
         }
         try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
+            EcosystemTrendSnapshot snapshot = objectMapper.readValue(json, new TypeReference<>() {});
+            cacheSnapshot(snapshot);
+            return snapshot;
         } catch (JsonProcessingException e) {
             log.warn("생태계 트렌드 캐시 파싱 실패: {}", e.getMessage());
             return null;
         }
+    }
+
+    private void cacheSnapshot(EcosystemTrendSnapshot snapshot) {
+        memorySnapshot = snapshot;
+        memorySortedItems = null;
+        memorySortedFetchedAt = null;
+        memorySortedDate = null;
+    }
+
+    private List<EcosystemTrendItem> sortedItems(EcosystemTrendSnapshot snapshot, LocalDate today) {
+        List<EcosystemTrendItem> cachedItems = memorySortedItems;
+        if (cachedItems != null
+                && today.equals(memorySortedDate)
+                && snapshot.fetchedAt().equals(memorySortedFetchedAt)) {
+            return cachedItems;
+        }
+        List<EcosystemTrendItem> sorted = EcosystemTrendSort.sortedCopy(snapshot.items(), today);
+        memorySortedItems = sorted;
+        memorySortedFetchedAt = snapshot.fetchedAt();
+        memorySortedDate = today;
+        return sorted;
     }
 }

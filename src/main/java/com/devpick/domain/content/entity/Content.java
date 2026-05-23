@@ -4,6 +4,7 @@ import com.devpick.domain.content.dto.StackOverflowAnswerDto;
 import com.devpick.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -112,5 +113,6 @@ public class Content extends BaseTimeEntity {
 
     @OneToMany(mappedBy = "content", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @BatchSize(size = 100)
     private List<ContentTag> contentTags = new ArrayList<>();
 }

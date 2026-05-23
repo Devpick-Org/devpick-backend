@@ -13,6 +13,9 @@ public interface LikeRepository extends JpaRepository<Like, UUID> {
 
     boolean existsByUser_IdAndContent_Id(UUID userId, UUID contentId);
 
+    @Query("SELECT l.content.id FROM Like l WHERE l.user.id = :userId AND l.content.id IN :contentIds")
+    List<UUID> findLikedContentIds(@Param("userId") UUID userId, @Param("contentIds") List<UUID> contentIds);
+
     Optional<Like> findByUser_IdAndContent_Id(UUID userId, UUID contentId);
 
     // DP-249: 유저의 좋아요 목록 (최신순)

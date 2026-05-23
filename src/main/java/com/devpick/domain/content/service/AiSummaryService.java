@@ -18,6 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -107,6 +111,45 @@ public class AiSummaryService {
         }
     }
 
+    public Map<UUID, String> findCachedCoreSummaries(List<UUID> contentIds, String level) {
+        if (contentIds.isEmpty()) {
+            return Map.of();
+        }
+
+        String aiLevel = toAiServerLevel(level);
+        List<String> keys = contentIds.stream()
+                .map(id -> buildRedisKey(id, aiLevel))
+                .toList();
+        List<String> cachedValues = redisTemplate.opsForValue().multiGet(keys);
+
+        Map<UUID, String> summaries = new LinkedHashMap<>();
+        List<UUID> misses = new ArrayList<>();
+        for (int i = 0; i < contentIds.size(); i++) {
+            UUID contentId = contentIds.get(i);
+            String json = cachedValues != null ? cachedValues.get(i) : null;
+            String coreSummary = readCoreSummary(json);
+            if (coreSummary == null || coreSummary.isBlank()) {
+                misses.add(contentId);
+            } else {
+                summaries.put(contentId, coreSummary);
+            }
+        }
+
+        if (!misses.isEmpty()) {
+            try {
+                Map<UUID, String> batchSummaries = aiSummaryRepository.batchFindCoreSummaries(
+                        misses.stream().map(UUID::toString).toList(),
+                        aiLevel
+                );
+                summaries.putAll(batchSummaries);
+            } catch (Exception e) {
+                log.warn("findCachedCoreSummaries 배치 조회 실패 — 일부 피드는 preview 사용: level={}, msg={}",
+                        level, e.getMessage());
+            }
+        }
+        return summaries;
+    }
+
     private void recordHistory(UUID userId, UUID contentId) {
         if (userId == null) {
             return;
@@ -136,6 +179,17 @@ public class AiSummaryService {
             log.warn("Redis cache deserialization failed for key={}: {}", key, e.getMessage());
         }
         return null;
+    }
+
+    private String readCoreSummary(String json) {
+        if (json == null) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, AiSummaryResponse.class).coreSummary();
+        } catch (JsonProcessingException e) {
+            return null;
+        }
     }
 
     private void saveToRedis(String key, AiSummaryResponse response) {

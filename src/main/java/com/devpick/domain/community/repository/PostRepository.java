@@ -4,6 +4,7 @@ import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.entity.PostType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,10 +16,13 @@ import java.util.UUID;
 
 public interface PostRepository extends JpaRepository<Post, UUID> {
 
+    @EntityGraph(attributePaths = "user")
     Page<Post> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
+    @EntityGraph(attributePaths = "user")
     Page<Post> findAllByPostTypeOrderByCreatedAtDesc(PostType postType, Pageable pageable);
 
+    @EntityGraph(attributePaths = "user")
     @Query("""
             SELECT p FROM Post p
             WHERE LOWER(p.title) LIKE LOWER(CONCAT('%', :q, '%'))
@@ -26,6 +30,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             """)
     Page<Post> searchByTitleOrContentContaining(@Param("q") String q, Pageable pageable);
 
+    @EntityGraph(attributePaths = "user")
     @Query("""
             SELECT p FROM Post p
             WHERE p.postType = :postType

@@ -34,7 +34,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -111,9 +113,9 @@ class ContentServiceTest {
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of());
         given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
                 .willReturn(new PageImpl<>(List.of(content)));
-        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
-        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
-        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+        given(scrapRepository.findScrappedContentIds(any(), any())).willReturn(List.of());
+        given(likeRepository.findLikedContentIds(any(), any())).willReturn(List.of());
+        given(aiSummaryService.findCachedCoreSummaries(any(), any())).willReturn(Map.of());
 
         ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
 
@@ -126,7 +128,7 @@ class ContentServiceTest {
     void getFeed_anonymous_skipsUserScopedQueries() {
         given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
                 .willReturn(new PageImpl<>(List.of(content)));
-        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+        given(aiSummaryService.findCachedCoreSummaries(any(), any())).willReturn(Map.of());
 
         ContentListResponse response = contentService.getFeed(null, PageRequest.of(0, 20));
 
@@ -146,9 +148,9 @@ class ContentServiceTest {
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
         given(contentRepository.findAllRankedByTagIds(any(), any()))
                 .willReturn(new PageImpl<>(List.of(content)));
-        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
-        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
-        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+        given(scrapRepository.findScrappedContentIds(any(), any())).willReturn(List.of());
+        given(likeRepository.findLikedContentIds(any(), any())).willReturn(List.of());
+        given(aiSummaryService.findCachedCoreSummaries(any(), any())).willReturn(Map.of());
 
         ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
 
@@ -167,9 +169,9 @@ class ContentServiceTest {
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
         given(contentRepository.findAllRankedByTagIds(any(), any()))
                 .willReturn(new PageImpl<>(List.of(content)));
-        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
-        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
-        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
+        given(scrapRepository.findScrappedContentIds(any(), any())).willReturn(List.of());
+        given(likeRepository.findLikedContentIds(any(), any())).willReturn(List.of());
+        given(aiSummaryService.findCachedCoreSummaries(any(), any())).willReturn(Map.of());
 
         ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
 
@@ -184,9 +186,11 @@ class ContentServiceTest {
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of());
         given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
                 .willReturn(new PageImpl<>(List.of(content)));
-        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
-        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
-        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.of("AI 핵심 요약"));
+        given(scrapRepository.findScrappedContentIds(any(), any())).willReturn(List.of());
+        given(likeRepository.findLikedContentIds(any(), any())).willReturn(List.of());
+        Map<UUID, String> summaries = new HashMap<>();
+        summaries.put(content.getId(), "AI 핵심 요약");
+        given(aiSummaryService.findCachedCoreSummaries(any(), any())).willReturn(summaries);
 
         ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
 
@@ -199,9 +203,11 @@ class ContentServiceTest {
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of());
         given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
                 .willReturn(new PageImpl<>(List.of(content)));
-        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
-        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
-        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.of("  "));
+        given(scrapRepository.findScrappedContentIds(any(), any())).willReturn(List.of());
+        given(likeRepository.findLikedContentIds(any(), any())).willReturn(List.of());
+        Map<UUID, String> summaries = new HashMap<>();
+        summaries.put(content.getId(), "  ");
+        given(aiSummaryService.findCachedCoreSummaries(any(), any())).willReturn(summaries);
 
         ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
 
@@ -649,11 +655,12 @@ class ContentServiceTest {
     @DisplayName("getFeed — Free 유저 offset<50이지만 pageSize 초과분 자르기")
     void getFeed_freeUser_offsetNear50_truncatesPageSize() {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user)); // FREE 기본값
+        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of());
         given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
                 .willReturn(new PageImpl<>(List.of(content)));
-        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
-        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
-        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummaries(any(), any())).willReturn(Map.of());
+        given(scrapRepository.findScrappedContentIds(any(), any())).willReturn(List.of());
+        given(likeRepository.findLikedContentIds(any(), any())).willReturn(List.of());
 
         // offset=40, size=20 → available=10이므로 size가 10으로 잘림
         ContentListResponse response = contentService.getFeed(userId, PageRequest.of(2, 20));
@@ -674,9 +681,9 @@ class ContentServiceTest {
         given(userTagRepository.findByUser_Id(userId)).willReturn(List.of());
         given(contentRepository.findByIsAvailableTrueOrderByPublishedAtDesc(any()))
                 .willReturn(new PageImpl<>(List.of(content)));
-        given(aiSummaryService.findCachedCoreSummary(any(), any())).willReturn(Optional.empty());
-        given(scrapRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
-        given(likeRepository.existsByUser_IdAndContent_Id(any(), any())).willReturn(false);
+        given(aiSummaryService.findCachedCoreSummaries(any(), any())).willReturn(Map.of());
+        given(scrapRepository.findScrappedContentIds(any(), any())).willReturn(List.of());
+        given(likeRepository.findLikedContentIds(any(), any())).willReturn(List.of());
 
         // offset=60이어도 Pro는 통과
         ContentListResponse response = contentService.getFeed(userId, PageRequest.of(3, 20));
