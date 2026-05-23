@@ -2,6 +2,7 @@ package com.devpick.domain.community.dto;
 
 import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.community.entity.Comment;
+import com.devpick.domain.subscription.entity.PlanType;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 
@@ -18,6 +19,7 @@ public record AnswerWithCommentsResponse(
         Job authorJob,
         Level authorLevel,
         String authorProfileImage,
+        PlanType authorPlanType,
         Boolean isAdopted,
         Boolean isEdited,
         Boolean canAdopt,
@@ -39,6 +41,7 @@ public record AnswerWithCommentsResponse(
                 answer.getUser().getJob(),
                 answer.getUser().getLevel(),
                 answer.getUser().getProfileImage(),
+                answer.getUser().getPlanType(),
                 answer.getIsAdopted(),
                 answer.getIsEdited(),
                 canAdopt,

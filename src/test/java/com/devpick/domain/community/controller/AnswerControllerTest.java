@@ -7,6 +7,7 @@ import com.devpick.domain.community.dto.AnswerUpdateRequest;
 import com.devpick.domain.community.dto.AnswerWithCommentsResponse;
 import com.devpick.domain.community.service.AnswerService;
 import com.devpick.domain.community.service.CommunityLikeService;
+import com.devpick.domain.subscription.entity.PlanType;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.common.exception.GlobalExceptionHandler;
@@ -189,7 +190,7 @@ class AnswerControllerTest {
     @DisplayName("GET /posts/{postId}/answers - 답변 목록 조회 성공 시 200 반환")
     void getAnswers_success_returns200() throws Exception {
         AnswerWithCommentsResponse answerWithComments = new AnswerWithCommentsResponse(
-                answerId, "Test Answer", userId, "tester", null, null, null,
+                answerId, "Test Answer", userId, "tester", null, null, null, PlanType.FREE,
                 false, false, false, Instant.now(), Instant.now(), List.of()
         );
         AnswerListResponse listResponse = new AnswerListResponse(List.of(answerWithComments));

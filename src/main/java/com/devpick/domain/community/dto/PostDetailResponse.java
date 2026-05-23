@@ -3,6 +3,7 @@ package com.devpick.domain.community.dto;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.entity.PostAttachment;
 import com.devpick.domain.community.entity.PostType;
+import com.devpick.domain.subscription.entity.PlanType;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 
@@ -22,6 +23,7 @@ public record PostDetailResponse(
         Job authorJob,
         Level authorLevel,
         String authorProfileImage,
+        PlanType authorPlanType,
         long answerCount,
         Instant createdAt,
         Instant updatedAt,
@@ -42,6 +44,7 @@ public record PostDetailResponse(
                 post.getUser().getJob(),
                 post.getUser().getLevel(),
                 post.getUser().getProfileImage(),
+                post.getUser().getPlanType(),
                 answerCount,
                 post.getCreatedAt() != null ? post.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
                 post.getUpdatedAt() != null ? post.getUpdatedAt().toInstant(ZoneOffset.UTC) : null,

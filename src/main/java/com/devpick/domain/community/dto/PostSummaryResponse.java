@@ -2,6 +2,7 @@ package com.devpick.domain.community.dto;
 
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.community.entity.PostType;
+import com.devpick.domain.subscription.entity.PlanType;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.global.util.MarkdownPreviewUtils;
@@ -19,6 +20,7 @@ public record PostSummaryResponse(
         String authorNickname,
         Job authorJob,
         String authorProfileImage,
+        PlanType authorPlanType,
         Instant createdAt,
         long answerCount,
         String contentPreview,
@@ -43,6 +45,7 @@ public record PostSummaryResponse(
                 post.getUser().getNickname(),
                 post.getUser().getJob(),
                 post.getUser().getProfileImage(),
+                post.getUser().getPlanType(),
                 post.getCreatedAt() != null ? post.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
                 answerCount,
                 contentPreview,

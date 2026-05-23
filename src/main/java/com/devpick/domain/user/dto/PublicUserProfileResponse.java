@@ -3,6 +3,7 @@ package com.devpick.domain.user.dto;
 import com.devpick.domain.community.entity.Answer;
 import com.devpick.domain.community.entity.Post;
 import com.devpick.domain.point.entity.UserBadge;
+import com.devpick.domain.subscription.entity.PlanType;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.domain.user.entity.User;
@@ -20,6 +21,7 @@ public record PublicUserProfileResponse(
         String profileImage,
         Job job,
         Level level,
+        PlanType planType,
         List<BadgeItem> badges,
         List<RecentPost> recentPosts,
         List<RecentAnswer> recentAnswers
@@ -42,6 +44,7 @@ public record PublicUserProfileResponse(
                 user.getProfileImage(),
                 user.getJob(),
                 user.getLevel(),
+                user.getPlanType(),
                 userBadges.stream()
                         .map(ub -> new BadgeItem(ub.getBadge().getId(), ub.getBadge().getName()))
                         .toList(),

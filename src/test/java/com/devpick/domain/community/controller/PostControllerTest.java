@@ -8,6 +8,7 @@ import com.devpick.domain.community.dto.PostUpdateRequest;
 import com.devpick.domain.community.entity.PostType;
 import com.devpick.domain.community.service.CommunityLikeService;
 import com.devpick.domain.community.service.PostService;
+import com.devpick.domain.subscription.entity.PlanType;
 import com.devpick.domain.user.entity.Job;
 import com.devpick.domain.user.entity.Level;
 import com.devpick.global.common.exception.DevpickException;
@@ -84,7 +85,7 @@ class PostControllerTest {
 
         detailResponse = new PostDetailResponse(
                 postId, PostType.TECH, "Test Post", "Test Content", Level.JUNIOR,
-                userId, "tester", null, null, null, 2L,
+                userId, "tester", null, null, null, PlanType.FREE, 2L,
                 Instant.now(), Instant.now(), List.of()
         );
     }
@@ -125,7 +126,7 @@ class PostControllerTest {
     @DisplayName("GET /posts - 목록 조회 성공 시 200과 목록 반환")
     void getPosts_success_returns200() throws Exception {
         PostSummaryResponse summary = new PostSummaryResponse(
-                postId, PostType.TECH, "Test Post", Level.JUNIOR, userId, "tester", Job.BACKEND, null, Instant.now(), 2L, "content preview", null);
+                postId, PostType.TECH, "Test Post", Level.JUNIOR, userId, "tester", Job.BACKEND, null, PlanType.FREE, Instant.now(), 2L, "content preview", null);
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
         given(postService.getPosts(any(), any(), any())).willReturn(listResponse);
 
@@ -141,7 +142,7 @@ class PostControllerTest {
     @DisplayName("GET /posts - 목록 응답에 authorJob 필드 포함")
     void getPosts_responseIncludesAuthorJob() throws Exception {
         PostSummaryResponse summary = new PostSummaryResponse(
-                postId, PostType.TECH, "Test Post", Level.JUNIOR, userId, "tester", Job.FRONTEND, null, Instant.now(), 0L, "content preview", null);
+                postId, PostType.TECH, "Test Post", Level.JUNIOR, userId, "tester", Job.FRONTEND, null, PlanType.FREE, Instant.now(), 0L, "content preview", null);
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
         given(postService.getPosts(any(), any(), any())).willReturn(listResponse);
 
@@ -154,7 +155,7 @@ class PostControllerTest {
     @DisplayName("GET /posts - authorJob이 null이어도 정상 반환")
     void getPosts_nullAuthorJob_returns200() throws Exception {
         PostSummaryResponse summary = new PostSummaryResponse(
-                postId, PostType.TECH, "Test Post", Level.JUNIOR, userId, "tester", null, null, Instant.now(), 0L, "content preview", null);
+                postId, PostType.TECH, "Test Post", Level.JUNIOR, userId, "tester", null, null, PlanType.FREE, Instant.now(), 0L, "content preview", null);
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
         given(postService.getPosts(any(), any(), any())).willReturn(listResponse);
 
@@ -192,7 +193,7 @@ class PostControllerTest {
         PostUpdateRequest request = new PostUpdateRequest("Updated", "Updated Content", Level.SENIOR, null);
         PostDetailResponse updated = new PostDetailResponse(
                 postId, PostType.TECH, "Updated", "Updated Content", Level.SENIOR,
-                userId, "tester", null, null, null, 0L, Instant.now(), Instant.now(), List.of());
+                userId, "tester", null, null, null, PlanType.FREE, 0L, Instant.now(), Instant.now(), List.of());
         given(postService.updatePost(eq(userId), eq(postId), any())).willReturn(updated);
 
         mockMvc.perform(put("/posts/" + postId)

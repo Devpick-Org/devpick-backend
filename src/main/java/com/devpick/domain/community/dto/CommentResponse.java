@@ -1,6 +1,7 @@
 package com.devpick.domain.community.dto;
 
 import com.devpick.domain.community.entity.Comment;
+import com.devpick.domain.subscription.entity.PlanType;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -12,6 +13,7 @@ public record CommentResponse(
         UUID userId,
         String nickname,
         String profileImage,
+        PlanType planType,
         String content,
         Instant createdAt,
         Instant updatedAt
@@ -23,6 +25,7 @@ public record CommentResponse(
                 comment.getUser().getId(),
                 comment.getUser().getNickname(),
                 comment.getUser().getProfileImage(),
+                comment.getUser().getPlanType(),
                 comment.getContent(),
                 comment.getCreatedAt() != null ? comment.getCreatedAt().toInstant(ZoneOffset.UTC) : null,
                 comment.getUpdatedAt() != null ? comment.getUpdatedAt().toInstant(ZoneOffset.UTC) : null

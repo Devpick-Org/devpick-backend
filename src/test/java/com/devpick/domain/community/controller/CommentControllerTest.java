@@ -3,6 +3,7 @@ package com.devpick.domain.community.controller;
 import com.devpick.domain.community.dto.CommentCreateRequest;
 import com.devpick.domain.community.dto.CommentResponse;
 import com.devpick.domain.community.service.CommentService;
+import com.devpick.domain.subscription.entity.PlanType;
 import com.devpick.global.common.exception.DevpickException;
 import com.devpick.global.common.exception.ErrorCode;
 import com.devpick.global.common.exception.GlobalExceptionHandler;
@@ -76,7 +77,7 @@ class CommentControllerTest {
         );
 
         commentResponse = new CommentResponse(
-                commentId, answerId, userId, "tester", null, "Test Comment",
+                commentId, answerId, userId, "tester", null, PlanType.FREE, "Test Comment",
                 Instant.now(), Instant.now()
         );
     }
