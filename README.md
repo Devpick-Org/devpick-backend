@@ -133,9 +133,20 @@ devpick-backend
 ├── loadtest
 │   └── k6               # smoke, load, stress 부하 테스트 시나리오
 ├── monitoring           # Prometheus, Grafana, Loki, Promtail, InfluxDB
-├── docs                 # 설계 문서, 성능 개선 스크린샷
+├── docs                 # 설계 문서, ERD, 성능 개선 스크린샷
+│   └── erd              # PostgreSQL ERD 이미지
 └── scripts              # 운영 보정 SQL과 배포 후 정리 스크립트
 ```
+
+---
+
+## ERD
+
+PostgreSQL 기준 Trace 백엔드 전체 엔티티 관계도입니다.
+
+![Trace ERD](docs/erd/trace-erd.png)
+
+DDL과 테이블 정의는 [docs/erdcloud-postgres.sql](docs/erdcloud-postgres.sql), [docs/table-definition.md](docs/table-definition.md) 에서 확인할 수 있습니다.
 
 ---
 
