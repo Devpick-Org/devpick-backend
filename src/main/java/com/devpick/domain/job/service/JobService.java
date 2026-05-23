@@ -499,12 +499,24 @@ public class JobService {
         }
 
         int expMet = JobMatchingCalculator.experienceScoreMet(p.getExperienceLevel(), careerYears);
-        List<MatchItemResponse> expItems = List.of(
-                new MatchItemResponse(
-                        "경력 요건 (" + p.getExperienceLevel() + ")",
-                        expMet == 1 ? "MET" : "UNMET"
-                )
-        );
+        MatchSubSectionResponse experienceSection;
+        if (p.getExperienceLevel() == null || p.getExperienceLevel() == PostingExperienceLevel.ANY) {
+            experienceSection = new MatchSubSectionResponse(
+                    0,
+                    0,
+                    "경력 무관 · 종합 매칭 점수(필수 70% + 우대 30%)에는 포함되지 않습니다.",
+                    List.of(new MatchItemResponse("경력 제한 없음", "MET"))
+            );
+        } else {
+            List<MatchItemResponse> expItems = List.of(
+                    new MatchItemResponse(
+                            "경력 요건 (" + p.getExperienceLevel() + ")",
+                            expMet == 1 ? "MET" : "UNMET"
+                    )
+            );
+            experienceSection = new MatchSubSectionResponse(
+                    expMet * 100, 100, "경력 수준", expItems);
+        }
 
         return new MatchBreakdownResponse(
                 new MatchSubSectionResponse(reqScore, 100, "필수 기술 매칭", reqItems),
@@ -513,7 +525,7 @@ public class JobService {
                         p.getPreferredSkills().isEmpty() ? 0 : 100,
                         prefSummary,
                         prefItems),
-                new MatchSubSectionResponse(expMet * 100, 100, "경력 수준", expItems)
+                experienceSection
         );
     }
 

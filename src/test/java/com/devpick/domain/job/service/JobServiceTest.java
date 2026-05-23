@@ -182,4 +182,34 @@ class JobServiceTest {
 
         assertThat(response.resumeAvailable()).isTrue();
     }
+
+    @Test
+    @DisplayName("getJobDetail — 경력 ANY 공고는 breakdown 경력 섹션이 점수 게이지 없이 무관 표시")
+    void getJobDetail_experienceAny_showsNonScoredExperienceSection() {
+        UUID jobId = UUID.randomUUID();
+        JobPosting job = mockListableJob(jobId);
+        given(job.getExperienceLevel()).willReturn(PostingExperienceLevel.ANY);
+        given(job.getRequiredSkills()).willReturn(List.of("Java"));
+        given(job.getPreferredSkills()).willReturn(List.of("MS-Office"));
+
+        Tag tag = mock(Tag.class);
+        given(tag.getName()).willReturn("Java");
+        UserTag userTag = mock(UserTag.class);
+        given(userTag.getTag()).willReturn(tag);
+        User userWithTags = mock(User.class);
+        given(userWithTags.getUserTags()).willReturn(List.of(userTag));
+
+        given(jobPostingRepository.findById(jobId)).willReturn(Optional.of(job));
+        given(masterResumeRepository.findByUserId(INTERNAL_OPS_USER_ID)).willReturn(Optional.empty());
+        given(userRepository.findById(INTERNAL_OPS_USER_ID)).willReturn(Optional.of(userWithTags));
+        given(jobBookmarkRepository.existsByUserIdAndJobPosting_Id(INTERNAL_OPS_USER_ID, jobId))
+                .willReturn(false);
+
+        JobDetailResponse response = jobService.getJobDetail(INTERNAL_OPS_USER_ID, jobId);
+
+        assertThat(response.matchBreakdown().experience().maxScore()).isZero();
+        assertThat(response.matchBreakdown().experience().score()).isZero();
+        assertThat(response.matchBreakdown().experience().summary()).contains("경력 무관");
+        assertThat(response.matchBreakdown().experience().items().get(0).label()).isEqualTo("경력 제한 없음");
+    }
 }
