@@ -16,6 +16,7 @@ import com.devpick.domain.user.entity.Level;
 import com.devpick.domain.user.entity.Tag;
 import com.devpick.domain.user.entity.User;
 import com.devpick.domain.user.entity.UserTag;
+import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
@@ -47,6 +48,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import org.mockito.ArgumentCaptor;
 
@@ -68,6 +70,8 @@ class ContentServiceTest {
     private UserRepository userRepository;
     @Mock
     private UserTagRepository userTagRepository;
+    @Mock
+    private TagRepository tagRepository;
     @Mock
     private com.devpick.domain.point.service.PointService pointService;
     @Mock
@@ -105,6 +109,8 @@ class ContentServiceTest {
                 .preview("Spring Boot 입문 가이드")
                 .publishedAt(LocalDateTime.now())
                 .build();
+        lenient().when(userRepository.findByIdAndIsActiveTrue(userId)).thenReturn(Optional.of(user));
+        lenient().when(tagRepository.findByNameIgnoreCaseIn(any())).thenReturn(List.of());
     }
 
     @Test

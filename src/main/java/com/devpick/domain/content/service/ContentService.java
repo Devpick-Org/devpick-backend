@@ -17,7 +17,10 @@ import com.devpick.domain.report.entity.History;
 import com.devpick.domain.report.repository.HistoryRepository;
 import com.devpick.domain.point.entity.PointAction;
 import com.devpick.domain.point.service.PointService;
+import com.devpick.domain.user.entity.Job;
+import com.devpick.domain.user.entity.Tag;
 import com.devpick.domain.user.entity.User;
+import com.devpick.domain.user.repository.TagRepository;
 import com.devpick.domain.user.repository.UserRepository;
 import com.devpick.domain.user.repository.UserTagRepository;
 import com.devpick.global.common.exception.DevpickException;
@@ -42,6 +45,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -65,6 +69,7 @@ public class ContentService {
     private final HistoryRepository historyRepository;
     private final UserRepository userRepository;
     private final UserTagRepository userTagRepository;
+    private final TagRepository tagRepository;
     private final PointService pointService;
     private final AiSummaryService aiSummaryService;
     private final ContentViewLogService contentViewLogService;
@@ -82,7 +87,10 @@ public class ContentService {
             return cached;
         }
 
-        boolean isFreeOrGuest = !loggedIn || userRepository.findByIdAndIsActiveTrue(userId)
+        Optional<User> profileUser = loggedIn
+                ? userRepository.findByIdAndIsActiveTrue(userId)
+                : Optional.empty();
+        boolean isFreeOrGuest = profileUser
                 .map(u -> u.getPlanType() == com.devpick.domain.subscription.entity.PlanType.FREE)
                 .orElse(true);
 
@@ -102,9 +110,7 @@ public class ContentService {
         }
 
         List<UUID> tagIds = loggedIn
-                ? userTagRepository.findByUser_Id(userId).stream()
-                .map(ut -> ut.getTag().getId())
-                .toList()
+                ? feedTagIds(userId, profileUser.map(User::getJob).orElse(null))
                 : List.of();
 
         Page<Content> page;
@@ -181,6 +187,37 @@ public class ContentService {
         return "contents:feed:v1:page:" + pageable.getPageNumber()
                 + ":size:" + pageable.getPageSize()
                 + ":sort:" + pageable.getSort();
+    }
+
+    private List<UUID> feedTagIds(UUID userId, Job job) {
+        List<UUID> tagIds = new ArrayList<>(userTagRepository.findByUser_Id(userId).stream()
+                .map(ut -> ut.getTag().getId())
+                .toList());
+        List<String> roleTags = defaultTagsForJob(job);
+        if (!roleTags.isEmpty()) {
+            List<UUID> roleTagIds = tagRepository.findByNameIgnoreCaseIn(roleTags).stream()
+                    .map(Tag::getId)
+                    .toList();
+            for (UUID tagId : roleTagIds) {
+                if (!tagIds.contains(tagId)) {
+                    tagIds.add(tagId);
+                }
+            }
+        }
+        return tagIds;
+    }
+
+    private List<String> defaultTagsForJob(Job job) {
+        if (job == null) return List.of();
+        return switch (job) {
+            case FRONTEND -> List.of("React", "Next.js", "TypeScript", "JavaScript");
+            case BACKEND -> List.of("Java", "Spring Boot", "JPA", "PostgreSQL", "Redis");
+            case FULLSTACK -> List.of("React", "Next.js", "Node.js", "Spring Boot", "PostgreSQL");
+            case DEVOPS -> List.of("Docker", "Kubernetes", "Terraform", "AWS", "CI/CD");
+            case AI_ML -> List.of("Python", "PyTorch", "TensorFlow", "AI/ML", "Pandas");
+            case MOBILE -> List.of("React Native", "Flutter", "Kotlin", "Swift", "Android", "iOS");
+            case DATA -> List.of("Python", "Apache Spark", "Airflow", "dbt", "BigQuery", "Snowflake");
+        };
     }
 
     private ContentListResponse readPublicFeedCache(String cacheKey) {

@@ -248,6 +248,17 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("updateProfile — 확장된 직무(DATA) 저장 성공")
+    void updateProfile_extendedJob_success() {
+        given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));
+        UserProfileUpdateRequest request = new UserProfileUpdateRequest(null, null, Job.DATA, null, null);
+
+        UserProfileUpdateResponse response = userService.updateProfile(userId, request);
+
+        assertThat(response.job()).isEqualTo(Job.DATA);
+    }
+
+    @Test
     @DisplayName("updateProfile — 태그 변경 시 응답에 새 태그가 포함된다")
     void updateProfile_tags_returnsUpdatedTags() {
         given(userRepository.findByIdAndIsActiveTrue(userId)).willReturn(Optional.of(user));

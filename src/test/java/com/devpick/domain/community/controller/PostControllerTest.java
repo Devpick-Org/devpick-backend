@@ -142,13 +142,13 @@ class PostControllerTest {
     @DisplayName("GET /posts - 목록 응답에 authorJob 필드 포함")
     void getPosts_responseIncludesAuthorJob() throws Exception {
         PostSummaryResponse summary = new PostSummaryResponse(
-                postId, PostType.TECH, "Test Post", Level.JUNIOR, userId, "tester", Job.FRONTEND, null, PlanType.FREE, Instant.now(), 0L, "content preview", null);
+                postId, PostType.TECH, "Test Post", Level.JUNIOR, userId, "tester", Job.DATA, null, PlanType.FREE, Instant.now(), 0L, "content preview", null);
         PostListResponse listResponse = new PostListResponse(List.of(summary), 0, 20, 1L, 1);
         given(postService.getPosts(any(), any(), any())).willReturn(listResponse);
 
         mockMvc.perform(get("/posts"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.posts[0].authorJob").value("FRONTEND"));
+                .andExpect(jsonPath("$.data.posts[0].authorJob").value("DATA"));
     }
 
     @Test

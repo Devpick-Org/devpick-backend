@@ -83,7 +83,7 @@ class UserControllerTest {
     void getPublicProfile_success() throws Exception {
         UUID targetUserId = UUID.randomUUID();
         PublicUserProfileResponse response = new PublicUserProfileResponse(
-                targetUserId, "홍길동", null, Job.BACKEND, Level.JUNIOR, PlanType.PRO,
+                targetUserId, "홍길동", null, Job.DATA, Level.JUNIOR, PlanType.PRO,
                 List.of(), List.of(), List.of());
         given(userService.getPublicProfile(targetUserId)).willReturn(response);
 
@@ -92,6 +92,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.userId").value(targetUserId.toString()))
                 .andExpect(jsonPath("$.data.nickname").value("홍길동"))
+                .andExpect(jsonPath("$.data.job").value("DATA"))
                 .andExpect(jsonPath("$.data.planType").value("PRO"));
     }
 
@@ -112,7 +113,7 @@ class UserControllerTest {
     void getProfile_success() throws Exception {
         UserProfileResponse response = new UserProfileResponse(
                 userId, "test@devpick.kr", "테스트유저", null,
-                Job.BACKEND, Level.JUNIOR, List.of("React"), Instant.now(), 0, null,
+                Job.DEVOPS, Level.JUNIOR, List.of("React"), Instant.now(), 0, null,
                 PlanType.FREE, null, null, null, null);
         given(userService.getProfile(userId)).willReturn(response);
 
@@ -120,7 +121,8 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.email").value("test@devpick.kr"))
-                .andExpect(jsonPath("$.data.nickname").value("테스트유저"));
+                .andExpect(jsonPath("$.data.nickname").value("테스트유저"))
+                .andExpect(jsonPath("$.data.job").value("DEVOPS"));
     }
 
     @Test
