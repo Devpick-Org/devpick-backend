@@ -95,6 +95,7 @@ src/main/java/com/devpick
 | 이력서 | 이력서 관리, 문서 파싱, AI 보강 |
 | 트렌드 | 에코시스템 트렌드 (부트캠프·개발행사·개발동아리), 트렌딩 키워드, 주간 상위 콘텐츠 집계 |
 | 구독 | Free / Pro / Max 플랜, 토스페이먼츠 빌링키 결제·해지·환불, 플랜별 기능 횟수 제한 |
+| 모니터링 | Sentry(에러·트레이싱), Prometheus + Grafana(JVM·HTTP p95·HikariCP), Loki(컨테이너 로그), k6 부하 테스트 |
 
 ---
 
@@ -135,6 +136,58 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres 
 ## 📖 API 문서
 
 로컬 실행 후: `http://localhost:8080/swagger-ui/index.html`
+
+---
+
+## 📊 성능 개선 (k6 부하 테스트)
+
+운영 EC2에서 공개 GET API에 **k6 stress(150 VU)**를 걸어 병목을 찾고, **Redis 캐시·쿼리·DB 커넥션 풀**을 튜닝해 응답 지연을 줄였습니다.
+
+### 측정 환경
+
+- 부하 시나리오: [`loadtest/k6/stress.js`](loadtest/k6/stress.js) — `25 → 50 → 100 → 150 VU` 단계 부하
+- 대상 API: `GET /health`, `/posts`, `/contents`, `/trends/keywords`, `/trends/ecosystem`
+- 결과 저장: **k6 → InfluxDB → Grafana 대시보드**
+- 동시에 **Prometheus + Grafana(`Devpick Backend Overview`)** 로 JVM, p95, HikariCP 관찰
+
+### Before — 튜닝 전 (150 VU stress)
+
+![k6 before](docs/perf/k6-before.png)
+
+| 지표 | 값 |
+|------|------|
+| p95 (peak) | **약 7s** (Stat 4.28s) |
+| mean | 506 ms |
+| max | 32.29 s |
+| HikariCP pending | ~82 |
+
+### After — 튜닝 후 (동일 150 VU stress)
+
+![k6 after](docs/perf/k6-after.png)
+
+| 지표 | 값 |
+|------|------|
+| **p95** | **189 ms** |
+| mean | 70 ms |
+| max | 2.08 s |
+| HikariCP pending | ~24 |
+
+### 개선 요약
+
+| 지표 | Before | After | 개선 |
+|------|--------|-------|------|
+| p95 | ~7 s | **189 ms** | **약 97% ↓** |
+| mean | 506 ms | 70 ms | **약 86% ↓** |
+| max | 32.29 s | 2.08 s | **약 94% ↓** |
+| HikariCP pending | 82 | 24 | **약 71% ↓** |
+
+### 어떻게 줄였나
+
+- **공개 목록 API Redis 캐시**: `PostService` / `ContentService` 목록 응답을 TTL 30초로 캐싱해 동일 page·query 요청의 DB 왕복 감소
+- **트렌드 생태계 API 스냅샷 캐시**: `EcosystemTrendService`에서 6시간 스케줄로 외부 3소스를 수집해 Redis + in-memory snapshot에 저장하고, API는 캐시 read 위주로 동작 (캐시 미스 시 백그라운드 refresh)
+- **DB 커넥션 풀 보호**: hot path 쿼리·호출 수를 줄여 부하 시 HikariCP pending을 82 → 24 수준으로 완화
+
+> 부하 테스트 실행 방법과 시나리오 상세는 [`loadtest/README.md`](loadtest/README.md) 참고
 
 ---
 
