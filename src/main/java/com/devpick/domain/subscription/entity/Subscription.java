@@ -57,6 +57,10 @@ public class Subscription extends BaseTimeEntity {
         this.pendingPlanType = null;
     }
 
+    public void resume() {
+        this.status = SubscriptionStatus.ACTIVE;
+    }
+
     public void setPendingPlanType(PlanType planType) {
         this.pendingPlanType = planType;
     }

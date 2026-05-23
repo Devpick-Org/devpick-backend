@@ -16,4 +16,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
 
     List<Subscription> findByStatusAndPlanTypeInAndExpiredAtBefore(
             SubscriptionStatus status, List<PlanType> planTypes, LocalDateTime now);
+
+    List<Subscription> findByStatusAndExpiredAtBefore(SubscriptionStatus status, LocalDateTime now);
 }

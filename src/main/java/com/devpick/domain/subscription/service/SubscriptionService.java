@@ -157,7 +157,7 @@ public class SubscriptionService {
     }
 
     /**
-     * 매주 월요일 09:00 — planExpiredAt 도래한 유료 구독 자동 결제.
+     * 매주 월요일 09:00 — planExpiredAt 도래한 유료 구독 자동 결제 + CANCELED 만료 시 FREE 전환.
      */
     @Scheduled(cron = "0 0 9 * * MON")
     @Transactional
@@ -193,6 +193,33 @@ public class SubscriptionService {
                 userRepository.findById(sub.getUserId()).ifPresent(User::downgradeToFree);
             }
         }
+
+        // CANCELED 구독 만료 시 FREE 자동 전환
+        List<Subscription> canceledExpired = subscriptionRepository
+                .findByStatusAndExpiredAtBefore(SubscriptionStatus.CANCELED, now);
+        for (Subscription sub : canceledExpired) {
+            userRepository.findById(sub.getUserId()).ifPresent(user -> {
+                user.downgradeToFree();
+                log.info("CANCELED 구독 만료 → FREE 전환 userId={}", sub.getUserId());
+            });
+        }
+    }
+
+    /**
+     * 구독 해지 취소 — CANCELED 상태를 ACTIVE로 복구.
+     */
+    @Transactional
+    public BillingAuthResponse resumeSubscription(UUID userId) {
+        Subscription subscription = subscriptionRepository
+                .findTopByUserIdAndStatusOrderByStartedAtDesc(userId, SubscriptionStatus.CANCELED)
+                .orElseThrow(() -> new DevpickException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+
+        subscription.resume();
+
+        return new BillingAuthResponse(
+                subscription.getPlanType(),
+                subscription.getExpiredAt().toInstant(ZoneOffset.UTC)
+        );
     }
 
     // ── 헬퍼 ──────────────────────────────────────────────────────

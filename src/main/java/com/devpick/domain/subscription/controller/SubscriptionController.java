@@ -47,6 +47,13 @@ public class SubscriptionController {
         return ApiResponse.ok(subscriptionService.refund(userId));
     }
 
+    @Operation(summary = "구독 해지 취소 (CANCELED → ACTIVE 복구)")
+    @PostMapping("/resume")
+    public ApiResponse<BillingAuthResponse> resumeSubscription(
+            @AuthenticationPrincipal UUID userId) {
+        return ApiResponse.ok(subscriptionService.resumeSubscription(userId));
+    }
+
     @Operation(summary = "다음 결제 구간부터 플랜 변경 예약 (PRO ↔ MAX)")
     @PostMapping("/change")
     public ApiResponse<PlanChangeResponse> changePlan(
