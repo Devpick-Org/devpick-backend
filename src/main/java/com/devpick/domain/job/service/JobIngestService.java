@@ -12,6 +12,7 @@ import com.devpick.domain.job.entity.JobPostingStatus;
 import com.devpick.domain.job.entity.JobSource;
 import com.devpick.domain.job.entity.PostingExperienceLevel;
 import com.devpick.domain.job.repository.JobPostingRepository;
+import com.devpick.domain.job.repository.JobPostingSpecifications;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -112,6 +113,13 @@ public class JobIngestService {
     }
 
     private JobPosting persist(JobPosting posting) {
+        if (!JobPostingSpecifications.passesListableQuality(posting.getTitle(), posting.getCompanyName())) {
+            if (posting.getId() != null) {
+                jobPostingRepository.delete(posting);
+                jobPostingRepository.flush();
+            }
+            throw new IllegalArgumentException("rejected low-quality job posting");
+        }
         enrichPreferredSkillsFromBullets(posting);
         return jobPostingRepository.save(posting);
     }
@@ -294,6 +302,9 @@ public class JobIngestService {
             if (!u.startsWith("http://") && !u.startsWith("https://")) {
                 continue;
             }
+            if (isUnusableJdImageUrl(u)) {
+                continue;
+            }
             if (!seen.add(u)) {
                 continue;
             }
@@ -303,6 +314,12 @@ public class JobIngestService {
             }
         }
         return out;
+    }
+
+    /** 랠릿 샘플 공고 등 hotlink 403 나는 URL 제외 */
+    private static boolean isUnusableJdImageUrl(String url) {
+        String lower = url.toLowerCase(Locale.ROOT);
+        return lower.contains("/samples/") || lower.contains("image.review.rivers.co.kr");
     }
 
     private List<String> cleanLines(List<String> raw, int limit) {

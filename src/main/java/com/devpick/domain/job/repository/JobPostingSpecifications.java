@@ -36,7 +36,13 @@ public final class JobPostingSpecifications {
         if (title != null && title.toLowerCase(lc).contains("더미")) {
             return false;
         }
-        return companyName == null || !companyName.toLowerCase(lc).contains("더미");
+        if (companyName != null && companyName.toLowerCase(lc).contains("더미")) {
+            return false;
+        }
+        if (title != null && title.toLowerCase(lc).contains("(sample)")) {
+            return false;
+        }
+        return companyName == null || !companyName.toLowerCase(lc).contains("테스트원");
     }
 
     public static Specification<JobPosting> keyword(String q) {
@@ -156,7 +162,10 @@ public final class JobPostingSpecifications {
                     cb.lessThan(cb.length(cb.lower(company)), 2));
             Predicate dummyInTitle = cb.and(cb.isNotNull(title), cb.like(cb.lower(title), "%더미%"));
             Predicate dummyInCompany = cb.and(cb.isNotNull(company), cb.like(cb.lower(company), "%더미%"));
-            Predicate bad = cb.or(titleTooShort, companyTooShort, dummyInTitle, dummyInCompany);
+            Predicate sampleInTitle = cb.and(cb.isNotNull(title), cb.like(cb.lower(title), "%(sample)%"));
+            Predicate testCompany = cb.and(cb.isNotNull(company), cb.like(cb.lower(company), "%테스트원%"));
+            Predicate bad = cb.or(
+                    titleTooShort, companyTooShort, dummyInTitle, dummyInCompany, sampleInTitle, testCompany);
             return cb.not(bad);
         };
     }
