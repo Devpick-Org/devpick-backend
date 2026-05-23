@@ -54,15 +54,77 @@ class MockInterviewPlannerTest {
     }
 
     @Test
+    @DisplayName("이력서·회사 정보가 있으면 자기소개 문항에 구체 명사가 포함된다")
+    void plan_personalizesWarmUpWithResumeAndCompany() {
+        MockInterviewResumeContext resume = new MockInterviewResumeContext(
+                "Backend Engineer",
+                "5년차",
+                "API와 캐시 설계",
+                List.of("Java", "Kafka"),
+                "DevPick Labs",
+                "Backend Engineer",
+                "Acme Payments",
+                "Fleet Dispatch Simulator",
+                "Study Log API",
+                "Redis",
+                "p95 지연 개선"
+        );
+        MockInterviewJdContext jd = new MockInterviewJdContext(
+                List.of("커머스 API 고도화", "캐시 전략 수립"),
+                "커머스 API · 캐시"
+        );
+        QuestionPlanResponse plan = planner.plan(
+                JobPostingCategory.BACKEND,
+                "Backend Engineer",
+                "Marshmallow",
+                List.of("Java", "Redis"),
+                List.of("Kafka"),
+                resume,
+                jd
+        );
+
+        String intro = plan.questions().get(0).prompt();
+        String motivation = plan.questions().get(1).prompt();
+        assertThat(intro + motivation)
+                .containsAnyOf("DevPick Labs", "Fleet Dispatch Simulator", "Marshmallow", "커머스", "API와 캐시");
+        assertThat(motivation).contains("Marshmallow");
+        assertThat(intro).doesNotContain("핵심 경험 한두 가지를 1분 내로");
+    }
+
+    @Test
+    @DisplayName("백엔드 CS_INFRA 첫 문항은 브라우저 렌더링이 아니다")
+    void plan_backendCoreCsIsNotBrowserRendering() {
+        MockInterviewResumeContext resume = MockInterviewResumeContext.empty();
+        QuestionPlanResponse plan = planner.plan(
+                JobPostingCategory.BACKEND,
+                "Server Engineer",
+                "TestCo",
+                List.of("Spring Boot"),
+                List.of(),
+                resume,
+                MockInterviewJdContext.empty()
+        );
+        String corePrompt = plan.questions().stream()
+                .filter(q -> q.phase().equals("CS_INFRA"))
+                .findFirst()
+                .orElseThrow()
+                .prompt();
+        assertThat(corePrompt).doesNotContain("브라우저 렌더링");
+        assertThat(corePrompt).containsAnyOf("API", "트랜잭션", "동시성");
+    }
+
+    @Test
     @DisplayName("백엔드 카테고리에서는 직무 페이즈 토픽이 백엔드 라벨로 잡힌다")
     void plan_backendDomainTopicsLabel() {
+        MockInterviewResumeContext resume = MockInterviewResumeContext.empty();
         QuestionPlanResponse plan = planner.plan(
                 JobPostingCategory.BACKEND,
                 "Server Engineer",
                 "TestCo",
                 List.of("Spring Boot", "PostgreSQL"),
                 List.of("Kafka"),
-                List.of("Spring Boot", "PostgreSQL")
+                resume,
+                MockInterviewJdContext.empty()
         );
         assertThat(plan.domainLabel()).isEqualTo("BACKEND");
         assertThat(countByPhase(plan, "DOMAIN")).isEqualTo(4);

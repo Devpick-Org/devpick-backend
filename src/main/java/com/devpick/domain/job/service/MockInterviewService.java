@@ -88,13 +88,17 @@ public class MockInterviewService {
         JobPosting job = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
         String resumeJson = loadResumeJson(userId);
+        MockInterviewResumeContext resumeCtx = parseResumeContext(resumeJson);
+        MockInterviewJdContext jdCtx = MockInterviewJdContext.fromJob(job);
         QuestionPlanResponse plan = buildPlan(
                 job.getJobCategory(),
                 nullSafe(job.getTitle()),
                 nullSafe(job.getCompanyName()),
                 job.getRequiredSkills(),
                 job.getPreferredSkills(),
-                resumeJson
+                resumeJson,
+                resumeCtx,
+                jdCtx
         );
         MockInterviewSession session = MockInterviewSession.builder()
                 .userId(userId)
@@ -126,13 +130,29 @@ public class MockInterviewService {
         }
         String resumeJson = loadResumeJson(userId);
         JobPostingCategory category = parseCategory(request.jobCategory());
+        MockInterviewResumeContext resumeCtx = parseResumeContext(resumeJson);
+        String rawJd = nullSafe(request.rawJdText());
+        List<String> required = List.of();
+        List<String> preferred = List.of();
+        if (!rawJd.isBlank()) {
+            try {
+                JobAiClient.JobJdParseResult parsed = jobAiClient.parseJd(rawJd);
+                required = parsed.requiredSkills() != null ? parsed.requiredSkills() : List.of();
+                preferred = parsed.preferredSkills() != null ? parsed.preferredSkills() : List.of();
+            } catch (Exception e) {
+                log.warn("[mock-interview] JD parse failed on startFromJd: {}", e.toString());
+            }
+        }
+        MockInterviewJdContext jdCtx = MockInterviewJdContext.fromRawText(rawJd);
         QuestionPlanResponse plan = buildPlan(
                 category,
                 request.jobTitle(),
                 nullSafe(request.companyName()),
-                List.of(),
-                List.of(),
-                resumeJson
+                required,
+                preferred,
+                resumeJson,
+                resumeCtx,
+                jdCtx
         );
         MockInterviewSession session = MockInterviewSession.builder()
                 .userId(userId)
@@ -140,7 +160,7 @@ public class MockInterviewService {
                 .companyName(nullSafe(request.companyName()))
                 .jobTitle(request.jobTitle())
                 .jobCategory(category != null ? category.name() : null)
-                .rawJdText(nullSafe(request.rawJdText()))
+                .rawJdText(rawJd)
                 .status(MockInterviewStatus.IN_PROGRESS)
                 .mode(parseMode(request.mode()))
                 .modelKey(modelRegistry.resolveOrDefault(request.modelKey()))
@@ -441,11 +461,12 @@ public class MockInterviewService {
             String companyName,
             List<String> required,
             List<String> preferred,
-            String resumeJson
+            String resumeJson,
+            MockInterviewResumeContext resumeCtx,
+            MockInterviewJdContext jdCtx
     ) {
-        List<String> resumeSkills = extractResumeSkills(resumeJson);
         QuestionPlanResponse base = planner.plan(category, jobTitle, companyName,
-                required, preferred, resumeSkills);
+                required, preferred, resumeCtx, jdCtx);
 
         Map<String, Object> aiBody = new HashMap<>();
         aiBody.put("job_title", nullSafe(jobTitle));
@@ -454,6 +475,7 @@ public class MockInterviewService {
         aiBody.put("required_skills", required != null ? required : List.of());
         aiBody.put("preferred_skills", preferred != null ? preferred : List.of());
         aiBody.put("resume_json", resumeJson);
+        aiBody.put("jd_context", jdCtx.snippet());
         aiBody.put("base_plan", base);
 
         try {
@@ -510,23 +532,20 @@ public class MockInterviewService {
         return null;
     }
 
-    private List<String> extractResumeSkills(String resumeJson) {
+    private MockInterviewResumeContext parseResumeContext(String resumeJson) {
         if (resumeJson == null || resumeJson.isBlank()) {
-            return List.of();
+            return MockInterviewResumeContext.empty();
         }
         try {
             JsonNode node = objectMapper.readTree(resumeJson);
-            JsonNode tech = node.path("techStack");
-            List<String> skills = new ArrayList<>();
-            if (tech.isArray()) {
-                for (JsonNode it : tech) {
-                    skills.add(it.asText());
-                }
-            }
-            return skills;
+            return MockInterviewResumeContext.fromJson(node);
         } catch (Exception e) {
-            return List.of();
+            return MockInterviewResumeContext.empty();
         }
+    }
+
+    private List<String> extractResumeSkills(String resumeJson) {
+        return parseResumeContext(resumeJson).skills();
     }
 
     private String loadResumeJson(UUID userId) {
@@ -596,7 +615,7 @@ public class MockInterviewService {
                     ? parseCategory(session.getJobCategory())
                     : JobPostingCategory.FRONTEND;
             return planner.plan(category, session.getJobTitle(), session.getCompanyName(),
-                    List.of(), List.of(), List.of());
+                    List.of(), List.of(), MockInterviewResumeContext.empty(), MockInterviewJdContext.empty());
         }
     }
 
