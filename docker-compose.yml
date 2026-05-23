@@ -51,6 +51,9 @@ services:
       ALADIN_TTB_KEY: ${ALADIN_TTB_KEY:-}
       TOSS_SECRET_KEY: ${TOSS_SECRET_KEY}
       TOSS_CLIENT_KEY: ${TOSS_CLIENT_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:-https://369dd1a14157c7715bdf17fb3185a24c@o4511437841498112.ingest.us.sentry.io/4511437846085632}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.05}
     dns:
       - 172.31.0.2  # AWS VPC DNS — ElastiCache 등 내부 hostname 해석용
     depends_on:

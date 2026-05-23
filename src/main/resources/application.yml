@@ -64,3 +64,12 @@ management:
         http.server.requests: true
       percentiles:
         http.server.requests: 0.95, 0.99
+
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENVIRONMENT:${spring.profiles.active:local}}
+  traces-sample-rate: ${SENTRY_TRACES_SAMPLE_RATE:0.05}
+  send-default-pii: false
+  logging:
+    minimum-breadcrumb-level: info
+    minimum-event-level: error

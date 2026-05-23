@@ -2,6 +2,7 @@ services:
   prometheus:
     image: prom/prometheus:v2.55.1
     container_name: devpick-prometheus
+    restart: unless-stopped
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -17,6 +18,7 @@ services:
   grafana:
     image: grafana/grafana:11.4.0
     container_name: devpick-grafana
+    restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
@@ -31,10 +33,12 @@ services:
     depends_on:
       - prometheus
       - influxdb
+      - loki
 
   influxdb:
     image: influxdb:1.8
     container_name: devpick-influxdb
+    restart: unless-stopped
     environment:
       INFLUXDB_DB: k6
       INFLUXDB_HTTP_AUTH_ENABLED: "false"
@@ -46,10 +50,34 @@ services:
       - default
       - backend_net
 
+  loki:
+    image: grafana/loki:2.9.10
+    container_name: devpick-loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/local-config.yml"]
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yml:ro
+      - loki_data:/loki
+    ports:
+      - "127.0.0.1:3100:3100"
+
+  promtail:
+    image: grafana/promtail:2.9.10
+    container_name: devpick-promtail
+    restart: unless-stopped
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+
 volumes:
   prometheus_data:
   grafana_data:
   influxdb_data:
+  loki_data:
 
 networks:
   backend_net:

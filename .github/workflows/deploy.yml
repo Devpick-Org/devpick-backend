@@ -50,6 +50,10 @@ jobs:
             # 이전 배포에서 남은 동일 이름 컨테이너/고아 컨테이너로 인한 Conflict 방지 (볼륨은 유지)
             docker compose down --remove-orphans || true
             docker compose up -d --build
+            if [ -d monitoring ]; then
+              (cd monitoring && docker compose up -d) \
+                || echo "::warning title=MONITORING_DEPLOY_FAILED::모니터링 스택(Prometheus/Grafana/Loki/Promtail) 기동에 실패했습니다. monitoring/.env 또는 Docker 네트워크를 확인하세요."
+            fi
 
             trap - ERR
 
