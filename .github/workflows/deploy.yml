@@ -69,13 +69,21 @@ jobs:
                 sleep 2
               done
               docker compose exec -T postgres psql -U "$DB_USERNAME" -d "$DB_NAME" -v ON_ERROR_STOP=1 \
+                < scripts/migrate-users-job-check-constraint.sql \
+                || echo "::warning title=JOB_CHECK_MIGRATION_FAILED::users.job CHECK 제약 마이그레이션에 실패했습니다. 필요 시 서버에서 수동 실행 하세요."
+              docker compose exec -T postgres psql -U "$DB_USERNAME" -d "$DB_NAME" -v ON_ERROR_STOP=1 \
                 < scripts/delete-low-quality-job-postings.sql \
                 || echo "::warning title=JOB_CLEANUP_FAILED::delete-low-quality SQL 실행에 실패했습니다. 필요 시 서버에서 수동 실행 하세요."
             else
               if [ -z "${DB_PASSWORD:-}" ]; then
-                echo "::warning title=JOB_CLEANUP_SKIPPED::외부 DB 사용 중인데 EC2 의 .env 에 DB_PASSWORD 가 없습니다. CLEANUP 단계 건너뜁니다."
+                echo "::warning title=DB_MIGRATION_SKIPPED::외부 DB 사용 중인데 EC2 의 .env 에 DB_PASSWORD 가 없습니다. DB 마이그레이션·CLEANUP 단계 건너뜁니다."
               else
                 export PGPASSWORD="$DB_PASSWORD"
+                docker run --rm --network host -e PGPASSWORD \
+                  -v "$(pwd)/scripts/migrate-users-job-check-constraint.sql:/migrate.sql:ro" \
+                  postgres:16-alpine \
+                  psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f /migrate.sql \
+                  || echo "::warning title=JOB_CHECK_MIGRATION_FAILED::외부 DB users.job CHECK 제약 마이그레이션에 실패했습니다."
                 docker run --rm --network host -e PGPASSWORD \
                   -v "$(pwd)/scripts/delete-low-quality-job-postings.sql:/cleanup.sql:ro" \
                   postgres:16-alpine \
