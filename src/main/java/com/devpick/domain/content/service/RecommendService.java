@@ -1,7 +1,5 @@
 package com.devpick.domain.content.service;
 
-import com.devpick.domain.content.dto.ContentSummaryResponse;
-import com.devpick.domain.content.dto.RecommendContentsResponse;
 import com.devpick.domain.content.dto.YoutubeRecommendItem;
 import com.devpick.domain.content.dto.YoutubeRecommendResponse;
 import com.devpick.domain.content.entity.Content;
@@ -34,7 +32,6 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -72,36 +69,6 @@ public class RecommendService {
     private final AiSummaryService aiSummaryService;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
-
-    @Transactional(readOnly = true)
-    public RecommendContentsResponse getRecommendContents(UUID userId) {
-        List<UUID> tagIds = getOrCacheTagIds(userId);
-
-        if (!tagIds.isEmpty()) {
-            List<String> tagNames = tagRepository.findAllById(tagIds).stream()
-                    .map(Tag::getName).toList();
-            if (!tagNames.isEmpty()) {
-                List<Content> candidates = findByTagNamesInTitle(tagNames, userId, CANDIDATE_LIMIT);
-                if (candidates.size() >= RESULT_SIZE) {
-                    return buildResponse(shuffleAndTake(candidates, userId), userId, true, null);
-                }
-            }
-        }
-
-        List<String> userTagNames = userTagRepository.findByUser_Id(userId).stream()
-                .map(ut -> ut.getTag().getName()).toList();
-
-        if (!userTagNames.isEmpty()) {
-            List<Content> candidates = findByTagNamesInTitle(userTagNames, userId, CANDIDATE_LIMIT);
-            if (!candidates.isEmpty()) {
-                return buildResponse(shuffleAndTake(candidates, userId), userId, true, null);
-            }
-        }
-
-        List<Content> latest = contentRepository.findLatestExcludingYoutubeAndScrapped(
-                userId, PageRequest.of(0, CANDIDATE_LIMIT));
-        return buildResponse(shuffleAndTake(latest, userId), userId, false, NOT_ENOUGH_MESSAGE);
-    }
 
     private List<Content> findByTagNamesInTitle(List<String> tagNames, UUID userId, int limit) {
         Set<UUID> seen = new LinkedHashSet<>();
@@ -148,19 +115,6 @@ public class RecommendService {
         }
 
         return tagIds;
-    }
-
-    private RecommendContentsResponse buildResponse(
-            List<Content> contents, UUID userId, boolean isPersonalized, String message) {
-        List<ContentSummaryResponse> items = contents.stream()
-                .map(c -> {
-                    boolean isLiked = likeRepository.existsByUser_IdAndContent_Id(userId, c.getId());
-                    Optional<String> core = aiSummaryService.findCachedCoreSummary(c.getId(), "junior");
-                    String preview = core.filter(s -> !s.isBlank()).orElse(c.getPreview());
-                    return ContentSummaryResponse.of(c, false, isLiked, preview);
-                })
-                .toList();
-        return new RecommendContentsResponse(items, isPersonalized, message);
     }
 
     // ─── YouTube 추천 (DP-463) ────────────────────────────────────────────────

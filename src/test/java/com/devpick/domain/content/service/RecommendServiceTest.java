@@ -1,6 +1,5 @@
 package com.devpick.domain.content.service;
 
-import com.devpick.domain.content.dto.RecommendContentsResponse;
 import com.devpick.domain.content.dto.YoutubeRecommendItem;
 import com.devpick.domain.content.dto.YoutubeRecommendResponse;
 import com.devpick.domain.content.entity.Content;
@@ -92,76 +91,6 @@ class RecommendServiceTest {
     // ─── 글 추천 테스트 ───────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("history 태그 기반 후보 10개 이상 → 개인화 응답, isPersonalized=true")
-    void getRecommendContents_historyTags_returnsPersonalized() throws JsonProcessingException {
-        List<UUID> tagIds = List.of(UUID.randomUUID());
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(tagIds);
-        given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        Tag tag = Tag.builder().name("Java").build();
-        given(tagRepository.findAllById(any())).willReturn(List.of(tag));
-        given(contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(anyString(), eq(userId), any()))
-                .willReturn(tenContents);
-
-        RecommendContentsResponse result = recommendService.getRecommendContents(userId);
-
-        assertThat(result.isPersonalized()).isTrue();
-        assertThat(result.message()).isNull();
-        assertThat(result.contents()).hasSize(8);
-        verify(userTagRepository, never()).findByUser_Id(any());
-    }
-
-    @Test
-    @DisplayName("history 태그 기반 후보 10개 미만 → user_tags fallback, isPersonalized=true")
-    void getRecommendContents_historyTagsInsufficient_fallsBackToUserTags() throws JsonProcessingException {
-        List<UUID> historyTagIds = List.of(UUID.randomUUID());
-        List<Content> fewContents = tenContents.subList(0, 5);
-
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(historyTagIds);
-        given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-
-        Tag histTag = Tag.builder().name("History").build();
-        given(tagRepository.findAllById(any())).willReturn(List.of(histTag));
-        given(contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(eq("History"), eq(userId), any()))
-                .willReturn(fewContents);
-
-        UUID userTagId = UUID.randomUUID();
-        Tag springTag = Tag.builder().name("Spring").build();
-        ReflectionTestUtils.setField(springTag, "id", userTagId);
-        UserTag userTag = UserTag.builder().tag(springTag).build();
-        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(eq("Spring"), eq(userId), any()))
-                .willReturn(tenContents);
-
-        RecommendContentsResponse result = recommendService.getRecommendContents(userId);
-
-        assertThat(result.isPersonalized()).isTrue();
-        assertThat(result.contents()).isNotEmpty();
-        verify(userTagRepository).findByUser_Id(userId);
-    }
-
-    @Test
-    @DisplayName("history 태그 없고 user_tags도 없으면 → 최신순 fallback, isPersonalized=false, message 포함")
-    void getRecommendContents_noTags_fallsBackToLatest() throws JsonProcessingException {
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(List.of());
-        given(objectMapper.writeValueAsString(any())).willReturn("[]");
-        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of());
-        given(contentRepository.findLatestExcludingYoutubeAndScrapped(eq(userId), any()))
-                .willReturn(tenContents);
-
-        RecommendContentsResponse result = recommendService.getRecommendContents(userId);
-
-        assertThat(result.isPersonalized()).isFalse();
-        assertThat(result.message()).isEqualTo(RecommendService.NOT_ENOUGH_MESSAGE);
-        verify(contentRepository).findLatestExcludingYoutubeAndScrapped(eq(userId), any());
-    }
-
-    @Test
     @DisplayName("Redis 캐시 히트 시 history 쿼리 미실행")
     void getOrCacheTagIds_cacheHit_skipsHistoryQuery() throws JsonProcessingException {
         List<UUID> cachedTagIds = List.of(UUID.randomUUID());
@@ -216,55 +145,6 @@ class RecommendServiceTest {
     }
 
     @Test
-    @DisplayName("history 태그 없고 user_tags 있으면 → user_tags 기반 개인화, isPersonalized=true")
-    void getRecommendContents_noHistoryTags_userTagsFallback() throws JsonProcessingException {
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(List.of());
-        given(objectMapper.writeValueAsString(any())).willReturn("[]");
-
-        UUID userTagId = UUID.randomUUID();
-        Tag tag = Tag.builder().name("Kotlin").build();
-        ReflectionTestUtils.setField(tag, "id", userTagId);
-        UserTag userTag = UserTag.builder().tag(tag).build();
-        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(eq("Kotlin"), eq(userId), any()))
-                .willReturn(tenContents);
-
-        RecommendContentsResponse result = recommendService.getRecommendContents(userId);
-
-        assertThat(result.isPersonalized()).isTrue();
-        assertThat(result.message()).isNull();
-        assertThat(result.contents()).isNotEmpty();
-        verify(contentRepository, never()).findLatestExcludingYoutubeAndScrapped(any(), any());
-    }
-
-    @Test
-    @DisplayName("history 태그 없고 user_tags 있지만 후보 없으면 → latest fallback, isPersonalized=false")
-    void getRecommendContents_userTagsButNoCandidates_fallsBackToLatest() throws JsonProcessingException {
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(List.of());
-        given(objectMapper.writeValueAsString(any())).willReturn("[]");
-
-        UUID userTagId = UUID.randomUUID();
-        Tag tag = Tag.builder().name("Kotlin").build();
-        ReflectionTestUtils.setField(tag, "id", userTagId);
-        UserTag userTag = UserTag.builder().tag(tag).build();
-        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
-        given(contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(eq("Kotlin"), eq(userId), any()))
-                .willReturn(List.of());
-        given(contentRepository.findLatestExcludingYoutubeAndScrapped(eq(userId), any()))
-                .willReturn(tenContents);
-
-        RecommendContentsResponse result = recommendService.getRecommendContents(userId);
-
-        assertThat(result.isPersonalized()).isFalse();
-        assertThat(result.message()).isEqualTo(RecommendService.NOT_ENOUGH_MESSAGE);
-        verify(contentRepository).findLatestExcludingYoutubeAndScrapped(eq(userId), any());
-    }
-
-    @Test
     @DisplayName("Redis 역직렬화 실패 시 history 쿼리 실행")
     void getOrCacheTagIds_deserializeFails_fallsBackToHistoryQuery() throws JsonProcessingException {
         UUID tagId = UUID.randomUUID();
@@ -294,34 +174,6 @@ class RecommendServiceTest {
         List<UUID> result = recommendService.getOrCacheTagIds(userId);
 
         assertThat(result).containsExactly(tagId);
-    }
-
-    @Test
-    @DisplayName("결과가 최대 8개")
-    void getRecommendContents_returnsAtMostEight() throws JsonProcessingException {
-        List<Content> lotsOfContents = new ArrayList<>(tenContents);
-        ContentSource source = ContentSource.builder()
-                .name("Velog").url("https://velog.io").collectMethod("graphql").build();
-        for (int i = 10; i < 50; i++) {
-            Content c = Content.builder()
-                    .source(source).title("글 " + i).author("a")
-                    .canonicalUrl("https://velog.io/" + i)
-                    .preview("p").publishedAt(LocalDateTime.now().minusDays(i)).build();
-            ReflectionTestUtils.setField(c, "id", UUID.randomUUID());
-            lotsOfContents.add(c);
-        }
-        given(valueOps.get(anyString())).willReturn(null);
-        given(historyRepository.findDistinctTagIdsByUserActionsAfter(eq(userId), anyList(), any()))
-                .willReturn(List.of(UUID.randomUUID()));
-        given(objectMapper.writeValueAsString(any())).willReturn("[\"uuid\"]");
-        Tag tag = Tag.builder().name("Java").build();
-        given(tagRepository.findAllById(any())).willReturn(List.of(tag));
-        given(contentRepository.findByTagNameInTitleExcludingYoutubeAndScrapped(anyString(), eq(userId), any()))
-                .willReturn(lotsOfContents);
-
-        RecommendContentsResponse result = recommendService.getRecommendContents(userId);
-
-        assertThat(result.contents()).hasSize(8);
     }
 
     // ─── YouTube 추천 테스트 (DP-463) ─────────────────────────────────────────
