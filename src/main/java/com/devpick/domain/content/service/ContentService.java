@@ -74,6 +74,7 @@ public class ContentService {
     private final AiSummaryService aiSummaryService;
     private final ContentViewLogService contentViewLogService;
     private final SimilarContentClient similarContentClient;
+    private final RecommendService recommendService;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
@@ -110,7 +111,7 @@ public class ContentService {
         }
 
         List<UUID> tagIds = loggedIn
-                ? feedTagIds(userId, profileUser.map(User::getJob).orElse(null))
+                ? resolveTagIds(userId, profileUser.map(User::getJob).orElse(null))
                 : List.of();
 
         Page<Content> page;
@@ -187,6 +188,14 @@ public class ContentService {
         return "contents:feed:v1:page:" + pageable.getPageNumber()
                 + ":size:" + pageable.getPageSize()
                 + ":sort:" + pageable.getSort();
+    }
+
+    private List<UUID> resolveTagIds(UUID userId, Job job) {
+        List<UUID> historyTagIds = recommendService.getOrCacheTagIds(userId);
+        if (!historyTagIds.isEmpty()) {
+            return historyTagIds;
+        }
+        return feedTagIds(userId, job);
     }
 
     private List<UUID> feedTagIds(UUID userId, Job job) {
