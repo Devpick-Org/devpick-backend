@@ -189,4 +189,8 @@ public class User extends BaseTimeEntity {
     public void extendPlan(LocalDateTime newExpiredAt) {
         this.planExpiredAt = newExpiredAt;
     }
+
+    public void resumePlan() {
+        this.planExpiredAt = null;
+    }
 }

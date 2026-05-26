@@ -216,9 +216,12 @@ public class SubscriptionService {
 
         subscription.resume();
 
+        User user = findUser(userId);
+        user.resumePlan();
+
         return new BillingAuthResponse(
                 subscription.getPlanType(),
-                subscription.getExpiredAt().toInstant(ZoneOffset.UTC)
+                null
         );
     }
 
