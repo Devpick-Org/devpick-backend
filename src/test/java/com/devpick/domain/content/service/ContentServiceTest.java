@@ -80,6 +80,8 @@ class ContentServiceTest {
     private ContentViewLogService contentViewLogService;
     @Mock
     private com.devpick.domain.content.client.SimilarContentClient similarContentClient;
+    @Mock
+    private RecommendService recommendService;
 
     private UUID userId;
     private UUID contentId;
@@ -111,6 +113,7 @@ class ContentServiceTest {
                 .build();
         lenient().when(userRepository.findByIdAndIsActiveTrue(userId)).thenReturn(Optional.of(user));
         lenient().when(tagRepository.findByNameIgnoreCaseIn(any())).thenReturn(List.of());
+        lenient().when(recommendService.getOrCacheTagIds(any())).thenReturn(List.of());
     }
 
     @Test
@@ -644,6 +647,48 @@ class ContentServiceTest {
         ContentDetailResponse response = contentService.getDetail(userId, contentId, "Mozilla/5.0");
 
         assertThat(response.title()).isEqualTo("Spring Boot 가이드");
+    }
+
+    // ── getFeed 학습 이력 기반 개인화 ─────────────────────────────────────────
+
+    @Test
+    @DisplayName("getFeed — 학습 이력 태그 있으면 이력 기반 태그로 랭킹, userTagRepository 미조회")
+    void getFeed_withHistoryTags_usesHistoryTagsForRanking() {
+        UUID historyTagId = UUID.randomUUID();
+        given(recommendService.getOrCacheTagIds(userId)).willReturn(List.of(historyTagId));
+        given(contentRepository.findAllRankedByTagIds(any(), any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(scrapRepository.findScrappedContentIds(any(), any())).willReturn(List.of());
+        given(likeRepository.findLikedContentIds(any(), any())).willReturn(List.of());
+        given(aiSummaryService.findCachedCoreSummaries(any(), any())).willReturn(Map.of());
+
+        ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
+
+        assertThat(response.contents()).hasSize(1);
+        verify(contentRepository).findAllRankedByTagIds(any(), any());
+        verify(userTagRepository, never()).findByUser_Id(any());
+    }
+
+    @Test
+    @DisplayName("getFeed — 학습 이력 태그 없으면 회원가입 태그로 폴백하여 랭킹")
+    void getFeed_historyTagsEmpty_fallsBackToUserTags() {
+        given(recommendService.getOrCacheTagIds(userId)).willReturn(List.of());
+        UserTag userTag = UserTag.builder()
+                .user(user)
+                .tag(Tag.builder().name("Java").build())
+                .build();
+        given(userTagRepository.findByUser_Id(userId)).willReturn(List.of(userTag));
+        given(contentRepository.findAllRankedByTagIds(any(), any()))
+                .willReturn(new PageImpl<>(List.of(content)));
+        given(scrapRepository.findScrappedContentIds(any(), any())).willReturn(List.of());
+        given(likeRepository.findLikedContentIds(any(), any())).willReturn(List.of());
+        given(aiSummaryService.findCachedCoreSummaries(any(), any())).willReturn(Map.of());
+
+        ContentListResponse response = contentService.getFeed(userId, PageRequest.of(0, 20));
+
+        assertThat(response.contents()).hasSize(1);
+        verify(contentRepository).findAllRankedByTagIds(any(), any());
+        verify(userTagRepository).findByUser_Id(userId);
     }
 
     // ── getFeed 플랜 제한 ────────────────────────────────────────────────────
