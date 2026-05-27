@@ -13,6 +13,7 @@ import com.devpick.domain.community.repository.AnswerLikeRepository;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.CommentRepository;
 import com.devpick.domain.community.client.AiQuestionCleanupClient;
+import com.devpick.domain.community.client.QuestionIndexClient;
 import com.devpick.domain.community.repository.PostLikeRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.global.storage.FileStorageService;
@@ -82,6 +83,8 @@ class PostServiceTest {
     private FileStorageService fileStorageService;
     @Mock
     private AiQuestionCleanupClient aiQuestionCleanupClient;
+    @Mock
+    private QuestionIndexClient questionIndexClient;
 
     private UUID userId;
     private UUID postId;

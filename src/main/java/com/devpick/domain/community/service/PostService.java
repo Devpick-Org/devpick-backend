@@ -14,6 +14,7 @@ import com.devpick.domain.community.repository.AnswerLikeRepository;
 import com.devpick.domain.community.repository.AnswerRepository;
 import com.devpick.domain.community.repository.CommentRepository;
 import com.devpick.domain.community.client.AiQuestionCleanupClient;
+import com.devpick.domain.community.client.QuestionIndexClient;
 import com.devpick.domain.community.repository.PostLikeRepository;
 import com.devpick.domain.community.repository.PostRepository;
 import com.devpick.domain.point.entity.PointAction;
@@ -64,6 +65,7 @@ public class PostService {
     private final AnswerLikeRepository answerLikeRepository;
     private final FileStorageService fileStorageService;
     private final AiQuestionCleanupClient aiQuestionCleanupClient;
+    private final QuestionIndexClient questionIndexClient;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
@@ -93,6 +95,10 @@ public class PostService {
                 .post(savedPost)
                 .build());
         pointService.earn(user, PointAction.QUESTION_WRITE);
+
+        if (savedPost.getPostType() == PostType.TECH) {
+            scheduleQuestionIndexing(savedPost);
+        }
 
         return PostDetailResponse.of(savedPost, 0L);
     }
@@ -275,6 +281,20 @@ public class PostService {
 
         if (post.getPostType() == PostType.TECH) {
             scheduleAiQuestionCleanup(postId);
+        }
+    }
+
+    private void scheduleQuestionIndexing(Post post) {
+        Runnable task = () -> questionIndexClient.indexQuestion(post);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    task.run();
+                }
+            });
+        } else {
+            task.run();
         }
     }
 
