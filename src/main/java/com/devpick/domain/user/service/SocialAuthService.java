@@ -141,13 +141,15 @@ public class SocialAuthService {
     }
 
     private User registerNewSocialUser(String provider, OAuthUserInfo userInfo) {
-        // 같은 이메일의 탈퇴 계정이 있으면 처리 (이메일 가입 후 소셜 로그인 시도 등)
         userRepository.findByEmail(userInfo.getEmail()).ifPresent(existing -> {
             if (!existing.getIsActive()) {
                 if (existing.isRecoverable()) {
                     throw new DevpickException(ErrorCode.AUTH_ACCOUNT_RECOVERABLE);
                 }
                 existing.anonymize();
+            } else {
+                // 동일 이메일로 다른 제공자(또는 이메일)로 이미 가입된 활성 계정 존재
+                throw new DevpickException(ErrorCode.AUTH_DUPLICATE_EMAIL);
             }
         });
 

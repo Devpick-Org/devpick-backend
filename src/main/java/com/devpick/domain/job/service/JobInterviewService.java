@@ -114,7 +114,6 @@ public class JobInterviewService {
     public String generateAndSave(UUID userId, UUID jobId) {
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
-        planLimitService.checkAndIncrementWeekly(userId, user.getPlanType(), "interview_qa_gen");
         JobPosting job = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
         if (!JobPostingSpecifications.passesListableQuality(job.getTitle(), job.getCompanyName())) {
@@ -137,6 +136,7 @@ public class JobInterviewService {
         body.put("resume_json", resumeJson);
 
         String payload = jobAiClient.generateInterviewQa(body);
+        planLimitService.checkAndIncrementWeekly(userId, user.getPlanType(), "interview_qa_gen");
 
         JobInterviewQa entity = jobInterviewQaRepository.findByUserIdAndJobPosting_Id(userId, jobId)
                 .orElseGet(() -> JobInterviewQa.builder()

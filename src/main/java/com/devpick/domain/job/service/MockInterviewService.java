@@ -84,7 +84,6 @@ public class MockInterviewService {
     public SessionDetailResponse startFromJob(UUID userId, UUID jobId, StartFromJobRequest request) {
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
-        planLimitService.checkAndIncrementWeekly(userId, user.getPlanType(), "mock_interview");
         JobPosting job = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
         String resumeJson = loadResumeJson(userId);
@@ -100,6 +99,7 @@ public class MockInterviewService {
                 resumeCtx,
                 jdCtx
         );
+        planLimitService.checkAndIncrementWeekly(userId, user.getPlanType(), "mock_interview");
         MockInterviewSession session = MockInterviewSession.builder()
                 .userId(userId)
                 .jobPosting(job)
@@ -124,7 +124,6 @@ public class MockInterviewService {
     public SessionDetailResponse startFromJd(UUID userId, StartFromJdRequest request) {
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
-        planLimitService.checkAndIncrementWeekly(userId, user.getPlanType(), "mock_interview");
         if (request == null || request.jobTitle() == null || request.jobTitle().isBlank()) {
             throw new DevpickException(ErrorCode.INVALID_INPUT);
         }
@@ -154,6 +153,7 @@ public class MockInterviewService {
                 resumeCtx,
                 jdCtx
         );
+        planLimitService.checkAndIncrementWeekly(userId, user.getPlanType(), "mock_interview");
         MockInterviewSession session = MockInterviewSession.builder()
                 .userId(userId)
                 .jobPosting(null)

@@ -395,7 +395,6 @@ public class JobService {
     public SkillGapResponse skillGap(UUID userId, UUID jobId) {
         var user = userRepository.findByIdAndIsActiveTrue(userId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.USER_NOT_FOUND));
-        planLimitService.checkAndIncrementWeekly(userId, user.getPlanType(), "skill_boost");
         JobPosting p = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new DevpickException(ErrorCode.JOB_NOT_FOUND));
         ensureListableJob(p);
@@ -413,6 +412,7 @@ public class JobService {
         body.put("company_name", p.getCompanyName());
         body.put("resume_json", resumeJson);
         Map<String, Object> ai = jobAiClient.skillGap(body);
+        planLimitService.checkAndIncrementWeekly(userId, user.getPlanType(), "skill_boost");
         @SuppressWarnings("unchecked")
         List<String> roadmap = (List<String>) ai.getOrDefault("roadmap", List.of());
 

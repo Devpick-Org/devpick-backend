@@ -42,13 +42,13 @@ public class AiAnswerService {
         return aiAnswerRepository.findByPost_Id(postId)
                 .map(AiAnswerResponse::of)
                 .orElseGet(() -> {
+                    AiQuestion aiQuestion = aiQuestionRepository.findByPost_Id(postId).orElse(null);
+                    AiAnswerClient.AiAnswerFastApiResponse aiResponse =
+                            aiAnswerClient.generateAnswer(post, aiQuestion);
                     if (userId != null) {
                         userRepository.findById(userId).ifPresent(user ->
                                 planLimitService.checkAndIncrementAiDaily(userId, user.getPlanType(), "ai_answer"));
                     }
-                    AiQuestion aiQuestion = aiQuestionRepository.findByPost_Id(postId).orElse(null);
-                    AiAnswerClient.AiAnswerFastApiResponse aiResponse =
-                            aiAnswerClient.generateAnswer(post, aiQuestion);
                     AiAnswer saved = aiAnswerRepository.save(AiAnswer.builder()
                             .post(post)
                             .content(aiResponse.answerContent())
